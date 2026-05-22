@@ -92,6 +92,35 @@ def init_db() -> None:
                 "ALTER TABLE calls ADD COLUMN final_outcome TEXT"
             )
 
+        # Phase H — failure_reports table (post-call analysis). Strictly
+        # additive; existing tables and columns untouched.
+        conn.executescript(
+            """
+            CREATE TABLE IF NOT EXISTS failure_reports (
+                id                 INTEGER PRIMARY KEY AUTOINCREMENT,
+                call_uuid          TEXT NOT NULL,
+                pattern_name       TEXT,
+                severity           TEXT,
+                summary            TEXT,
+                root_cause         TEXT,
+                proposed_fix_text  TEXT,
+                proposed_file      TEXT,
+                suggested_diff     TEXT,
+                confidence         REAL,
+                status             TEXT NOT NULL DEFAULT 'pending',
+                applied_pr_url     TEXT,
+                applied_at         TEXT,
+                dismissed_by       TEXT,
+                dismissed_at       TEXT,
+                created_at         TEXT DEFAULT CURRENT_TIMESTAMP
+            );
+            CREATE INDEX IF NOT EXISTS idx_failure_reports_status
+                ON failure_reports(status);
+            CREATE INDEX IF NOT EXISTS idx_failure_reports_call_uuid
+                ON failure_reports(call_uuid);
+            """
+        )
+
 
 def create_call(call_uuid: str, caller: str, to: str) -> None:
     with get_conn() as conn:
@@ -195,3 +224,109 @@ def place_order(call_uuid: str, items: list) -> str:
             (call_uuid, json.dumps(items), _now()),
         )
     return order_id
+
+
+# ───────────────────────── Phase H: failure_reports helpers ──────────────
+
+
+def create_failure_report(
+    call_uuid: str,
+    pattern_name: str | None,
+    severity: str | None,
+    summary: str | None,
+    root_cause: str | None,
+    proposed_fix_text: str | None,
+    proposed_file: str | None,
+    suggested_diff: str | None,
+    confidence: float | None,
+) -> int:
+    with get_conn() as conn:
+        cur = conn.execute(
+            "INSERT INTO failure_reports "
+            "(call_uuid, pattern_name, severity, summary, root_cause, "
+            "proposed_fix_text, proposed_file, suggested_diff, confidence, "
+            "status, created_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                call_uuid,
+                pattern_name,
+                severity,
+                summary,
+                root_cause,
+                proposed_fix_text,
+                proposed_file,
+                suggested_diff,
+                float(confidence) if confidence is not None else None,
+                "pending",
+                _now(),
+            ),
+        )
+        return cur.lastrowid
+
+
+def get_failure_report_by_call(call_uuid: str) -> dict | None:
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT * FROM failure_reports WHERE call_uuid = ? "
+            "ORDER BY id DESC LIMIT 1",
+            (call_uuid,),
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def get_failure_report_by_id(report_id: int) -> dict | None:
+    with get_conn() as conn:
+        row = conn.execute(
+            "SELECT * FROM failure_reports WHERE id = ?",
+            (int(report_id),),
+        ).fetchone()
+    return dict(row) if row else None
+
+
+def list_failure_reports(status: str | None = "pending", limit: int = 50) -> list[dict]:
+    """List reports, optionally filtered by status.
+
+    status='all' (or None) returns every row regardless of status.
+    """
+    if status in (None, "all"):
+        sql = "SELECT * FROM failure_reports ORDER BY id DESC LIMIT ?"
+        params: tuple = (int(limit),)
+    else:
+        sql = "SELECT * FROM failure_reports WHERE status = ? ORDER BY id DESC LIMIT ?"
+        params = (status, int(limit))
+    with get_conn() as conn:
+        rows = conn.execute(sql, params).fetchall()
+    return [dict(r) for r in rows]
+
+
+def count_failure_reports(status: str | None = "pending") -> int:
+    if status in (None, "all"):
+        sql = "SELECT COUNT(*) AS n FROM failure_reports"
+        params: tuple = ()
+    else:
+        sql = "SELECT COUNT(*) AS n FROM failure_reports WHERE status = ?"
+        params = (status,)
+    with get_conn() as conn:
+        row = conn.execute(sql, params).fetchone()
+    return int(row["n"]) if row else 0
+
+
+def update_failure_report_status(report_id: int, status: str, **kwargs) -> bool:
+    """Update the status (and any optional bookkeeping columns) of a
+    failure_report row. Accepted kwargs: dismissed_by, dismissed_at,
+    applied_pr_url, applied_at. Unknown kwargs are ignored.
+    """
+    allowed = {"dismissed_by", "dismissed_at", "applied_pr_url", "applied_at"}
+    extra = {k: v for k, v in kwargs.items() if k in allowed}
+    cols = ["status = ?"]
+    vals: list = [status]
+    for k, v in extra.items():
+        cols.append(f"{k} = ?")
+        vals.append(v)
+    vals.append(int(report_id))
+    with get_conn() as conn:
+        cur = conn.execute(
+            f"UPDATE failure_reports SET {', '.join(cols)} WHERE id = ?",
+            tuple(vals),
+        )
+        return cur.rowcount > 0

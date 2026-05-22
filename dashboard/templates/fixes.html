@@ -1,0 +1,185 @@
+{% extends "base.html" %}
+{% block title %}Pending Fixes — Plivo Mirror{% endblock %}
+
+{% block content %}
+
+<section class="mb-6 flex items-start justify-between gap-4">
+  <div>
+    <h1 class="text-lg font-semibold">Pending Fixes</h1>
+    <p class="text-sm text-dim mt-1">
+      Mirror's post-call analysis. Review and approve to fix the underlying agent.
+    </p>
+  </div>
+  <button hx-post="/fixes/backfill?limit=50"
+          hx-target="#backfill-result"
+          hx-swap="innerHTML"
+          hx-indicator="#backfill-spinner"
+          class="inline-flex items-center gap-2 px-3 py-1.5 rounded-md text-sm
+                 border border-faint bg-[#141414] text-dim hover:text-white
+                 hover:border-zinc-500 transition"
+          title="Generate failure reports for past calls that had interventions but no report (e.g. calls from before this dashboard was deployed)">
+    <span id="backfill-spinner" class="htmx-indicator">…</span>
+    Backfill past calls
+  </button>
+</section>
+
+<div id="backfill-result"></div>
+
+<!-- Filter tabs -->
+<section class="mb-6" hx-get="/fixes.json?status={{ active_status }}"
+         hx-trigger="every 5s" hx-swap="none"
+         hx-on::after-request="refreshReports(event.detail.xhr.response)">
+  <div class="flex items-center gap-1 text-xs">
+    {% for tab, label in [('pending','Pending'), ('applied','Applied'), ('dismissed','Dismissed'), ('all','All')] %}
+      <a href="/fixes?status={{ tab }}"
+         class="filter-pill px-3 py-1.5 rounded-md border transition
+                {% if tab == active_status %}bg-[#1f1f1f] text-white border-zinc-600{% else %}border-faint text-dim hover:border-zinc-500{% endif %}">
+        {{ label }}
+        <span class="ml-1 text-[10px] opacity-70">
+          {{ counts.get(tab, 0) }}
+        </span>
+      </a>
+    {% endfor %}
+  </div>
+</section>
+
+<!-- Report list -->
+<section id="reports-list" class="space-y-4">
+  {% if not reports %}
+    <div class="surface rounded-lg p-8 text-center text-dim text-sm italic">
+      No {{ active_status if active_status != 'all' else '' }} fixes.
+      {% if active_status == 'pending' %}
+        Make a demo call that triggers an intervention — Mirror will analyse it and surface the fix here.
+      {% endif %}
+    </div>
+  {% endif %}
+
+  {% for r in reports %}
+    {% include "_fix_card.html" %}
+  {% endfor %}
+</section>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function escapeHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+
+  function severityClasses(sev) {
+    sev = (sev || '').toLowerCase();
+    if (sev === 'critical') return 'bg-red-500/10 text-red-300 border-red-500/40';
+    if (sev === 'high')     return 'bg-amber-500/10 text-amber-300 border-amber-500/40';
+    if (sev === 'medium')   return 'bg-blue-500/10 text-blue-300 border-blue-500/40';
+    return 'bg-zinc-700/40 text-zinc-300 border-zinc-600';
+  }
+
+  function diffHtml(diffText) {
+    if (!diffText) return '';
+    return diffText.split('\n').map(line => {
+      const safe = escapeHtml(line);
+      if (line.startsWith('+')) return `<div class="text-emerald-300">${safe}</div>`;
+      if (line.startsWith('-')) return `<div class="text-red-300">${safe}</div>`;
+      if (line.startsWith('@@')) return `<div class="text-blue-300">${safe}</div>`;
+      return `<div class="text-zinc-400">${safe}</div>`;
+    }).join('');
+  }
+
+  function cardHtml(r) {
+    const sev = (r.severity || 'medium');
+    return `
+    <article id="fix-${r.id}" class="surface rounded-lg p-5 slide-in">
+      <header class="flex items-start justify-between gap-4 mb-4">
+        <div class="flex items-center gap-3">
+          <span class="inline-block px-2.5 py-0.5 rounded-md text-xs font-medium border ${severityClasses(sev)}">
+            ${sev.toUpperCase()}
+          </span>
+          <span class="font-medium">${escapeHtml(r.pattern_name || 'unknown')}</span>
+          <span class="text-dim text-xs">·</span>
+          <a href="/calls/${r.call_uuid}" class="text-xs text-dim hover:text-white transition mono">
+            Call: ${r.short_call_uuid} →
+          </a>
+        </div>
+        <div class="text-xs text-dim mono">${escapeHtml(r.created_relative || '')}</div>
+      </header>
+
+      <div class="grid grid-cols-1 gap-4">
+        <div>
+          <div class="text-xs text-dim uppercase tracking-wider mb-1">Summary</div>
+          <div class="surface-2 rounded-md px-3 py-2 text-sm">${escapeHtml(r.summary || '—')}</div>
+        </div>
+        <div>
+          <div class="text-xs text-dim uppercase tracking-wider mb-1">Root Cause</div>
+          <div class="surface-2 rounded-md px-3 py-2 text-sm leading-relaxed">${escapeHtml(r.root_cause || '—')}</div>
+        </div>
+        <div>
+          <div class="flex items-center justify-between mb-1">
+            <div class="text-xs text-dim uppercase tracking-wider">Proposed Fix</div>
+            <div class="text-xs text-dim">Target: <span class="mono text-emerald-300">${escapeHtml(r.proposed_file || '—')}</span></div>
+          </div>
+          <div class="surface-2 rounded-md px-3 py-2 text-sm leading-relaxed">${escapeHtml(r.proposed_fix_text || '—')}</div>
+        </div>
+        <div>
+          <div class="text-xs text-dim uppercase tracking-wider mb-1">Suggested Diff</div>
+          <div class="surface-2 rounded-md px-3 py-2 text-xs mono whitespace-pre overflow-x-auto">
+            ${diffHtml(r.suggested_diff)}
+          </div>
+        </div>
+      </div>
+
+      <footer class="flex items-center justify-between mt-5 pt-4 border-t border-faint">
+        <div class="text-xs text-dim">
+          Confidence:
+          <span class="text-white mono">${(r.confidence != null ? r.confidence.toFixed(2) : '—')}</span>
+        </div>
+        <div class="flex items-center gap-2" id="actions-${r.id}">
+          ${r.status === 'pending' ? `
+            <button hx-post="/fixes/${r.id}/approve" hx-target="#actions-${r.id}" hx-swap="beforebegin"
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium
+                           bg-emerald-500/10 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/20 transition">
+              Approve &amp; Apply
+            </button>
+            <button hx-post="/fixes/${r.id}/dismiss" hx-target="#fix-${r.id}" hx-swap="outerHTML swap:300ms"
+                    hx-confirm="Dismiss this fix?"
+                    class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm
+                           bg-zinc-700/40 text-zinc-300 border border-zinc-600 hover:bg-zinc-700/60 transition">
+              Dismiss
+            </button>
+          ` : `
+            <span class="text-xs text-dim italic">${escapeHtml(r.status || '')}</span>
+          `}
+        </div>
+      </footer>
+    </article>`;
+  }
+
+  function refreshReports(raw) {
+    try {
+      const payload = JSON.parse(raw);
+      const list = document.getElementById('reports-list');
+      if (!list) return;
+      const reports = payload.reports || [];
+      if (!reports.length) {
+        list.innerHTML = `
+          <div class="surface rounded-lg p-8 text-center text-dim text-sm italic">
+            No fixes here right now.
+          </div>`;
+      } else {
+        list.innerHTML = reports.map(cardHtml).join('');
+        htmx.process(list);
+      }
+      // Refresh the filter tab counts
+      const counts = payload.counts || {};
+      document.querySelectorAll('.filter-pill').forEach(el => {
+        const tab = (el.getAttribute('href') || '').split('=')[1] || 'pending';
+        const c = counts[tab];
+        const small = el.querySelector('span');
+        if (small && c != null) small.textContent = c;
+      });
+    } catch (err) { console.warn('refreshReports failed', err); }
+  }
+</script>
+{% endblock %}

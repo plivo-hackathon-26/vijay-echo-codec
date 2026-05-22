@@ -10,6 +10,7 @@ import db
 from prompts import GREETING
 from voice.stream import handle_audio_stream
 from dashboard.routes import router as dashboard_router
+from dashboard.fixes_routes import router as fixes_router
 
 load_dotenv()
 
@@ -102,3 +103,4 @@ async def voice_stream(ws: WebSocket):
 
 
 app.include_router(dashboard_router)
+app.include_router(fixes_router)

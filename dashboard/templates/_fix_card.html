@@ -1,0 +1,75 @@
+{% set sev = (r.severity or 'medium')|lower %}
+{% set sev_classes = {
+  'critical': 'bg-red-500/10 text-red-300 border-red-500/40',
+  'high':     'bg-amber-500/10 text-amber-300 border-amber-500/40',
+  'medium':   'bg-blue-500/10 text-blue-300 border-blue-500/40',
+  'low':      'bg-zinc-700/40 text-zinc-300 border-zinc-600',
+} %}
+
+<article id="fix-{{ r.id }}" class="surface rounded-lg p-5 slide-in">
+  <header class="flex items-start justify-between gap-4 mb-4">
+    <div class="flex items-center gap-3">
+      <span class="inline-block px-2.5 py-0.5 rounded-md text-xs font-medium border {{ sev_classes.get(sev, sev_classes['low']) }}">
+        {{ sev|upper }}
+      </span>
+      <span class="font-medium">{{ r.pattern_name or 'unknown' }}</span>
+      <span class="text-dim text-xs">·</span>
+      <a href="/calls/{{ r.call_uuid }}" class="text-xs text-dim hover:text-white transition mono">
+        Call: {{ r.short_call_uuid }} →
+      </a>
+    </div>
+    <div class="text-xs text-dim mono">{{ r.created_relative or '' }}</div>
+  </header>
+
+  <div class="grid grid-cols-1 gap-4">
+    <div>
+      <div class="text-xs text-dim uppercase tracking-wider mb-1">Summary</div>
+      <div class="surface-2 rounded-md px-3 py-2 text-sm">{{ r.summary or '—' }}</div>
+    </div>
+    <div>
+      <div class="text-xs text-dim uppercase tracking-wider mb-1">Root Cause</div>
+      <div class="surface-2 rounded-md px-3 py-2 text-sm leading-relaxed">{{ r.root_cause or '—' }}</div>
+    </div>
+    <div>
+      <div class="flex items-center justify-between mb-1">
+        <div class="text-xs text-dim uppercase tracking-wider">Proposed Fix</div>
+        <div class="text-xs text-dim">
+          Target: <span class="mono text-emerald-300">{{ r.proposed_file or '—' }}</span>
+        </div>
+      </div>
+      <div class="surface-2 rounded-md px-3 py-2 text-sm leading-relaxed">{{ r.proposed_fix_text or '—' }}</div>
+    </div>
+    <div>
+      <div class="text-xs text-dim uppercase tracking-wider mb-1">Suggested Diff</div>
+      <pre class="surface-2 rounded-md px-3 py-2 text-xs mono whitespace-pre overflow-x-auto">{% if r.suggested_diff %}{% for line in r.suggested_diff.split('\n') %}{% if line.startswith('+') %}<span class="text-emerald-300">{{ line }}</span>
+{% elif line.startswith('-') %}<span class="text-red-300">{{ line }}</span>
+{% elif line.startswith('@@') %}<span class="text-blue-300">{{ line }}</span>
+{% else %}<span class="text-zinc-400">{{ line }}</span>
+{% endif %}{% endfor %}{% else %}—{% endif %}</pre>
+    </div>
+  </div>
+
+  <footer class="flex items-center justify-between mt-5 pt-4 border-t border-faint">
+    <div class="text-xs text-dim">
+      Confidence:
+      <span class="text-white mono">{% if r.confidence is not none %}{{ '%.2f' % r.confidence }}{% else %}—{% endif %}</span>
+    </div>
+    <div class="flex items-center gap-2" id="actions-{{ r.id }}">
+      {% if r.status == 'pending' %}
+        <button hx-post="/fixes/{{ r.id }}/approve" hx-target="#actions-{{ r.id }}" hx-swap="beforebegin"
+                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium
+                       bg-emerald-500/10 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/20 transition">
+          Approve &amp; Apply
+        </button>
+        <button hx-post="/fixes/{{ r.id }}/dismiss" hx-target="#fix-{{ r.id }}" hx-swap="outerHTML swap:300ms"
+                hx-confirm="Dismiss this fix?"
+                class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm
+                       bg-zinc-700/40 text-zinc-300 border border-zinc-600 hover:bg-zinc-700/60 transition">
+          Dismiss
+        </button>
+      {% else %}
+        <span class="text-xs text-dim italic">{{ r.status }}</span>
+      {% endif %}
+    </div>
+  </footer>
+</article>

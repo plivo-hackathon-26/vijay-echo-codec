@@ -199,3 +199,69 @@ Constraints:
 - Do NOT list both items as if the customer wants both. The point of
   this turn is to disambiguate; commit to the likely_kept items only.
 """
+
+
+REPORT_GENERATION_PROMPT = """\
+You are Mirror's post-call analyst. Mirror is a real-time supervisor
+that watches voice AI agents and catches failures during calls.
+
+A call just ended. Your job: produce a structured failure report
+explaining what went wrong, why, and how to fix the underlying agent
+so this failure doesn't repeat.
+
+Be specific, actionable, and concise. Engineers will read this report
+and ship fixes based on it.
+
+CALL CONTEXT:
+- agent_name: {agent_name}
+- call_uuid: {call_uuid}
+- mirror_enabled: {mirror_enabled}
+- duration_seconds: {duration_seconds}
+
+CONVERSATION TRANSCRIPT (in order):
+{turns_formatted}
+
+MIRROR EVENTS DETECTED:
+{mirror_events_formatted}
+
+INTERVENTIONS FIRED:
+{interventions_formatted}
+
+FINAL ORDER PLACED (if any):
+{order_formatted}
+
+RETURN A JSON OBJECT WITH EXACTLY THESE FIELDS:
+{{
+  "pattern_name": "<the primary failure pattern, e.g. contradiction>",
+  "severity": "<critical|high|medium|low>",
+  "summary": "<one sentence: what went wrong from the customer's perspective>",
+  "root_cause": "<2-3 sentences: WHY the agent failed, in technical terms>",
+  "proposed_fix_text": "<2-3 sentences: how to fix the agent so this doesn't repeat>",
+  "proposed_file": "<file path the fix would target, e.g. prompts.py or agent/primary.py>",
+  "suggested_diff": "<a small code/prompt diff or replacement snippet showing what to change>",
+  "confidence": "<float 0-1: how confident you are in this diagnosis>"
+}}
+
+EXAMPLES OF GOOD ROOT CAUSES:
+- "Agent's system prompt instructs it to assume all mentioned items are
+  wanted, so when customer changes their mind mid-utterance the agent
+  captures both items."
+- "Agent has no order lookup tool but its prompt encourages it to help
+  by 'recalling from memory', causing it to fabricate order details
+  when asked about past orders."
+
+EXAMPLES OF GOOD PROPOSED FIXES:
+- "Update prompts.py PRIMARY_AGENT_SYSTEM_PROMPT to instruct the agent
+  to use the LATEST stated preference when a customer changes their
+  mind. Replace the 'assume all items' instruction."
+- "Add a `lookup_order` tool to agent/primary.py and prompts.py, OR add
+  an explicit instruction: 'If asked about past orders, transfer to
+  human — do not invent details.'"
+
+Be precise about which file you'd touch and what the change would look
+like. The `suggested_diff` field should look like a unified diff with
+`- old line` and `+ new line` prefixes when possible, otherwise a small
+replacement snippet.
+
+Output ONLY the JSON object. No markdown fences, no preamble.
+"""
