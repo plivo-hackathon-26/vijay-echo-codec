@@ -37,6 +37,10 @@ async def handle_audio_stream(ws: WebSocket) -> None:
                 db.add_turn(call_uuid, "customer", text)
             transcript_history.append({"role": "customer", "text": text})
 
+            # Brief natural pause before the agent responds — feels less
+            # robotic than instant turn-taking.
+            await asyncio.sleep(0.3)
+
             try:
                 response = await run_turn(call_uuid, transcript_history)
             except Exception:
@@ -47,8 +51,10 @@ async def handle_audio_stream(ws: WebSocket) -> None:
 
             try:
                 await asyncio.to_thread(speak_on_call, call_uuid, response)
-            except Exception:
-                log.exception("speak_on_call failed")
+            except Exception as e:
+                # Common case: caller hung up while the agent was mid-turn,
+                # so the call_uuid no longer exists. Not worth a stack trace.
+                log.info("speak_on_call skipped (call likely ended): %s", e)
 
             # Hold the lock while Plivo plays the audio so the agent's own
             # voice doesn't get transcribed back in as a customer turn.
