@@ -71,6 +71,27 @@ def init_db() -> None:
             """
         )
 
+        # Phase 5 — additive columns on `calls` for the dashboard.
+        # SQLite's ALTER TABLE ADD COLUMN doesn't support IF NOT
+        # EXISTS, so we introspect pragma_table_info to stay
+        # idempotent on every boot.
+        existing_cols = {
+            row["name"]
+            for row in conn.execute("PRAGMA table_info(calls)").fetchall()
+        }
+        if "agent_name" not in existing_cols:
+            conn.execute(
+                "ALTER TABLE calls ADD COLUMN agent_name TEXT DEFAULT 'pizza-plivo'"
+            )
+        if "mirror_enabled" not in existing_cols:
+            conn.execute(
+                "ALTER TABLE calls ADD COLUMN mirror_enabled INTEGER DEFAULT 1"
+            )
+        if "final_outcome" not in existing_cols:
+            conn.execute(
+                "ALTER TABLE calls ADD COLUMN final_outcome TEXT"
+            )
+
 
 def create_call(call_uuid: str, caller: str, to: str) -> None:
     with get_conn() as conn:

@@ -1,0 +1,108 @@
+{% extends "base.html" %}
+{% block title %}Compare — Plivo Mirror{% endblock %}
+
+{% block content %}
+
+<a href="/" class="text-sm text-dim hover:text-white transition mb-4 inline-block">← Back to dashboard</a>
+
+<section class="mb-6">
+  <h1 class="text-lg font-semibold">With vs without Mirror</h1>
+  <div class="text-sm text-dim">Compare the same scenario when Mirror is off and on.</div>
+</section>
+
+<form method="get" action="/compare" class="grid grid-cols-2 gap-6 mb-6">
+  <div>
+    <label class="text-xs text-dim uppercase tracking-wider">Call A (without Mirror)</label>
+    <select name="a" onchange="this.form.submit()"
+            class="mt-1 w-full bg-[#141414] border border-faint rounded-md px-3 py-2 text-sm mono focus:outline-none focus:ring-1 focus:ring-emerald-500/30">
+      {% for c in candidates %}
+        <option value="{{ c.call_uuid }}" {% if c.call_uuid == selected_a %}selected{% endif %}>
+          {{ c.short_uuid }} · Mirror {% if c.mirror_enabled %}ON{% else %}OFF{% endif %} · {{ c.final_outcome or c.status }} · {{ (c.started_at or '')[:19] }}
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+  <div>
+    <label class="text-xs text-dim uppercase tracking-wider">Call B (with Mirror)</label>
+    <select name="b" onchange="this.form.submit()"
+            class="mt-1 w-full bg-[#141414] border border-faint rounded-md px-3 py-2 text-sm mono focus:outline-none focus:ring-1 focus:ring-emerald-500/30">
+      {% for c in candidates %}
+        <option value="{{ c.call_uuid }}" {% if c.call_uuid == selected_b %}selected{% endif %}>
+          {{ c.short_uuid }} · Mirror {% if c.mirror_enabled %}ON{% else %}OFF{% endif %} · {{ c.final_outcome or c.status }} · {{ (c.started_at or '')[:19] }}
+        </option>
+      {% endfor %}
+    </select>
+  </div>
+</form>
+
+<section class="grid grid-cols-2 gap-6">
+  {% for col, label, detail, accent in [('A', 'WITHOUT MIRROR', detail_a, 'red'), ('B', 'WITH MIRROR', detail_b, 'emerald')] %}
+    <div class="surface rounded-lg overflow-hidden border-2 {% if accent == 'red' %}border-red-500/40{% else %}border-emerald-500/40{% endif %}">
+      <div class="px-5 py-3 border-b border-faint flex items-center justify-between">
+        <div>
+          <h2 class="text-sm font-semibold {% if accent == 'red' %}text-red-300{% else %}text-emerald-300{% endif %}">{{ label }}</h2>
+          {% if detail %}
+            <div class="text-xs text-dim mono mt-0.5">{{ detail.call.short_uuid }}</div>
+          {% endif %}
+        </div>
+        {% if detail %}
+          {% if detail.call.final_outcome == 'correct_order' %}
+            <span class="inline-block px-2 py-0.5 rounded-md text-xs bg-emerald-400/10 text-emerald-300 border border-emerald-400/30">CORRECT ✓</span>
+          {% elif detail.call.final_outcome == 'wrong_order' %}
+            <span class="inline-block px-2 py-0.5 rounded-md text-xs bg-red-400/10 text-red-300 border border-red-400/30">WRONG ✗</span>
+          {% else %}
+            <span class="inline-block px-2 py-0.5 rounded-md text-xs bg-zinc-700/40 text-zinc-300 border border-zinc-600">{{ detail.call.status }}</span>
+          {% endif %}
+        {% endif %}
+      </div>
+
+      <div class="p-5 space-y-3 max-h-[55vh] overflow-y-auto">
+        {% if not detail %}
+          <div class="text-dim italic text-sm">No call selected.</div>
+        {% else %}
+          {% set events_by_turn = {} %}
+          {% for e in detail.mirror_events %}
+            {% if e.turn_id %}
+              {% set _ = events_by_turn.update({e.turn_id: events_by_turn.get(e.turn_id, []) + [e]}) %}
+            {% endif %}
+          {% endfor %}
+          {% for t in detail.turns %}
+            <div class="flex {% if t.role == 'customer' %}justify-start{% else %}justify-end{% endif %}">
+              <div class="max-w-[85%]">
+                <div class="text-xs text-dim mb-1 mono">
+                  {{ (t.timestamp or '').replace('T',' ')[11:19] }}
+                  {% if t.role == 'customer' %}👤{% else %}🤖{% endif %}
+                </div>
+                <div class="rounded-lg px-3 py-2 text-sm
+                            {% if t.role == 'customer' %}bg-[#1a1a1a] border border-faint{% else %}bg-emerald-400/10 border border-emerald-400/30{% endif %}">
+                  {{ t.text }}
+                </div>
+                {% if events_by_turn.get(t.id) %}
+                  {% for e in events_by_turn[t.id] %}
+                    <div class="mt-1 text-xs flex items-start gap-2">
+                      <span class="text-amber-300">⚠</span>
+                      <span>{{ e.pattern_name }} <span class="text-dim">({{ e.severity }})</span></span>
+                    </div>
+                  {% endfor %}
+                {% endif %}
+              </div>
+            </div>
+          {% endfor %}
+        {% endif %}
+      </div>
+
+      {% if detail %}
+        <div class="border-t border-faint p-4">
+          <div class="text-xs text-dim uppercase tracking-wider mb-1">Final order</div>
+          {% if detail.orders %}
+            <div class="mono text-xs">{{ detail.orders[-1].items_json }}</div>
+          {% else %}
+            <div class="text-dim italic text-xs">No order placed.</div>
+          {% endif %}
+        </div>
+      {% endif %}
+    </div>
+  {% endfor %}
+</section>
+
+{% endblock %}

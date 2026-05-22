@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+{% block title %}Plivo Mirror — Dashboard{% endblock %}
+
+{% block content %}
+
+<!-- Stats cards -->
+<section class="grid grid-cols-4 gap-4 mb-6"
+         hx-get="/stats.json"
+         hx-trigger="every 5s"
+         hx-swap="none"
+         hx-on::after-request="updateStats(event.detail.xhr.response)">
+  {% set s = stats %}
+  <div class="surface rounded-lg p-5">
+    <div class="text-xs text-dim uppercase tracking-wider">Calls today</div>
+    <div class="text-3xl font-semibold mt-2 mono" id="stat-calls">{{ s.calls_today }}</div>
+  </div>
+  <div class="surface rounded-lg p-5">
+    <div class="text-xs text-dim uppercase tracking-wider">Mirror events</div>
+    <div class="text-3xl font-semibold mt-2 mono text-amber-300" id="stat-events">{{ s.mirror_events_today }}</div>
+  </div>
+  <div class="surface rounded-lg p-5">
+    <div class="text-xs text-dim uppercase tracking-wider">Customer rescues</div>
+    <div class="text-3xl font-semibold mt-2 mono text-emerald-300" id="stat-rescues">{{ s.customer_rescues_today }}</div>
+  </div>
+  <div class="surface rounded-lg p-5">
+    <div class="text-xs text-dim uppercase tracking-wider">Avg call health</div>
+    <div class="text-3xl font-semibold mt-2 mono" id="stat-health">{{ s.avg_call_health }} <span class="text-base text-dim">/ 10</span></div>
+  </div>
+</section>
+
+<!-- Main grid: calls table + live feed -->
+<section class="grid grid-cols-3 gap-6">
+
+  <!-- Recent calls (2/3 width) -->
+  <div class="col-span-2 surface rounded-lg overflow-hidden">
+    <div class="px-5 py-3 border-b border-faint flex items-center justify-between">
+      <div>
+        <h2 class="text-sm font-semibold">Recent calls</h2>
+        <div class="text-xs text-dim">Click any row to drill in</div>
+      </div>
+      <div class="flex items-center gap-1 text-xs" id="filter-pills">
+        <button data-filter="all"     class="filter-pill active px-2.5 py-1 rounded-md border border-faint hover:border-zinc-500 transition">All</button>
+        <button data-filter="with"    class="filter-pill px-2.5 py-1 rounded-md border border-faint hover:border-zinc-500 transition">With Mirror</button>
+        <button data-filter="without" class="filter-pill px-2.5 py-1 rounded-md border border-faint hover:border-zinc-500 transition">Without</button>
+        <button data-filter="today"   class="filter-pill px-2.5 py-1 rounded-md border border-faint hover:border-zinc-500 transition">Today</button>
+        <button data-filter="failed"  class="filter-pill px-2.5 py-1 rounded-md border border-faint hover:border-zinc-500 transition">Failed</button>
+      </div>
+    </div>
+    <table class="w-full text-sm">
+      <thead class="text-xs text-dim uppercase tracking-wider">
+        <tr class="border-b border-faint">
+          <th class="text-left px-5 py-2 font-medium">Started</th>
+          <th class="text-left px-5 py-2 font-medium">Agent</th>
+          <th class="text-left px-5 py-2 font-medium">Caller</th>
+          <th class="text-left px-5 py-2 font-medium">Duration</th>
+          <th class="text-left px-5 py-2 font-medium">Output</th>
+          <th class="text-left px-5 py-2 font-medium">Status</th>
+          <th class="text-left px-5 py-2 font-medium">Mirror</th>
+          <th class="text-right px-5 py-2 font-medium">Events</th>
+        </tr>
+      </thead>
+      <tbody id="calls-tbody">
+        {% include "_calls_rows.html" %}
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Live event feed -->
+  <div class="col-span-1 surface rounded-lg overflow-hidden flex flex-col" style="max-height: 70vh;">
+    <div class="px-4 py-3 border-b border-faint flex items-center justify-between">
+      <div class="flex items-center gap-2">
+        <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 pulse-dot"></span>
+        <h2 class="text-sm font-semibold">Live event feed</h2>
+      </div>
+      <button id="feed-pause" class="text-xs text-dim hover:text-white transition">Pause</button>
+    </div>
+    <ul id="event-feed" class="flex-1 overflow-y-auto divide-y divide-[#2a2a2a]">
+      <li class="px-4 py-3 text-xs text-dim italic">Waiting for events…</li>
+    </ul>
+  </div>
+
+</section>
+
+<style>
+  .filter-pill.active { background-color: #1f1f1f; color: white; border-color: #3a3a3a; }
+</style>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // ---------- stats polling ----------
+  function updateStats(raw) {
+    try {
+      const s = JSON.parse(raw);
+      document.getElementById('stat-calls').textContent   = s.calls_today;
+      document.getElementById('stat-events').textContent  = s.mirror_events_today;
+      document.getElementById('stat-rescues').textContent = s.customer_rescues_today;
+      document.getElementById('stat-health').innerHTML    = `${s.avg_call_health} <span class="text-base text-dim">/ 10</span>`;
+    } catch (e) { /* swallow */ }
+  }
+
+  // ---------- filter pills ----------
+  let currentFilter = 'all';
+  document.getElementById('filter-pills').addEventListener('click', (e) => {
+    const btn = e.target.closest('.filter-pill');
+    if (!btn) return;
+    document.querySelectorAll('.filter-pill').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentFilter = btn.dataset.filter;
+    refreshCalls();
+  });
+
+  function refreshCalls() {
+    fetch(`/calls.json?filter=${currentFilter}&limit=20`)
+      .then(r => r.json())
+      .then(rows => {
+        const tbody = document.getElementById('calls-tbody');
+        tbody.innerHTML = rows.map(rowHtml).join('') ||
+          '<tr><td colspan="8" class="px-5 py-6 text-center text-dim italic">No calls match this filter.</td></tr>';
+      });
+  }
+  setInterval(refreshCalls, 5000);
+
+  function escapeHtml(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+
+  function rowHtml(c) {
+    const statusBadge = c.final_outcome === 'correct_order'
+      ? '<span class="inline-block px-2 py-0.5 rounded-md text-xs bg-emerald-400/10 text-emerald-300 border border-emerald-400/30">CORRECT</span>'
+      : c.final_outcome === 'wrong_order'
+      ? '<span class="inline-block px-2 py-0.5 rounded-md text-xs bg-red-400/10 text-red-300 border border-red-400/30">WRONG</span>'
+      : c.status === 'in_progress'
+      ? '<span class="inline-block px-2 py-0.5 rounded-md text-xs bg-emerald-400/10 text-emerald-200 border border-emerald-400/30">LIVE</span>'
+      : '<span class="inline-block px-2 py-0.5 rounded-md text-xs bg-zinc-700/40 text-zinc-300 border border-zinc-600">DONE</span>';
+    const mirrorBadge = c.mirror_enabled
+      ? '<span class="text-xs text-emerald-300">ON</span>'
+      : '<span class="text-xs text-zinc-400">OFF</span>';
+    const eventsBadge = c.intervention_count > 0
+      ? `<span class="inline-block px-2 py-0.5 rounded-md text-xs bg-red-400/10 text-red-300 border border-red-400/30">${c.intervention_count}</span>`
+      : `<span class="text-xs text-dim">${c.flagged_count || 0}</span>`;
+    const duration = c.duration_seconds == null
+      ? '—'
+      : `${Math.floor(c.duration_seconds/60)}m ${c.duration_seconds%60}s`;
+    const started = (c.started_at || '').replace('T', ' ').slice(0,19);
+    const outputCell = c.output_display
+      ? `<span class="mono text-xs" title="${escapeHtml(c.output_display)}">${escapeHtml(c.output_display)}</span>`
+      : '<span class="text-xs text-dim">—</span>';
+    return `
+      <tr class="border-b border-[#1a1a1a] hover:bg-[#141414] cursor-pointer"
+          onclick="location.href='/calls/${c.call_uuid}'">
+        <td class="px-5 py-3 text-dim mono text-xs">${started}</td>
+        <td class="px-5 py-3 text-dim">${c.agent_name || 'pizza-plivo'}</td>
+        <td class="px-5 py-3 mono text-xs">${c.caller_masked}</td>
+        <td class="px-5 py-3 text-dim">${duration}</td>
+        <td class="px-5 py-3 max-w-[220px] truncate">${outputCell}</td>
+        <td class="px-5 py-3">${statusBadge}</td>
+        <td class="px-5 py-3">${mirrorBadge}</td>
+        <td class="px-5 py-3 text-right">${eventsBadge}</td>
+      </tr>`;
+  }
+
+  // ---------- SSE live feed ----------
+  let feedPaused = false;
+  document.getElementById('feed-pause').addEventListener('click', (e) => {
+    feedPaused = !feedPaused;
+    e.target.textContent = feedPaused ? 'Resume' : 'Pause';
+  });
+
+  const evtSource = new EventSource('/sse/events');
+  const feed = document.getElementById('event-feed');
+
+  function shortUuid(u) { return (u || '').slice(0,8); }
+  function timeOnly(ts)  { return (ts || '').slice(11,19); }
+
+  function renderEvent(e) {
+    const t = e.type;
+    const time = timeOnly(e.timestamp);
+    const u = shortUuid(e.call_uuid);
+    let body = '';
+    if (t === 'call_started') {
+      body = `<span class="text-blue-300">●</span> call started <span class="text-dim">(${e.payload.mirror_enabled ? 'Mirror ON' : 'Mirror OFF'})</span>`;
+    } else if (t === 'call_ended') {
+      const oc = e.payload.final_outcome;
+      const outcome = oc === 'wrong_order'
+        ? '<span class="text-red-300">wrong order</span>'
+        : oc === 'correct_order'
+        ? '<span class="text-emerald-300">correct</span>'
+        : '<span class="text-dim">ended</span>';
+      body = `<span class="text-zinc-400">○</span> call ended — ${outcome}`;
+    } else if (t === 'turn') {
+      const role = e.payload.role === 'customer' ? '👤 customer' : '🤖 agent';
+      const text = (e.payload.text || '').slice(0,80);
+      body = `${role}: <span class="text-dim">"${text}"</span>`;
+    } else if (t === 'mirror_event') {
+      const sev = e.payload.severity;
+      const cls = sev === 'intervention' ? 'text-amber-300'
+                : sev === 'warning'      ? 'text-amber-200'
+                : 'text-blue-300';
+      body = `<span class="${cls}">⚠ ${e.payload.pattern_name}</span> <span class="text-dim">(${sev})</span>`;
+    } else if (t === 'intervention') {
+      body = `<span class="text-emerald-300">🚑 intervention</span> — ${e.payload.pattern_name} <span class="text-dim mono text-xs">${e.payload.latency_ms}ms</span>`;
+    } else {
+      body = `${t}`;
+    }
+    const li = document.createElement('li');
+    li.className = 'px-4 py-2.5 text-xs slide-in cursor-pointer hover:bg-[#1a1a1a]';
+    li.onclick = () => location.href = `/calls/${e.call_uuid}`;
+    li.innerHTML =
+      `<div class="flex items-center justify-between gap-2 text-dim text-[10px]">
+         <span class="mono">${time}</span>
+         <span class="mono">${u}</span>
+       </div>
+       <div class="mt-0.5">${body}</div>`;
+    return li;
+  }
+
+  evtSource.addEventListener('open', () => {
+    feed.innerHTML = '<li class="px-4 py-3 text-xs text-dim italic">Connected. Waiting for events…</li>';
+  });
+
+  ['call_started','call_ended','turn','mirror_event','intervention'].forEach(t => {
+    evtSource.addEventListener(t, (msg) => {
+      if (feedPaused) return;
+      try {
+        const e = JSON.parse(msg.data);
+        const li = renderEvent(e);
+        // Replace placeholder if first event
+        if (feed.children.length === 1 && feed.firstElementChild.classList.contains('italic')) {
+          feed.innerHTML = '';
+        }
+        feed.prepend(li);
+        // Cap to 50 events
+        while (feed.children.length > 50) feed.lastElementChild.remove();
+      } catch (err) { console.warn('bad sse event', err); }
+    });
+  });
+
+  evtSource.addEventListener('error', () => {
+    // Browser auto-reconnects; just leave it.
+  });
+</script>
+{% endblock %}

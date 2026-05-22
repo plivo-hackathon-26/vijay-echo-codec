@@ -9,6 +9,7 @@ from fastapi.responses import Response
 import db
 from prompts import GREETING
 from voice.stream import handle_audio_stream
+from dashboard.routes import router as dashboard_router
 
 load_dotenv()
 
@@ -98,3 +99,6 @@ async def voice_answer_get(request: Request):
 @app.websocket("/voice/stream")
 async def voice_stream(ws: WebSocket):
     await handle_audio_stream(ws)
+
+
+app.include_router(dashboard_router)

@@ -5,3 +5,4 @@ python-multipart
 plivo
 deepgram-sdk>=3.7.0,<4
 openai>=1.50.0
+jinja2

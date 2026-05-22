@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+{% block title %}Call {{ call.short_uuid }} — Plivo Mirror{% endblock %}
+
+{% block content %}
+
+<a href="/" class="text-sm text-dim hover:text-white transition mb-4 inline-block">← Back to dashboard</a>
+
+<!-- Call summary -->
+<section class="surface rounded-lg p-5 mb-6">
+  <div class="flex items-center justify-between mb-3">
+    <div class="flex items-center gap-3">
+      <h1 class="text-lg font-semibold">Call</h1>
+      <span class="mono text-xs text-dim">{{ call.call_uuid }}</span>
+    </div>
+    {% if call.status == 'in_progress' %}
+      <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs bg-emerald-400/10 text-emerald-300 border border-emerald-400/30">
+        <span class="w-2 h-2 rounded-full bg-emerald-400 pulse-dot"></span> LIVE
+      </span>
+    {% else %}
+      <span class="inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs bg-zinc-700/40 text-zinc-300 border border-zinc-600">ENDED</span>
+    {% endif %}
+  </div>
+  <div class="grid grid-cols-6 gap-4 text-sm">
+    <div>
+      <div class="text-xs text-dim uppercase tracking-wider">Caller</div>
+      <div class="mt-1 mono">{{ call.caller_masked }}</div>
+    </div>
+    <div>
+      <div class="text-xs text-dim uppercase tracking-wider">Agent</div>
+      <div class="mt-1">{{ call.agent_name }}</div>
+    </div>
+    <div>
+      <div class="text-xs text-dim uppercase tracking-wider">Started</div>
+      <div class="mt-1 mono text-xs">{{ (call.started_at or '').replace('T',' ')[:19] }}</div>
+    </div>
+    <div>
+      <div class="text-xs text-dim uppercase tracking-wider">Duration</div>
+      <div class="mt-1">
+        {% if call.duration_seconds is none %}—{% else %}{{ (call.duration_seconds // 60) }}m {{ (call.duration_seconds % 60) }}s{% endif %}
+      </div>
+    </div>
+    <div>
+      <div class="text-xs text-dim uppercase tracking-wider">Mirror</div>
+      <div class="mt-1">
+        {% if call.mirror_enabled %}<span class="text-emerald-300">ON</span>{% else %}<span class="text-zinc-400">OFF</span>{% endif %}
+      </div>
+    </div>
+    <div>
+      <div class="text-xs text-dim uppercase tracking-wider">Outcome</div>
+      <div class="mt-1">
+        {% if call.final_outcome == 'correct_order' %}
+          <span class="text-emerald-300">CORRECT</span>
+        {% elif call.final_outcome == 'wrong_order' %}
+          <span class="text-red-300">WRONG</span>
+        {% else %}
+          <span class="text-dim">—</span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- Conversation + events grid -->
+<section class="grid grid-cols-3 gap-6">
+
+  <!-- Conversation (2/3) -->
+  <div class="col-span-2 surface rounded-lg overflow-hidden">
+    <div class="px-5 py-3 border-b border-faint">
+      <h2 class="text-sm font-semibold">Conversation</h2>
+      <div class="text-xs text-dim">All turns + inline Mirror flags</div>
+    </div>
+    <div class="p-5 space-y-3" id="conversation">
+      {% set events_by_turn = {} %}
+      {% for e in mirror_events %}
+        {% if e.turn_id %}
+          {% set _ = events_by_turn.update({e.turn_id: events_by_turn.get(e.turn_id, []) + [e]}) %}
+        {% endif %}
+      {% endfor %}
+
+      {% for t in turns %}
+        <div class="flex {% if t.role == 'customer' %}justify-start{% else %}justify-end{% endif %}">
+          <div class="max-w-[80%]">
+            <div class="text-xs text-dim mb-1 mono">
+              {{ (t.timestamp or '').replace('T',' ')[11:19] }}
+              {% if t.role == 'customer' %}👤 customer{% else %}🤖 agent{% endif %}
+            </div>
+            <div class="rounded-lg px-3 py-2 text-sm
+                        {% if t.role == 'customer' %}bg-[#1a1a1a] border border-faint{% else %}bg-emerald-400/10 border border-emerald-400/30{% endif %}">
+              {{ t.text }}
+            </div>
+            {% if events_by_turn.get(t.id) %}
+              {% for e in events_by_turn[t.id] %}
+                <div class="mt-1.5 text-xs flex items-start gap-2 pl-1">
+                  <span class="{% if e.severity == 'intervention' %}text-amber-300{% elif e.severity == 'warning' %}text-amber-200{% else %}text-blue-300{% endif %}">⚠</span>
+                  <span>
+                    <span class="font-medium">{{ e.pattern_name }}</span>
+                    <span class="text-dim">({{ e.severity }})</span>
+                  </span>
+                </div>
+              {% endfor %}
+            {% endif %}
+          </div>
+        </div>
+      {% else %}
+        <div class="text-dim italic text-sm">No turns yet.</div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Events column -->
+  <div class="col-span-1 space-y-4">
+    <div class="surface rounded-lg overflow-hidden">
+      <div class="px-4 py-3 border-b border-faint">
+        <h2 class="text-sm font-semibold">Mirror events</h2>
+      </div>
+      <ul class="divide-y divide-[#2a2a2a]">
+        {% for e in mirror_events %}
+        <li class="px-4 py-3 text-xs">
+          <div class="flex items-center justify-between text-dim text-[10px]">
+            <span class="mono">{{ (e.timestamp or '').replace('T',' ')[11:19] }}</span>
+            <span class="{% if e.severity == 'intervention' %}text-amber-300{% else %}text-blue-300{% endif %}">{{ e.severity }}</span>
+          </div>
+          <div class="mt-0.5 font-medium">{{ e.pattern_name }}</div>
+          {% if e.intervention_needed %}
+            <div class="mt-0.5 text-emerald-300">→ intervention requested</div>
+          {% endif %}
+        </li>
+        {% else %}
+        <li class="px-4 py-3 text-xs text-dim italic">No Mirror events on this call.</li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div class="surface rounded-lg overflow-hidden">
+      <div class="px-4 py-3 border-b border-faint">
+        <h2 class="text-sm font-semibold">Interventions</h2>
+      </div>
+      <ul class="divide-y divide-[#2a2a2a]">
+        {% for i in interventions %}
+        <li class="px-4 py-3 text-xs">
+          <div class="flex items-center justify-between text-dim text-[10px]">
+            <span class="mono">{{ (i.timestamp or '').replace('T',' ')[11:19] }}</span>
+            <span class="text-emerald-300">{{ i.strategy }}</span>
+          </div>
+          <div class="mt-1 italic text-zinc-300">"{{ i.correction_text }}"</div>
+          <div class="mt-1 text-dim mono text-[10px]">latency {{ i.latency_ms }}ms</div>
+        </li>
+        {% else %}
+        <li class="px-4 py-3 text-xs text-dim italic">No interventions fired.</li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div class="surface rounded-lg overflow-hidden">
+      <div class="px-4 py-3 border-b border-faint">
+        <h2 class="text-sm font-semibold">Final order</h2>
+      </div>
+      <div class="px-4 py-3 text-sm">
+        {% if orders %}
+          {% set last_order = orders[-1] %}
+          <div class="mono text-xs text-dim mb-1">order {{ last_order.id }}</div>
+          <div>{{ last_order.items_json }}</div>
+        {% else %}
+          <div class="text-dim italic text-xs">No order placed.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+</section>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  // If the call is in progress, listen to its SSE stream and reload on
+  // major events. (Simple approach: full reload is fine at this scale.)
+  {% if call.status == 'in_progress' %}
+    const es = new EventSource('/sse/calls/{{ call.call_uuid }}');
+    ['turn','mirror_event','intervention','call_ended'].forEach(t => {
+      es.addEventListener(t, () => {
+        // Debounced reload
+        clearTimeout(window._reloadTimer);
+        window._reloadTimer = setTimeout(() => location.reload(), 600);
+      });
+    });
+  {% endif %}
+</script>
+{% endblock %}
