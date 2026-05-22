@@ -46,6 +46,16 @@ def init_db() -> None:
                 items_json TEXT,
                 created_at TEXT
             );
+            CREATE TABLE IF NOT EXISTS mirror_events (
+                id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+                call_uuid           TEXT,
+                turn_id             INTEGER,
+                pattern_name        TEXT,
+                severity            TEXT,
+                evidence            TEXT,
+                intervention_needed INTEGER,
+                timestamp           TEXT
+            );
             """
         )
 
@@ -67,12 +77,50 @@ def end_call(call_uuid: str, status: str = "completed") -> None:
         )
 
 
-def add_turn(call_uuid: str, role: str, text: str) -> None:
+def add_turn(call_uuid: str, role: str, text: str) -> int:
     with get_conn() as conn:
-        conn.execute(
+        cur = conn.execute(
             "INSERT INTO turns (call_uuid, role, text, timestamp) VALUES (?, ?, ?, ?)",
             (call_uuid, role, text, _now()),
         )
+        return cur.lastrowid
+
+
+def get_recent_turns(call_uuid: str, limit: int = 10) -> list:
+    """Return up to `limit` most-recent turns for a call, oldest-first."""
+    with get_conn() as conn:
+        rows = conn.execute(
+            "SELECT id, role, text, timestamp FROM turns "
+            "WHERE call_uuid = ? ORDER BY id DESC LIMIT ?",
+            (call_uuid, limit),
+        ).fetchall()
+    return [dict(row) for row in reversed(rows)]
+
+
+def add_mirror_event(
+    call_uuid: str,
+    turn_id,
+    pattern_name: str,
+    severity: str,
+    evidence_dict: dict,
+    intervention_needed: bool,
+) -> int:
+    with get_conn() as conn:
+        cur = conn.execute(
+            "INSERT INTO mirror_events "
+            "(call_uuid, turn_id, pattern_name, severity, evidence, "
+            "intervention_needed, timestamp) VALUES (?, ?, ?, ?, ?, ?, ?)",
+            (
+                call_uuid,
+                turn_id,
+                pattern_name,
+                severity,
+                json.dumps(evidence_dict),
+                1 if intervention_needed else 0,
+                _now(),
+            ),
+        )
+        return cur.lastrowid
 
 
 def place_order(call_uuid: str, items: list) -> str:

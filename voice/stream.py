@@ -8,6 +8,8 @@ from fastapi import WebSocket, WebSocketDisconnect
 
 import db
 from agent.primary import run_turn
+from mirror import evaluator as mirror_evaluator
+from mirror import state as mirror_state
 from prompts import GREETING
 from voice.stt import DeepgramSession
 from voice.tts import speak_on_call
@@ -33,9 +35,26 @@ async def handle_audio_stream(ws: WebSocket) -> None:
             return
         async with agent_lock:
             log.info("customer: %s", text)
+            turn_id = None
             if call_uuid:
-                db.add_turn(call_uuid, "customer", text)
+                turn_id = db.add_turn(call_uuid, "customer", text)
             transcript_history.append({"role": "customer", "text": text})
+
+            # Mirror evaluation runs synchronously after the turn is
+            # persisted but BEFORE the primary agent fires. Phase 2 is
+            # observation only — the intervention_pending flag set here
+            # will be consumed by Phase 3.
+            if call_uuid:
+                try:
+                    recent_turns = db.get_recent_turns(call_uuid, limit=10)
+                    mirror_evaluator.evaluate(
+                        call_uuid=call_uuid,
+                        recent_turns=recent_turns,
+                        current_user_turn=text,
+                        current_turn_id=turn_id,
+                    )
+                except Exception:
+                    log.exception("mirror evaluator failed (continuing)")
 
             # Brief natural pause before the agent responds — feels less
             # robotic than instant turn-taking.
@@ -128,3 +147,4 @@ async def handle_audio_stream(ws: WebSocket) -> None:
         await dg.close()
         if call_uuid:
             db.end_call(call_uuid, "completed")
+            mirror_state.cleanup_call(call_uuid)
