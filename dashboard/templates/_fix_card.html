@@ -8,11 +8,15 @@
 
 <article id="fix-{{ r.id }}" class="surface rounded-lg p-5 slide-in">
   <header class="flex items-start justify-between gap-4 mb-4">
-    <div class="flex items-center gap-3">
+    <div class="flex items-center gap-3 flex-wrap">
       <span class="inline-block px-2.5 py-0.5 rounded-md text-xs font-medium border {{ sev_classes.get(sev, sev_classes['low']) }}">
         {{ sev|upper }}
       </span>
       <span class="font-medium">{{ r.pattern_name or 'unknown' }}</span>
+      <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] mono border border-emerald-400/30 bg-emerald-400/10 text-emerald-300">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+        {{ r.agent_name or 'pizza-plivo' }}
+      </span>
       <span class="text-dim text-xs">·</span>
       <a href="/calls/{{ r.call_uuid }}" class="text-xs text-dim hover:text-white transition mono">
         Call: {{ r.short_call_uuid }} →
@@ -20,6 +24,13 @@
     </div>
     <div class="text-xs text-dim mono">{{ r.created_relative or '' }}</div>
   </header>
+
+  {% if error_msg %}
+    <div class="mb-4 px-3 py-2 rounded-md text-sm bg-red-500/10 border border-red-500/40 text-red-300">
+      <div class="font-medium text-xs uppercase tracking-wider mb-1">Apply failed</div>
+      {{ error_msg }}
+    </div>
+  {% endif %}
 
   <div class="grid grid-cols-1 gap-4">
     <div>
@@ -56,9 +67,16 @@
     </div>
     <div class="flex items-center gap-2" id="actions-{{ r.id }}">
       {% if r.status == 'pending' %}
-        <button hx-post="/fixes/{{ r.id }}/approve" hx-target="#actions-{{ r.id }}" hx-swap="beforebegin"
+        <button hx-post="/fixes/{{ r.id }}/apply"
+                hx-target="#fix-{{ r.id }}"
+                hx-swap="outerHTML"
+                hx-confirm="Apply this fix? Mirror will open a PR for {{ r.proposed_file }} on a new branch."
+                hx-disabled-elt="this"
+                hx-indicator="#applying-{{ r.id }}"
                 class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium
-                       bg-emerald-500/10 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/20 transition">
+                       bg-emerald-500/10 text-emerald-300 border border-emerald-500/40 hover:bg-emerald-500/20 transition
+                       disabled:opacity-50 disabled:cursor-not-allowed">
+          <span id="applying-{{ r.id }}" class="htmx-indicator">⟳</span>
           Approve &amp; Apply
         </button>
         <button hx-post="/fixes/{{ r.id }}/dismiss" hx-target="#fix-{{ r.id }}" hx-swap="outerHTML swap:300ms"
@@ -67,6 +85,17 @@
                        bg-zinc-700/40 text-zinc-300 border border-zinc-600 hover:bg-zinc-700/60 transition">
           Dismiss
         </button>
+      {% elif r.status == 'applied' %}
+        <span class="inline-block px-2 py-0.5 rounded-md text-xs font-medium border border-emerald-500/40 bg-emerald-500/10 text-emerald-300">
+          APPLIED
+        </span>
+        {% if r.applied_pr_url %}
+          <a href="{{ r.applied_pr_url }}" target="_blank" rel="noopener"
+             class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium
+                    border border-emerald-500/40 bg-emerald-500/5 text-emerald-300 hover:bg-emerald-500/15 transition mono text-xs">
+            View PR ↗
+          </a>
+        {% endif %}
       {% else %}
         <span class="text-xs text-dim italic">{{ r.status }}</span>
       {% endif %}

@@ -265,3 +265,42 @@ replacement snippet.
 
 Output ONLY the JSON object. No markdown fences, no preamble.
 """
+
+
+APPLY_FIX_PROMPT = """\
+You are applying a Mirror fix to a source file in a Python codebase.
+Your output will be written directly to disk and shipped as a pull
+request, so it must be the COMPLETE, VALID, READY-TO-RUN new content
+of the file — not a diff, not a snippet, not a description.
+
+TARGET FILE: {path}
+
+CURRENT FILE CONTENT (everything between the markers, exclusive):
+<<<CURRENT_FILE_START>>>
+{current_content}
+<<<CURRENT_FILE_END>>>
+
+MIRROR'S DIAGNOSIS:
+  Summary:      {summary}
+  Root cause:   {root_cause}
+  Proposed fix: {proposed_fix_text}
+
+MIRROR'S SUGGESTED DIFF / SNIPPET (advisory only — use your judgment to
+apply this idea correctly):
+{suggested_diff}
+
+RULES (NON-NEGOTIABLE):
+1. Output ONLY the new file content. No prose before or after. No
+   markdown code fences (no ``` anywhere). No "Here is the new file:".
+2. The change should be MINIMAL — only modify what is required to
+   address the diagnosis. Leave every unrelated line untouched.
+3. Preserve imports, function and class names, docstrings, blank lines,
+   and the file's overall structure.
+4. For a .py file, the output MUST be syntactically valid Python.
+5. For a prompts.py file (string literal), preserve the surrounding
+   triple-quoted block and only edit the prose inside.
+6. If you cannot apply a sensible fix, output the file content
+   UNCHANGED — better to no-op than to ship broken code.
+
+Begin output now (raw file content, nothing else):
+"""

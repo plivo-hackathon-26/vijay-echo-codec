@@ -264,11 +264,19 @@ def create_failure_report(
         return cur.lastrowid
 
 
+_FAILURE_REPORTS_SELECT = (
+    "SELECT f.*, "
+    "       COALESCE(c.agent_name, 'pizza-plivo') AS agent_name "
+    "FROM failure_reports f "
+    "LEFT JOIN calls c ON c.call_uuid = f.call_uuid"
+)
+
+
 def get_failure_report_by_call(call_uuid: str) -> dict | None:
     with get_conn() as conn:
         row = conn.execute(
-            "SELECT * FROM failure_reports WHERE call_uuid = ? "
-            "ORDER BY id DESC LIMIT 1",
+            f"{_FAILURE_REPORTS_SELECT} WHERE f.call_uuid = ? "
+            "ORDER BY f.id DESC LIMIT 1",
             (call_uuid,),
         ).fetchone()
     return dict(row) if row else None
@@ -277,22 +285,25 @@ def get_failure_report_by_call(call_uuid: str) -> dict | None:
 def get_failure_report_by_id(report_id: int) -> dict | None:
     with get_conn() as conn:
         row = conn.execute(
-            "SELECT * FROM failure_reports WHERE id = ?",
+            f"{_FAILURE_REPORTS_SELECT} WHERE f.id = ?",
             (int(report_id),),
         ).fetchone()
     return dict(row) if row else None
 
 
 def list_failure_reports(status: str | None = "pending", limit: int = 50) -> list[dict]:
-    """List reports, optionally filtered by status.
+    """List reports (with agent_name joined in), optionally filtered by status.
 
     status='all' (or None) returns every row regardless of status.
     """
     if status in (None, "all"):
-        sql = "SELECT * FROM failure_reports ORDER BY id DESC LIMIT ?"
+        sql = f"{_FAILURE_REPORTS_SELECT} ORDER BY f.id DESC LIMIT ?"
         params: tuple = (int(limit),)
     else:
-        sql = "SELECT * FROM failure_reports WHERE status = ? ORDER BY id DESC LIMIT ?"
+        sql = (
+            f"{_FAILURE_REPORTS_SELECT} WHERE f.status = ? "
+            "ORDER BY f.id DESC LIMIT ?"
+        )
         params = (status, int(limit))
     with get_conn() as conn:
         rows = conn.execute(sql, params).fetchall()

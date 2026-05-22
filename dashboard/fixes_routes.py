@@ -176,22 +176,63 @@ async def fixes_backfill(request: Request, limit: int = 50):
     return JSONResponse(summary)
 
 
-@router.post("/fixes/{report_id}/approve")
-async def fixes_approve(request: Request, report_id: int):
-    """Step 4/5 is the actual apply pipeline. For now this is a stub
-    so the button is wired but doesn't pretend to do something it
-    can't."""
+async def _do_apply(request: Request, report_id: int):
+    """Shared handler for /apply (and legacy /approve alias).
+
+    Runs the full Mirror apply pipeline: LLM rewrite → branch → commit
+    → push → gh pr create. On success returns the re-rendered card
+    (now in 'applied' state with PR link); on failure returns the
+    original card + an error banner.
+    """
+    from mirror.applier import ApplyError, apply_failure_report
+
     row = db.get_failure_report_by_id(report_id)
     if row is None:
         raise HTTPException(status_code=404, detail="report not found")
-    msg = "Approval flow coming in the next build — code/prompt apply is queued for Step 4."
+
+    error_msg: str | None = None
+    try:
+        result = await apply_failure_report(report_id)
+        log.info("apply succeeded: report=%d result=%s", report_id, result)
+    except ApplyError as e:
+        error_msg = str(e)
+        log.warning("apply rejected: report=%d reason=%s", report_id, error_msg)
+    except Exception:
+        log.exception("apply crashed for report=%d", report_id)
+        error_msg = "Unexpected error during apply. Check the server logs."
+
+    # Re-fetch so we render the post-apply state.
+    fresh = db.get_failure_report_by_id(report_id) or row
+    decorated = _decorate(fresh)
+
     if request.headers.get("HX-Request"):
-        return HTMLResponse(
-            f'<div class="px-3 py-2 text-sm text-amber-300 bg-amber-400/10 '
-            f'border border-amber-400/30 rounded-md">{msg}</div>',
-            status_code=501,
+        return templates.TemplateResponse(
+            request=request,
+            name="_fix_card.html",
+            context={
+                "r": decorated,
+                "error_msg": error_msg,
+            },
+            status_code=200 if error_msg is None else 400,
         )
-    return JSONResponse(
-        {"status": "not_implemented", "report_id": report_id, "message": msg},
-        status_code=501,
-    )
+    if error_msg:
+        return JSONResponse(
+            {"status": "error", "report_id": report_id, "error": error_msg},
+            status_code=400,
+        )
+    return JSONResponse({
+        "status": "applied",
+        "report_id": report_id,
+        "pr_url": fresh.get("applied_pr_url"),
+    })
+
+
+@router.post("/fixes/{report_id}/apply")
+async def fixes_apply(request: Request, report_id: int):
+    return await _do_apply(request, report_id)
+
+
+@router.post("/fixes/{report_id}/approve")
+async def fixes_approve(request: Request, report_id: int):
+    """Legacy alias kept so older buttons keep working."""
+    return await _do_apply(request, report_id)
