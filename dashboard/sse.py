@@ -40,9 +40,21 @@ _subscribers_lock = asyncio.Lock()
 _poller_task: asyncio.Task | None = None
 
 
-async def subscribe() -> asyncio.Queue:
-    """Register a new subscriber. Returns a queue the caller can drain."""
+async def subscribe(backfill_limit: int = 30) -> asyncio.Queue:
+    """Register a new subscriber. Returns a queue the caller can drain.
+
+    Pre-populates the queue with the most recent events from the DB so
+    a freshly-opened tab immediately sees activity instead of waiting
+    for the next live event to fire."""
     q: asyncio.Queue = asyncio.Queue(maxsize=200)
+    try:
+        for evt in _recent_events_for_backfill(limit=backfill_limit):
+            try:
+                q.put_nowait(evt)
+            except asyncio.QueueFull:
+                break
+    except Exception:
+        log.exception("backfill failed; new subscriber will see live events only")
     async with _subscribers_lock:
         _subscribers.append(q)
     return q
@@ -274,3 +286,125 @@ def format_sse(event: dict) -> str:
     event_type = event.get("type", "message")
     data = json.dumps(event, ensure_ascii=False)
     return f"event: {event_type}\ndata: {data}\n\n"
+
+
+def _recent_events_for_backfill(limit: int = 30) -> list:
+    """Pull the most recent events across all four event-emitting tables
+    and return them in chronological order (oldest first). Used by
+    subscribe() to give freshly-connected tabs context."""
+    events: list = []
+    try:
+        with db.get_conn() as conn:
+            # Turns
+            for r in conn.execute(
+                "SELECT id, call_uuid, role, text, timestamp FROM turns "
+                "ORDER BY id DESC LIMIT ?",
+                (limit,),
+            ).fetchall():
+                events.append(
+                    {
+                        "type": "turn",
+                        "call_uuid": r["call_uuid"],
+                        "timestamp": r["timestamp"],
+                        "agent_name": _agent_for(r["call_uuid"]),
+                        "payload": {
+                            "id": r["id"],
+                            "role": r["role"],
+                            "text": r["text"],
+                        },
+                    }
+                )
+            # Mirror events
+            for r in conn.execute(
+                "SELECT id, call_uuid, turn_id, pattern_name, severity, "
+                "       evidence, intervention_needed, timestamp "
+                "FROM mirror_events ORDER BY id DESC LIMIT ?",
+                (limit,),
+            ).fetchall():
+                try:
+                    evidence = json.loads(r["evidence"]) if r["evidence"] else {}
+                except Exception:
+                    evidence = {}
+                events.append(
+                    {
+                        "type": "mirror_event",
+                        "call_uuid": r["call_uuid"],
+                        "timestamp": r["timestamp"],
+                        "agent_name": _agent_for(r["call_uuid"]),
+                        "payload": {
+                            "id": r["id"],
+                            "turn_id": r["turn_id"],
+                            "pattern_name": r["pattern_name"],
+                            "severity": r["severity"],
+                            "intervention_needed": bool(r["intervention_needed"]),
+                            "evidence": evidence,
+                        },
+                    }
+                )
+            # Interventions
+            for r in conn.execute(
+                "SELECT id, call_uuid, pattern_name, strategy, buffer_text, "
+                "       correction_text, latency_ms, timestamp "
+                "FROM interventions ORDER BY id DESC LIMIT ?",
+                (limit,),
+            ).fetchall():
+                events.append(
+                    {
+                        "type": "intervention",
+                        "call_uuid": r["call_uuid"],
+                        "timestamp": r["timestamp"],
+                        "agent_name": _agent_for(r["call_uuid"]),
+                        "payload": {
+                            "id": r["id"],
+                            "pattern_name": r["pattern_name"],
+                            "strategy": r["strategy"],
+                            "buffer_text": r["buffer_text"],
+                            "correction_text": r["correction_text"],
+                            "latency_ms": r["latency_ms"],
+                        },
+                    }
+                )
+            # Call lifecycle (start + end as separate events)
+            for r in conn.execute(
+                "SELECT call_uuid, caller, started_at, ended_at, status, "
+                "       COALESCE(agent_name, 'pizza-plivo') AS agent_name, "
+                "       COALESCE(mirror_enabled, 1) AS mirror_enabled, "
+                "       final_outcome "
+                "FROM calls ORDER BY started_at DESC LIMIT ?",
+                (limit,),
+            ).fetchall():
+                if r["started_at"]:
+                    events.append(
+                        {
+                            "type": "call_started",
+                            "call_uuid": r["call_uuid"],
+                            "timestamp": r["started_at"],
+                            "agent_name": r["agent_name"],
+                            "payload": {
+                                "caller": r["caller"],
+                                "mirror_enabled": bool(r["mirror_enabled"]),
+                            },
+                        }
+                    )
+                if r["ended_at"]:
+                    events.append(
+                        {
+                            "type": "call_ended",
+                            "call_uuid": r["call_uuid"],
+                            "timestamp": r["ended_at"],
+                            "agent_name": r["agent_name"],
+                            "payload": {
+                                "status": r["status"],
+                                "final_outcome": r["final_outcome"],
+                                "mirror_enabled": bool(r["mirror_enabled"]),
+                            },
+                        }
+                    )
+    except Exception:
+        log.exception("backfill query failed")
+        return []
+
+    # Sort ascending by timestamp so they prepend into the feed in
+    # chronological order — newest events end up on top after prepend.
+    events.sort(key=lambda e: e.get("timestamp") or "")
+    return events[-limit:]
