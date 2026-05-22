@@ -20,5 +20,7 @@ imported, which is before uvicorn accepts any traffic.
 """
 
 from dashboard import mirror_toggle as _mirror_toggle
+from dashboard import agent_router as _agent_router
 
 _mirror_toggle.install_hooks()
+_agent_router.install_hooks()

@@ -20,7 +20,7 @@ from fastapi.responses import (
 )
 from fastapi.templating import Jinja2Templates
 
-from dashboard import mirror_toggle, sse, stats
+from dashboard import agent_router, mirror_toggle, sse, stats
 
 log = logging.getLogger("mirror.dashboard.routes")
 
@@ -47,7 +47,47 @@ async def index(request: Request):
             "calls": calls,
             "mirror_enabled": mirror_toggle.get_global_enabled(),
             "active_filter": "all",
+            "current_agent": mirror_toggle.get_current_agent(),
+            "agents": agent_router.known_agents(),
         },
+    )
+
+
+@router.post("/set-agent")
+async def set_agent(request: Request, agent_name: str = Form(...)):
+    """Switch the active agent for FUTURE calls. In-flight calls are
+    unaffected (agent_name is frozen at create_call time)."""
+    if agent_name not in agent_router.known_agents():
+        raise HTTPException(status_code=400, detail="unknown agent")
+    mirror_toggle.set_current_agent(agent_name)
+    if request.headers.get("HX-Request"):
+        return HTMLResponse(_render_agent_pill(agent_name, agent_router.known_agents()))
+    return RedirectResponse(url="/", status_code=303)
+
+
+@router.get("/agent-status.json")
+async def agent_status_json():
+    return JSONResponse(
+        {
+            "current_agent": mirror_toggle.get_current_agent(),
+            "available": agent_router.known_agents(),
+        }
+    )
+
+
+def _render_agent_pill(current: str, available: list) -> str:
+    options = "".join(
+        f'<option value="{a}"{" selected" if a == current else ""}>{a}</option>'
+        for a in available
+    )
+    return (
+        '<select hx-post="/set-agent" hx-trigger="change" '
+        'hx-target="#agent-selector" hx-swap="outerHTML" '
+        'name="agent_name" id="agent-selector" '
+        'class="bg-transparent border border-faint rounded-md px-2 py-1 text-sm '
+        'focus:outline-none focus:ring-1 focus:ring-emerald-500/30">'
+        f"{options}"
+        "</select>"
     )
 
 
@@ -63,6 +103,8 @@ async def call_detail_page(request: Request, call_uuid: str):
         context={
             **detail,
             "mirror_enabled": mirror_toggle.get_global_enabled(),
+            "current_agent": mirror_toggle.get_current_agent(),
+            "agents": agent_router.known_agents(),
         },
     )
 
@@ -91,6 +133,8 @@ async def compare_page(
             "selected_a": a,
             "selected_b": b,
             "mirror_enabled": mirror_toggle.get_global_enabled(),
+            "current_agent": mirror_toggle.get_current_agent(),
+            "agents": agent_router.known_agents(),
         },
     )
 

@@ -38,6 +38,7 @@ log = logging.getLogger("mirror.dashboard.toggle")
 
 _lock = threading.Lock()
 _global_enabled: bool = True
+_current_agent: str = "pizza-plivo"
 _call_states: dict[str, bool] = {}
 
 # Per-task call_uuid set by _patched_evaluate so review_response in
@@ -63,6 +64,24 @@ def set_global_enabled(value: bool) -> None:
     with _lock:
         _global_enabled = bool(value)
     log.info("mirror global flag set to %s", value)
+
+
+def get_current_agent() -> str:
+    with _lock:
+        return _current_agent
+
+
+def set_current_agent(name: str) -> None:
+    global _current_agent
+    with _lock:
+        _current_agent = name or "pizza-plivo"
+    log.info("active agent set to %s", _current_agent)
+    # Also flip the GREETING that Plivo will speak on the NEXT answer.
+    try:
+        from dashboard.agent_router import set_active_greeting
+        set_active_greeting(_current_agent)
+    except Exception:
+        log.exception("could not propagate greeting for %s", name)
 
 
 def is_enabled_for_call(call_uuid: str) -> bool:
@@ -108,20 +127,22 @@ _orig_handle_intervention = mirror_interventions.handle_intervention
 def _patched_create_call(call_uuid: str, caller: str, to: str) -> None:
     _orig_create_call(call_uuid, caller, to)
     enabled = get_global_enabled()
+    agent_name = get_current_agent()
     try:
         with db.get_conn() as conn:
             conn.execute(
                 "UPDATE calls SET mirror_enabled = ?, agent_name = ? "
                 "WHERE call_uuid = ?",
-                (1 if enabled else 0, "pizza-plivo", call_uuid),
+                (1 if enabled else 0, agent_name, call_uuid),
             )
     except Exception:
-        log.exception("failed to stamp mirror_enabled on calls row")
+        log.exception("failed to stamp mirror_enabled / agent_name on calls row")
     with _lock:
         _call_states[call_uuid] = enabled
     log.info(
-        "call %s created (mirror=%s)",
+        "call %s created (agent=%s mirror=%s)",
         call_uuid[:8] if call_uuid else "????????",
+        agent_name,
         "ON" if enabled else "OFF",
     )
 

@@ -8,6 +8,11 @@ import json
 from datetime import datetime, timezone
 
 import db
+from agents.travel.primary import _BASE_PRICES as _TRAVEL_PRICES
+from mirror.patterns import PIZZA_ITEMS
+
+_PIZZA_VOCAB = {w.lower() for w in PIZZA_ITEMS}
+_TRAVEL_DESTINATIONS = {w.lower() for w in _TRAVEL_PRICES.keys()}
 
 
 def _today_iso_prefix() -> str:
@@ -124,7 +129,9 @@ def _decorate_call_row(row: dict) -> dict:
         row.get("started_at"), row.get("ended_at")
     )
     row["short_uuid"] = (row.get("call_uuid") or "")[:8]
-    row["output_items"] = _parse_output_items(row.get("last_order_items_json"))
+    raw_items = _parse_output_items(row.get("last_order_items_json"))
+    agent_name = row.get("agent_name") or "pizza-plivo"
+    row["output_items"] = _filter_output_for_agent(agent_name, raw_items)
     row["output_display"] = _format_output_display(row["output_items"])
     return row
 
@@ -152,6 +159,49 @@ def _format_output_display(items: list) -> str:
     if not items:
         return ""
     return ", ".join(items)
+
+
+def _filter_output_for_agent(agent_name: str, items: list) -> list:
+    """Agent-specific sanity filter for the Output column.
+
+    Defends the dashboard against the rigged primaries occasionally
+    placing nonsense orders (e.g. capturing customer chitchat as a pizza
+    item, fabricating "unknown" dates for flights). If after filtering
+    there's nothing left, the cell renders as "—".
+
+    Pizza items must mention something from PIZZA_ITEMS. Travel items
+    must mention a known destination word. Both checks are substring
+    on lowercased text — agent-specific, opt-in per agent."""
+    if not items:
+        return []
+    if agent_name == "pizza-plivo":
+        return [i for i in items if _looks_like_pizza_item(i)]
+    if agent_name == "travel-plivo":
+        return [i for i in items if _looks_like_travel_booking(i)]
+    # Unknown agent — pass through unfiltered.
+    return list(items)
+
+
+def _looks_like_pizza_item(item: str) -> bool:
+    s = (item or "").lower()
+    if not s:
+        return False
+    return any(word in s for word in _PIZZA_VOCAB)
+
+
+def _looks_like_travel_booking(item: str) -> bool:
+    """Bookings are formatted as "{destination} {date} {class} x{N}".
+    The first token must be a known destination; otherwise the LLM
+    likely put junk in the destination slot (e.g. "January Bangalore..."
+    where the month landed where the city should be)."""
+    s = (item or "").strip().lower()
+    if not s:
+        return False
+    tokens = s.split()
+    if not tokens:
+        return False
+    first = tokens[0]
+    return any(first.startswith(city) or city in first for city in _TRAVEL_DESTINATIONS)
 
 
 def _mask_caller(caller: str) -> str:

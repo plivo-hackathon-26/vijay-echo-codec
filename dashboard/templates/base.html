@@ -71,8 +71,12 @@
 
     <div class="flex items-center gap-4">
       <label class="text-dim text-xs">Agent</label>
-      <select class="bg-transparent border border-faint rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500/30">
-        <option>pizza-plivo</option>
+      <select hx-post="/set-agent" hx-trigger="change" hx-target="#agent-selector"
+              hx-swap="outerHTML" name="agent_name" id="agent-selector"
+              class="bg-transparent border border-faint rounded-md px-2 py-1 text-sm focus:outline-none focus:ring-1 focus:ring-emerald-500/30">
+        {% for a in (agents or ['pizza-plivo']) %}
+          <option value="{{ a }}" {% if a == (current_agent or 'pizza-plivo') %}selected{% endif %}>{{ a }}</option>
+        {% endfor %}
       </select>
 
       {% if mirror_enabled %}
