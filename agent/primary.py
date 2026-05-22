@@ -5,7 +5,7 @@ import os
 from openai import AsyncOpenAI
 
 import db
-from prompts import PRIMARY_AGENT_SYSTEM_PROMPT
+from prompts import CORRECTION_AGENT_SYSTEM_PROMPT, PRIMARY_AGENT_SYSTEM_PROMPT
 
 log = logging.getLogger("mirror.agent")
 
@@ -103,19 +103,37 @@ def _execute_tool(name: str, args: dict, call_uuid: str) -> dict:
     return {"error": f"unknown tool: {name}"}
 
 
-async def run_turn(call_uuid: str, transcript_history: list[dict]) -> str:
+async def run_turn(
+    call_uuid: str,
+    transcript_history: list[dict],
+    extra_system_note: str | None = None,
+    return_details: bool = False,
+):
     """Run one agent turn against the conversation history.
 
     transcript_history: list of {"role": "customer" | "agent", "text": str}.
-    Returns the agent's final text response and persists it to `turns`.
+    extra_system_note: optional additional system message appended after
+        the base system prompt — used by Mirror to install a one-shot
+        post-correction override on the turn immediately following an
+        intervention.
+    return_details: when True, return a dict with the final text plus
+        every tool call the agent made during this turn (with parsed
+        args + the tool's result). Mirror's semantic reviewer needs
+        this to judge whether the agent's plan matches the customer's
+        intent. When False (default), just returns the final text
+        string — keeps backward compatibility with callers that only
+        want the spoken response.
     """
     messages: list[dict] = [{"role": "system", "content": PRIMARY_AGENT_SYSTEM_PROMPT}]
+    if extra_system_note:
+        messages.append({"role": "system", "content": extra_system_note})
     for turn in transcript_history:
         role = "user" if turn["role"] == "customer" else "assistant"
         messages.append({"role": role, "content": turn["text"]})
 
     client = _openai()
     final_text = ""
+    tool_calls_made: list[dict] = []
 
     for _ in range(3):
         resp = await client.chat.completions.create(
@@ -150,6 +168,9 @@ async def run_turn(call_uuid: str, transcript_history: list[dict]) -> str:
                 except json.JSONDecodeError:
                     args = {}
                 result = _execute_tool(tc.function.name, args, call_uuid)
+                tool_calls_made.append(
+                    {"name": tc.function.name, "args": args, "result": result}
+                )
                 messages.append(
                     {
                         "role": "tool",
@@ -166,4 +187,38 @@ async def run_turn(call_uuid: str, transcript_history: list[dict]) -> str:
         final_text = "Sorry, can you say that again?"
 
     db.add_turn(call_uuid, "agent", final_text)
+    if return_details:
+        return {"text": final_text, "tool_calls": tool_calls_made}
     return final_text
+
+
+async def run_correction_turn(
+    call_uuid: str,
+    transcript_history: list[dict],
+    mirror_evidence: dict,
+) -> str:
+    """Generate a single corrective response given Mirror's evidence.
+
+    Tool use is disabled — this turn must only produce text. The caller
+    is responsible for persisting the result to the turns table.
+    """
+    system = CORRECTION_AGENT_SYSTEM_PROMPT.format(
+        evidence_json=json.dumps(mirror_evidence, ensure_ascii=False)
+    )
+    messages: list[dict] = [{"role": "system", "content": system}]
+    for turn in transcript_history:
+        role = "user" if turn["role"] == "customer" else "assistant"
+        messages.append({"role": role, "content": turn["text"]})
+
+    client = _openai()
+    # No `tools` and no `tool_choice` — Azure rejects tool_choice
+    # when tools is absent ("'tool_choice' is only allowed when
+    # 'tools' are specified"). Without tools the model can't call
+    # any tool anyway, which is what we want for this turn.
+    resp = await client.chat.completions.create(
+        model=os.getenv("OPENAI_MODEL", "gpt-5.4-mini"),
+        messages=messages,
+    )
+    text = (resp.choices[0].message.content or "").strip()
+    log.info("correction call=%s text=%s", call_uuid, text)
+    return text

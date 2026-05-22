@@ -56,6 +56,18 @@ def init_db() -> None:
                 intervention_needed INTEGER,
                 timestamp           TEXT
             );
+            CREATE TABLE IF NOT EXISTS interventions (
+                id                    INTEGER PRIMARY KEY AUTOINCREMENT,
+                call_uuid             TEXT,
+                triggered_by_event_id INTEGER,
+                pattern_name          TEXT,
+                strategy              TEXT,
+                buffer_text           TEXT,
+                correction_text       TEXT,
+                cached_audio_used     INTEGER,
+                latency_ms            INTEGER,
+                timestamp             TEXT
+            );
             """
         )
 
@@ -117,6 +129,37 @@ def add_mirror_event(
                 severity,
                 json.dumps(evidence_dict),
                 1 if intervention_needed else 0,
+                _now(),
+            ),
+        )
+        return cur.lastrowid
+
+
+def add_intervention(
+    call_uuid: str,
+    triggered_by_event_id,
+    pattern_name: str,
+    strategy: str,
+    buffer_text: str,
+    correction_text: str,
+    cached_audio_used: bool,
+    latency_ms: int,
+) -> int:
+    with get_conn() as conn:
+        cur = conn.execute(
+            "INSERT INTO interventions "
+            "(call_uuid, triggered_by_event_id, pattern_name, strategy, "
+            "buffer_text, correction_text, cached_audio_used, latency_ms, "
+            "timestamp) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                call_uuid,
+                triggered_by_event_id,
+                pattern_name,
+                strategy,
+                buffer_text,
+                correction_text,
+                1 if cached_audio_used else 0,
+                int(latency_ms),
                 _now(),
             ),
         )

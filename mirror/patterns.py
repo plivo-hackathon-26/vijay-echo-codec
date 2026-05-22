@@ -73,6 +73,30 @@ STATUS_PHRASES = [
 
 _NO_ITEM_RE = re.compile(r"\bno\s+(\w+)\b", re.IGNORECASE)
 
+# "X. No, Y" / "X. No. Y" — standalone "no" followed by punctuation
+# acts as an interjection negation: everything before is retracted,
+# everything after is the new order.
+_STRONG_NEG_RE = re.compile(r"\bno\s*[.,!?]", re.IGNORECASE)
+
+# Tail-keep markers: items AFTER the marker are kept.
+# "pepperoni, actually mushroom" → mushroom kept, pepperoni removed.
+_TAIL_KEEP_MARKERS_RE = re.compile(
+    r"\b(?:actually|instead|make\s+it|scratch\s+that)\b", re.IGNORECASE
+)
+
+# Head-keep markers: items BEFORE the marker are kept.
+# "mushroom only" → mushroom kept; "just cheese" → cheese kept.
+_HEAD_KEEP_MARKERS_RE = re.compile(r"\b(?:only|just)\b", re.IGNORECASE)
+
+
+def _normalize_for_marker_match(text: str) -> str:
+    """Replace punctuation with spaces so trailing-space markers like
+    "no " match "no." and "only " match "only," just as well as the
+    raw forms. Deepgram's smart_format inserts punctuation that would
+    otherwise defeat substring matching.
+    """
+    return " " + re.sub(r"[^\w\s]", " ", text.lower()) + " "
+
 
 def _word_in(needle: str, haystack: str) -> bool:
     """Whole-word, case-insensitive presence check. Prevents 'pepper'
@@ -84,23 +108,102 @@ def _word_count(needle: str, haystack: str) -> int:
     return len(re.findall(rf"\b{re.escape(needle)}\b", haystack))
 
 
+def _classify_items(text: str, items: list) -> tuple:
+    """Bucket items into (likely_kept, likely_removed) for the demo.
+
+    Heuristics, in priority order:
+    0. **Interjection negation**: "...X. No, Y..." splits the utterance.
+       Items in the head are removed; items in the tail are kept.
+       This is the demo phrase shape once smart_format adds punctuation.
+    1. **"no <item>" modifier** → item is removed.
+    2. **Tail-keep markers** ("actually", "instead", "make it",
+       "scratch that"): items in the tail are kept; items in the head
+       (not also in the tail) are removed.
+    3. **Head-keep markers** ("only", "just"): items in the head are
+       kept (the marker narrows the order).
+    4. Anything still unclassified defaults to kept.
+
+    This is a hint, not a hard determination — the LLM still has the
+    full conversation and the customer's exact words.
+    """
+    text_l = text.lower()
+    removed: list = []
+    kept: list = []
+
+    # Pass 0: interjection negation. "X. No, Y" — strong signal that
+    # everything before is retracted and Y is the new intent.
+    m = _STRONG_NEG_RE.search(text_l)
+    if m:
+        head = text_l[:m.start()]
+        tail = text_l[m.end():]
+        for item in items:
+            if item in tail and item not in kept:
+                kept.append(item)
+            elif item in head and item not in removed:
+                removed.append(item)
+        for item in items:
+            if item not in kept and item not in removed:
+                kept.append(item)
+        return kept, removed
+
+    # Pass 1: explicit "no <item>" modifier.
+    for match in _NO_ITEM_RE.finditer(text_l):
+        item = match.group(1).lower()
+        if item in PIZZA_ITEMS and item not in removed:
+            removed.append(item)
+
+    # Pass 2: tail-keep markers.
+    for match in _TAIL_KEEP_MARKERS_RE.finditer(text_l):
+        head = text_l[:match.start()]
+        tail = text_l[match.end():]
+        for item in items:
+            if item in tail and item not in kept and item not in removed:
+                kept.append(item)
+            if (
+                item in head
+                and item not in tail
+                and item not in kept
+                and item not in removed
+            ):
+                removed.append(item)
+
+    # Pass 3: head-keep markers.
+    for match in _HEAD_KEEP_MARKERS_RE.finditer(text_l):
+        head = text_l[:match.start()]
+        for item in items:
+            if item in head and item not in kept and item not in removed:
+                kept.append(item)
+
+    # Default: unclassified items are kept.
+    for item in items:
+        if item not in kept and item not in removed:
+            kept.append(item)
+
+    return kept, removed
+
+
 def contradiction_rule(recent_turns, current_user_turn, agent_state):
     """Fire when the customer mentions multiple items along with a
     correction marker — or contradicts themselves about a single item."""
     text = current_user_turn.lower()
+    normalized = _normalize_for_marker_match(current_user_turn)
 
     items_mentioned = [item for item in PIZZA_ITEMS if _word_in(item, text)]
-    markers_found = [marker for marker in CORRECTION_MARKERS if marker in text]
+    markers_found = [marker for marker in CORRECTION_MARKERS if marker in normalized]
 
     # Primary signal: 2+ distinct items + at least one correction marker.
     if len(items_mentioned) >= 2 and len(markers_found) >= 1:
+        likely_kept, likely_removed = _classify_items(text, items_mentioned)
         return {
             "pattern_name": "contradiction",
             "severity": "intervention",
+            "strategy": "self_correct",
             "evidence": {
                 "user_said": current_user_turn,
                 "items_detected": items_mentioned,
                 "markers_found": markers_found,
+                "likely_kept_items": likely_kept,
+                "likely_removed_items": likely_removed,
                 "reasoning": "multiple items + correction marker(s)",
             },
             "intervention_needed": True,
@@ -114,9 +217,13 @@ def contradiction_rule(recent_turns, current_user_turn, agent_state):
             return {
                 "pattern_name": "contradiction",
                 "severity": "intervention",
+                "strategy": "self_correct",
                 "evidence": {
                     "user_said": current_user_turn,
                     "negated_item": item,
+                    "items_detected": [item],
+                    "likely_kept_items": [],
+                    "likely_removed_items": [item],
                     "reasoning": (
                         f"'no {item}' said but '{item}' also mentioned "
                         "elsewhere in the same turn"
@@ -143,6 +250,7 @@ def missing_tool_rule(recent_turns, current_user_turn, agent_state):
                 return {
                     "pattern_name": "missing_tool_request",
                     "severity": "intervention",
+                    "strategy": "handoff",
                     "evidence": {
                         "user_said": current_user_turn,
                         "category": category,

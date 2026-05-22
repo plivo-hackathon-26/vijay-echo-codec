@@ -1,9 +1,14 @@
 """Mirror evaluator — runs pattern rules, persists fires, sets flags.
 
 Called synchronously after every customer turn is written to the turns
-table, BEFORE the primary agent's run_turn fires. Phase 2 is observation
-only; Phase 3 will read intervention_pending from mirror.state to alter
+table, BEFORE the primary agent's run_turn fires. Phase 2 logs and
+flags; Phase 3 reads intervention_pending from mirror.state to alter
 agent behavior.
+
+Cooldown: if the call is in an active intervention cooldown window,
+all rules are skipped for that turn. This prevents Mirror from
+re-firing on the customer's immediate confirmation right after an
+intervention ("Yes" / "That's right").
 """
 
 import logging
@@ -47,6 +52,10 @@ def evaluate(
 
     Returns the list of fired event dicts (possibly empty).
     """
+    if call_uuid and state.is_in_cooldown(call_uuid):
+        log.debug("MIRROR: in cooldown, skipping (call=%s)", call_uuid)
+        return []
+
     agent_state = agent_state or {}
     results: list = []
 
@@ -59,8 +68,9 @@ def evaluate(
         if not fire:
             continue
 
+        event_id = None
         try:
-            db.add_mirror_event(
+            event_id = db.add_mirror_event(
                 call_uuid=call_uuid,
                 turn_id=current_turn_id,
                 pattern_name=fire["pattern_name"],
@@ -70,6 +80,8 @@ def evaluate(
             )
         except Exception:
             log.exception("failed to persist mirror_event for %s", fire["pattern_name"])
+
+        fire["mirror_event_id"] = event_id
 
         if fire["intervention_needed"]:
             state.set_intervention_pending(call_uuid, fire)
