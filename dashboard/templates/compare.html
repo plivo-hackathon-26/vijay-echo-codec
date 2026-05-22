@@ -100,9 +100,46 @@
             <div class="text-dim italic text-xs">No order placed.</div>
           {% endif %}
         </div>
+
+        {# Polish B — dollar value block #}
+        {% set v = (value_compare.loss_without if accent == 'red' else value_compare.saved_with) if value_compare else None %}
+        {% if v and v.total_saved and v.total_saved > 0 %}
+          <div class="border-t border-faint p-5 {% if accent == 'red' %}bg-red-500/5{% else %}bg-emerald-500/5{% endif %}">
+            <div class="flex items-center gap-2 text-xs uppercase tracking-wider {% if accent == 'red' %}text-red-300{% else %}text-emerald-300{% endif %}">
+              {% if accent == 'red' %}
+                <span class="text-lg">💸</span> Estimated loss
+              {% else %}
+                <span class="text-lg">💰</span> Customer value saved
+              {% endif %}
+            </div>
+            <div class="text-5xl font-bold mono mt-2 {% if accent == 'red' %}text-red-400{% else %}text-emerald-400{% endif %}">
+              ${{ '%.2f' % v.total_saved }}
+            </div>
+            <div class="text-xs text-dim mt-2">
+              {% if accent == 'red' %}
+                Churn risk + support ticket + 1-star review
+              {% else %}
+                Retained customer + prevented escalation
+              {% endif %}
+            </div>
+          </div>
+        {% endif %}
       {% endif %}
     </div>
   {% endfor %}
 </section>
+
+{# Polish B — net summary line. Only show when at least one side has a value #}
+{% if value_compare and (value_compare.loss_without.total_saved > 0 or value_compare.saved_with.total_saved > 0) %}
+  <div class="mt-6 surface rounded-lg p-4 text-center">
+    <div class="text-sm text-dim">
+      Mirror prevented
+      <span class="text-emerald-300 font-semibold mono">
+        ${{ '%.2f' % value_compare.saved_with.total_saved }}
+      </span>
+      in lost value on this single call.
+    </div>
+  </div>
+{% endif %}
 
 {% endblock %}

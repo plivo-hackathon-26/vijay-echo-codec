@@ -1,0 +1,25 @@
+{# Polish B — main-dashboard stat card. Replaces the legacy "Avg call health".
+   Live-polls /api/value-saved/today every 5s. JS lives in index.html. #}
+<div class="surface rounded-lg p-5"
+     hx-get="/api/value-saved/today"
+     hx-trigger="every 5s"
+     hx-swap="none"
+     hx-on::after-request="updateValueSaved(event.detail.xhr.response)">
+  <div class="flex items-center justify-between">
+    <div class="text-xs text-dim uppercase tracking-wider">Customer value saved today</div>
+    <span class="text-emerald-300 text-base">💰</span>
+  </div>
+  <div class="text-3xl font-semibold mt-2 mono text-emerald-300" id="stat-value-saved">
+    ${{ '%.2f' % (value_today.total_saved if value_today else 0) }}
+  </div>
+  <div class="text-xs text-dim mt-1" id="stat-value-saved-subtitle">
+    across {{ (value_today.intervention_count if value_today else 0) }} intervention{{ '' if value_today and value_today.intervention_count == 1 else 's' }}
+  </div>
+  {% if value_today and value_today.last_call_saved > 0 %}
+    <div class="mt-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] mono border border-emerald-500/40 bg-emerald-500/10 text-emerald-300" id="stat-value-saved-delta">
+      ↑ +${{ '%.2f' % value_today.last_call_saved }} from last call
+    </div>
+  {% else %}
+    <div class="mt-2 hidden" id="stat-value-saved-delta"></div>
+  {% endif %}
+</div>

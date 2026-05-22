@@ -1,0 +1,27 @@
+{# Polish B — call-detail banner. Renders ONLY when value_saved.total_saved > 0.
+   `value_saved` comes from mirror.value_model.calculate_value_saved(). #}
+{% if value_saved and value_saved.total_saved and value_saved.total_saved > 0 %}
+<div class="mb-6 rounded-lg overflow-hidden border-l-[3px] border-emerald-500"
+     style="background-color: rgba(16,185,129,0.08);">
+  <details class="group">
+    <summary class="cursor-pointer list-none px-5 py-3 flex items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <span class="text-2xl">💰</span>
+        <div>
+          <div class="text-lg font-semibold text-emerald-300">
+            ${{ '%.2f' % value_saved.total_saved }} Customer Value Saved by Mirror
+          </div>
+          <div class="text-xs text-dim mt-0.5">
+            Churn risk + support tickets + reputation
+          </div>
+        </div>
+      </div>
+      <span class="text-xs text-dim group-open:hidden">show details ▼</span>
+      <span class="text-xs text-dim hidden group-open:inline">hide ▲</span>
+    </summary>
+    <div class="px-5 py-3 border-t border-emerald-500/20 text-sm text-zinc-300 whitespace-pre-line">
+      {{ value_saved.calculation_breakdown }}
+    </div>
+  </details>
+</div>
+{% endif %}

@@ -4,7 +4,7 @@
 {% block content %}
 
 <!-- Stats cards -->
-<section class="grid grid-cols-4 gap-4 mb-6"
+<section class="grid grid-cols-5 gap-4 mb-6"
          hx-get="/stats.json"
          hx-trigger="every 5s"
          hx-swap="none"
@@ -26,6 +26,7 @@
     <div class="text-xs text-dim uppercase tracking-wider">Avg call health</div>
     <div class="text-3xl font-semibold mt-2 mono" id="stat-health">{{ s.avg_call_health }} <span class="text-base text-dim">/ 10</span></div>
   </div>
+  {% include "partials/dollar_saved_stat_card.html" %}
 </section>
 
 <!-- Main grid: calls table + live feed -->
@@ -90,13 +91,46 @@
 {% block scripts %}
 <script>
   // ---------- stats polling ----------
+  // Both this and updateValueSaved are bound via hx-on::after-request,
+  // which catches BUBBLED events from child elements that also have
+  // their own hx-get. Each updater must therefore guard against being
+  // called with the wrong payload shape, or stat cards get wiped to
+  // undefined.
   function updateStats(raw) {
     try {
       const s = JSON.parse(raw);
+      if (s == null || s.calls_today == null) return;   // not /stats.json
       document.getElementById('stat-calls').textContent   = s.calls_today;
       document.getElementById('stat-events').textContent  = s.mirror_events_today;
       document.getElementById('stat-rescues').textContent = s.customer_rescues_today;
-      document.getElementById('stat-health').innerHTML    = `${s.avg_call_health} <span class="text-base text-dim">/ 10</span>`;
+      const health = document.getElementById('stat-health');
+      if (health) {
+        health.innerHTML = `${s.avg_call_health} <span class="text-base text-dim">/ 10</span>`;
+      }
+    } catch (e) { /* swallow */ }
+  }
+
+  // ---------- Polish B: value-saved polling ----------
+  function updateValueSaved(raw) {
+    try {
+      const v = JSON.parse(raw);
+      if (v == null || v.total_saved == null) return;   // not /api/value-saved/today
+      const total = v.total_saved;
+      const ic = (v.intervention_count != null) ? v.intervention_count : 0;
+      document.getElementById('stat-value-saved').textContent = `$${total.toFixed(2)}`;
+      document.getElementById('stat-value-saved-subtitle').textContent =
+        `across ${ic} intervention${ic === 1 ? '' : 's'}`;
+      const delta = document.getElementById('stat-value-saved-delta');
+      if (delta) {
+        const last = v.last_call_saved || 0;
+        if (last > 0) {
+          delta.className = 'mt-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] mono border border-emerald-500/40 bg-emerald-500/10 text-emerald-300';
+          delta.textContent = `↑ +$${last.toFixed(2)} from last call`;
+        } else {
+          delta.className = 'mt-2 hidden';
+          delta.textContent = '';
+        }
+      }
     } catch (e) { /* swallow */ }
   }
 

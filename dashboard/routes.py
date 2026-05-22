@@ -39,6 +39,11 @@ async def index(request: Request):
     sse.ensure_poller_started()
     payload = stats.collect_stats()
     calls = stats.recent_calls(limit=20, filter_mode="all")
+    # Polish B: server-render today's value-saved so the stat card has
+    # a real number on first paint (no blank "$0.00" flash while HTMX
+    # polls in).
+    from mirror import value_model as _vm
+    value_today = _vm.calculate_total_value_saved_today()
     return templates.TemplateResponse(
         request=request,
         name="index.html",
@@ -49,6 +54,7 @@ async def index(request: Request):
             "active_filter": "all",
             "current_agent": mirror_toggle.get_current_agent(),
             "agents": agent_router.known_agents(),
+            "value_today": value_today,
         },
     )
 
@@ -97,6 +103,8 @@ async def call_detail_page(request: Request, call_uuid: str):
     detail = stats.call_detail(call_uuid)
     if detail is None:
         raise HTTPException(status_code=404, detail="call not found")
+    from mirror import value_model as _vm
+    value_saved = _vm.calculate_value_saved(call_uuid)
     return templates.TemplateResponse(
         request=request,
         name="call_detail.html",
@@ -105,6 +113,7 @@ async def call_detail_page(request: Request, call_uuid: str):
             "mirror_enabled": mirror_toggle.get_global_enabled(),
             "current_agent": mirror_toggle.get_current_agent(),
             "agents": agent_router.known_agents(),
+            "value_saved": value_saved,
         },
     )
 
@@ -123,6 +132,8 @@ async def compare_page(
     detail_a = stats.call_detail(a) if a else None
     detail_b = stats.call_detail(b) if b else None
     candidates = stats.recent_calls(limit=30, filter_mode="all")
+    from mirror import value_model as _vm
+    value_compare = _vm.calculate_value_saved_for_compare(a, b)
     return templates.TemplateResponse(
         request=request,
         name="compare.html",
@@ -135,6 +146,7 @@ async def compare_page(
             "mirror_enabled": mirror_toggle.get_global_enabled(),
             "current_agent": mirror_toggle.get_current_agent(),
             "agents": agent_router.known_agents(),
+            "value_compare": value_compare,
         },
     )
 
@@ -276,4 +288,29 @@ async def sse_one_call(request: Request, call_uuid: str):
             "X-Accel-Buffering": "no",
             "Connection": "keep-alive",
         },
+    )
+
+
+# ───────────────── Polish B — value-saved endpoints (append-only) ────────
+# Translates Mirror's interventions into estimated dollar value preserved
+# (churn avoided + support tickets avoided + reputation damage avoided).
+# All math lives in mirror/value_model.py — these routes are thin wrappers.
+
+from mirror import value_model as _value_model
+
+
+@router.get("/api/value-saved/today")
+async def api_value_saved_today():
+    return JSONResponse(_value_model.calculate_total_value_saved_today())
+
+
+@router.get("/api/value-saved/call/{call_uuid}")
+async def api_value_saved_call(call_uuid: str):
+    return JSONResponse(_value_model.calculate_value_saved(call_uuid))
+
+
+@router.get("/api/value-saved/compare")
+async def api_value_saved_compare(call_a: str = "", call_b: str = ""):
+    return JSONResponse(
+        _value_model.calculate_value_saved_for_compare(call_a or None, call_b or None)
     )
