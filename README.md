@@ -10,6 +10,37 @@ fix the underlying prompt.
 
 Built for **Plivo Hackathon 2026** · Track: `for-agents`.
 
+---
+
+## 30-second summary
+
+**Problem.** Voice agents fail silently. They pass every health check
+("9.4 / 10 — call completed"), then the customer hangs up confused and
+churns. Today's observability is post-mortem; by the time you read the
+report, the customer is gone.
+
+**What Mirror does.** Sits next to your existing primary voice agent
+and supervises every turn. Two-layer detection: pure-Python pattern
+checks fire in `<3 ms` on every utterance; when patterns are silent, a
+semantic LLM reviewer inspects the agent's *planned* response before
+it's spoken. If either layer flags a problem, Mirror plays a buffer
+sentence ("just to confirm…") that masks a corrected response — the
+customer hears one continuous voice. Outcome retained. Dashboard
+quantifies the dollars preserved.
+
+**The kicker.** Every Mirror intervention drafts a failure report
+(*what went wrong, root cause, proposed prompt edit*). A human clicks
+**Approve & Apply** in the dashboard; Mirror rewrites the prompt file,
+validates with `ast.parse`, pushes a branch, and opens a real GitHub
+PR. Allowlist-gated so no PR can touch anything outside the prompts.
+Every failure makes the next thousand calls better.
+
+**The honest trade.** On healthy turns where the semantic reviewer
+runs, Mirror adds **~500 ms** before the agent speaks. We trade that
+for catching failures *live* instead of in a post-mortem hours later.
+Small-talk turns skip the LLM via a length/tool-call shortcut, and
+when patterns fire we bypass semantic entirely.
+
 ```
 ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐
 │  DETECT  │ → │ CORRECT  │ → │   SAVE   │ → │  LEARN   │
@@ -40,26 +71,39 @@ correction as a real PR.
 
 ## The four beats
 
-**DETECT** — Pure-Python pattern checks on every turn.
-`<3 ms` overhead. Zero LLM cost on healthy calls. A second-tier
-semantic-LLM reviewer fires *only* when patterns flag, so the LLM bill
-scales with failures, not traffic.
+**DETECT** — Pure-Python pattern checks every turn — `<3 ms`, no LLM.
+Catches the lexically-marked failures: contradictions with "actually" /
+"instead", missing-tool requests, repetition loops. **When patterns
+clear**, a semantic LLM reviewer runs against the agent's *planned*
+response (~500 ms) as the safety net for everything regex can't see —
+third-party preferences, ambiguous corrections, semantically-clean
+hallucinations. Small-talk turns skip the LLM via a length/tool-call
+shortcut; when patterns fire we bypass semantic and the buffer audio
+masks the correction window. Patterns are the optimization, the LLM
+is the safety net.
 
 **CORRECT** — When Mirror fires, the agent says a short buffer
-sentence ("let me just confirm…") which covers the ~2.5 s correction
+sentence ("just to confirm…") which covers the ~2.5 s correction
 window. A second LLM call rewrites the next response with Mirror's
-evidence injected. The customer hears one continuous voice.
+evidence injected (`likely_kept_items`, `likely_removed_items`, what
+the customer actually wanted). The customer hears one continuous
+voice. If the correction LLM exceeds its 2.2 s timeout, a canned
+fallback fires so there's never dead air.
 
 **SAVE** — Outcome retained. The dashboard quantifies it in dollars
-(churn risk × order value × lifetime + support-ticket cost + reputation
-hit avoided).
+(churn risk × order value × customer lifetime + support-ticket cost +
+reputation hit avoided). The "Customer value saved today" card on `/`
+opens a Chart.js modal plotting cumulative *saved* (Mirror ON) vs *lost*
+(Mirror OFF + wrong_order) across the day — the business case in one
+visual.
 
 **LEARN** — At call end, an LLM writes a failure report: what
 happened, root cause, a proposed text edit, and a confidence score. A
 reviewer hits **Approve & Apply** in the dashboard, Mirror rewrites the
-prompt file, validates with `ast.parse`, pushes a branch, opens a real
-GitHub PR. Allowlist-gated; no PR can touch anything outside `prompts.py`
-or the two primary agents.
+prompt file, validates with `ast.parse`, pushes a branch, and opens a
+real GitHub PR. Allowlist-gated (`ALLOWED_FILES = {prompts.py,
+agent/primary.py, agents/travel/primary.py, agents/travel/prompts.py}`);
+no PR can touch anything else. All-or-nothing rollback on failure.
 
 ---
 
@@ -89,10 +133,14 @@ or the two primary agents.
 
 | Customer says | Layer that catches it | What Mirror does |
 | --- | --- | --- |
+| *"My wife wants pepperoni but I'd like mushroom"* ★ | Semantic LLM | Third-party preference detected; agent confirms mushroom only |
 | *"Large pepperoni, actually mushroom only, no pepperoni"* | Pattern (contradiction) | Buffer + rewritten confirm; order = mushroom only |
 | *"Can you check my last order?"* | Pattern (missing tool) | Canned handoff: "I can transfer you to the team" |
-| *"My wife wants pepperoni but I'd like mushroom"* | Semantic LLM | Third-party preference detected; corrects to mushroom |
 | *"Book Mumbai Friday, actually Delhi Saturday"* (travel) | Semantic LLM | Corrects to Delhi Saturday — same machinery, different domain |
+
+★ This is the **headline demo** because there are **no correction
+markers** in the sentence — regex alone could never catch it. It's the
+purest proof that the semantic layer is doing real work.
 
 The pizza & travel agents are **intentionally rigged** to capture every
 item / destination mentioned in a single utterance. That's the bait
