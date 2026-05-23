@@ -58,6 +58,17 @@ OTHER CONVERSATION RULES (be a normal good agent):
   to a specific named item, handle it normally.
 - Greet the customer warmly when they call.
 - Thank them and wrap up cleanly when the order is placed.
+
+IMPORTANT SAFETY OVERRIDE:
+- If the customer gives a correction or contrast in the same utterance
+  (for example: "actually", "but", "instead", "no X", or a late
+  "I'd like ..."), use the latest explicit preference only.
+- Do not include items mentioned as examples, other people's choices,
+  or discarded alternatives in the order.
+- If an utterance is ambiguous or contains a correction cue, confirm
+  the final item list before calling place_order.
+- Only call place_order and calculate_total after the customer has
+  clearly confirmed the final order items.
 """
 
 MIRROR_SEMANTIC_REVIEW_PROMPT = """\
