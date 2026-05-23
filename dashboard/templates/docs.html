@@ -1,0 +1,572 @@
+<!doctype html>
+<html lang="en" class="bg-[#0a0a0a] text-[#e8e8e8]">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Mirror — pitch</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Instrument+Serif:ital@0;1&display=swap"
+    rel="stylesheet">
+
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    :root {
+      --bg: #0a0a0a;
+      --surface: #141414;
+      --surface-2: #1a1a1a;
+      --border: #2a2a2a;
+      --text: #e8e8e8;
+      --text-dim: #a0a0a0;
+      --text-faint: #707070;
+      --mint: #6ee7b7;
+      --mint-soft: rgba(110, 231, 183, 0.10);
+      --red: #ef4444;
+      --amber: #f59e0b;
+      --blue: #3b82f6;
+    }
+    html, body {
+      font-family: 'Inter', system-ui, -apple-system, sans-serif;
+      font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+      -webkit-font-smoothing: antialiased;
+      background-color: var(--bg);
+      color: var(--text);
+    }
+    .mono { font-family: 'JetBrains Mono', ui-monospace, monospace; }
+
+    /* Editorial serif for closing statements — pairs with Inter the way
+       Stripe / Linear marketing pages do. */
+    .serif-italic {
+      font-family: 'Instrument Serif', 'Iowan Old Style', Georgia, serif;
+      font-style: italic;
+      font-weight: 400;
+      letter-spacing: -0.01em;
+      line-height: 1.15;
+    }
+
+    /* Scroll-snap deck */
+    .deck {
+      height: 100vh;
+      overflow-y: scroll;
+      scroll-snap-type: y mandatory;
+      scroll-behavior: smooth;
+    }
+    .deck::-webkit-scrollbar { display: none; }
+    .deck { scrollbar-width: none; }
+    .slide {
+      height: 100vh;
+      width: 100vw;
+      scroll-snap-align: start;
+      scroll-snap-stop: always;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 2.25rem 4rem 2.75rem;
+      position: relative;
+      overflow: hidden;
+      box-sizing: border-box;
+    }
+
+    /* Subtle mint radial glow behind hero — depth without noise */
+    .hero-glow::before {
+      content: "";
+      position: absolute;
+      top: -10%;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 80vw;
+      height: 60vh;
+      background: radial-gradient(ellipse at center, var(--mint-soft) 0%, transparent 65%);
+      pointer-events: none;
+      z-index: 0;
+    }
+    .slide > * { position: relative; z-index: 1; }
+
+    .card {
+      background-color: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem 1.75rem;
+    }
+    .card-soft {
+      background-color: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 1.25rem 1.5rem;
+    }
+
+    .pill-mint {
+      display: inline-block;
+      padding: 4px 10px;
+      border-radius: 999px;
+      background: var(--mint-soft);
+      color: var(--mint);
+      border: 1px solid rgba(110, 231, 183, 0.30);
+      font-size: 11px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    /* Flow diagram */
+    .flow-stage {
+      flex: 1;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 0.6rem 0.5rem;
+      text-align: center;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      font-size: 11.5px;
+      color: var(--text);
+    }
+    .flow-stage.mint {
+      border-color: rgba(110, 231, 183, 0.35);
+      color: var(--mint);
+      background: linear-gradient(180deg, rgba(110, 231, 183, 0.05), var(--surface));
+    }
+    .flow-arrow {
+      flex-shrink: 0;
+      color: var(--text-faint);
+      width: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Loop-back arrow with subtle pulse */
+    .loop-path {
+      stroke: var(--mint);
+      stroke-width: 1.5;
+      fill: none;
+      stroke-dasharray: 4 4;
+      opacity: 0.55;
+      animation: loopPulse 3.6s ease-in-out infinite;
+    }
+    .loop-arrowhead { fill: var(--mint); opacity: 0.55; }
+    @keyframes loopPulse {
+      0%, 100% { opacity: 0.30; }
+      50%      { opacity: 0.80; }
+    }
+    .loop-label {
+      fill: var(--text-faint);
+      font-family: 'Inter', sans-serif;
+      font-size: 11px;
+      font-style: italic;
+    }
+
+    /* Slide indicator dots */
+    .dot {
+      width: 8px; height: 8px;
+      border-radius: 999px;
+      background: #2a2a2a;
+      transition: all 200ms ease;
+      cursor: pointer;
+    }
+    .dot.active {
+      background: var(--mint);
+      box-shadow: 0 0 0 4px rgba(110, 231, 183, 0.12);
+    }
+
+    /* "Press → to continue" hint */
+    .hint {
+      position: fixed;
+      bottom: 28px;
+      right: 84px;
+      color: var(--text-faint);
+      font-size: 12px;
+      letter-spacing: 0.04em;
+      opacity: 0.85;
+      transition: opacity 600ms ease;
+      z-index: 10;
+    }
+    .hint.hidden-fade { opacity: 0; pointer-events: none; }
+    .hint .kbd {
+      display: inline-block;
+      padding: 2px 7px;
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      background: var(--surface);
+      font-family: 'JetBrains Mono', ui-monospace, monospace;
+      font-size: 11px;
+      margin: 0 2px;
+    }
+
+    /* Top-right controls */
+    .controls {
+      position: fixed;
+      top: 18px;
+      right: 22px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      z-index: 20;
+    }
+    .ctrl-btn {
+      color: var(--text-faint);
+      font-size: 12px;
+      cursor: pointer;
+      transition: color 160ms ease;
+      background: transparent;
+      border: none;
+      padding: 4px 6px;
+    }
+    .ctrl-btn:hover { color: var(--text); }
+
+    /* Slide indicator + close — fixed bottom-right */
+    .indicator {
+      position: fixed;
+      bottom: 28px;
+      right: 28px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      z-index: 10;
+    }
+
+    /* Slide-1 number callout */
+    .megastat {
+      font-family: 'Inter', sans-serif;
+      font-weight: 800;
+      letter-spacing: -0.04em;
+      line-height: 0.95;
+      color: var(--text);
+    }
+
+    /* Slide-2 stage caption */
+    .stage-cap {
+      font-size: 13.5px;
+      line-height: 1.55;
+      color: var(--text-dim);
+    }
+    .stage-cap b {
+      color: var(--text);
+      font-weight: 600;
+    }
+
+    /* Reveal on enter — minimal fade */
+    .reveal {
+      opacity: 0;
+      transform: translateY(8px);
+      transition: opacity 420ms ease, transform 420ms ease;
+    }
+    .slide.in-view .reveal { opacity: 1; transform: none; }
+    .slide.in-view .reveal[data-delay="1"] { transition-delay: 80ms; }
+    .slide.in-view .reveal[data-delay="2"] { transition-delay: 160ms; }
+    .slide.in-view .reveal[data-delay="3"] { transition-delay: 240ms; }
+    .slide.in-view .reveal[data-delay="4"] { transition-delay: 320ms; }
+
+    /* Don't let any horizontal overflow leak */
+    body { overflow-x: hidden; }
+  </style>
+</head>
+<body>
+
+  <!-- Top-right controls: fullscreen + close -->
+  <div class="controls">
+    <button class="ctrl-btn" onclick="toggleFullscreen()" title="Fullscreen">⛶ fullscreen</button>
+    <a href="/" class="ctrl-btn" style="text-decoration:none;" title="Back to dashboard (Esc)">esc · close</a>
+  </div>
+
+  <!-- Press-arrow hint, fades after first interaction -->
+  <div class="hint" id="kbd-hint">
+    Press <span class="kbd">→</span> to continue
+  </div>
+
+  <!-- Slide indicator + jumpable dots -->
+  <div class="indicator">
+    <button class="dot active" data-slide="0" onclick="goToSlide(0)" title="Problem"></button>
+    <button class="dot" data-slide="1" onclick="goToSlide(1)" title="Mirror"></button>
+  </div>
+
+  <div class="deck" id="deck">
+
+    <!-- ═════════════════════════ SLIDE 1 — THE PROBLEM ═════════════════════════ -->
+    <section class="slide hero-glow" id="slide-0">
+      <div class="max-w-[1180px] mx-auto w-full">
+        <div class="reveal">
+          <div class="pill-mint mb-4">The problem</div>
+          <h1 class="megastat text-[44px] md:text-[58px] leading-[0.98] mb-3">
+            Voice agents will never be <span style="color: var(--mint);">100%</span>.
+          </h1>
+          <p class="text-[15px] md:text-base max-w-2xl leading-snug" style="color: var(--text-dim);">
+            And when they fail, the customer hangs up confused — not your team.
+          </p>
+        </div>
+
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-7">
+          <!-- Card 1 — Gartner -->
+          <div class="card reveal" data-delay="1" style="padding: 1.1rem 1.25rem;">
+            <div class="text-[10px] font-semibold tracking-[0.16em] uppercase mb-3" style="color: var(--text-faint);">
+              Market signal
+            </div>
+            <div class="megastat text-[60px] md:text-[68px] leading-[0.9] mb-2" style="color: var(--text);">
+              40<span style="color: var(--text-dim); font-size:0.46em; font-weight:600;">%</span>
+            </div>
+            <div class="leading-snug text-[13px]" style="color: var(--text-dim);">
+              of agentic AI projects will be scrapped by 2027.
+            </div>
+            <div class="mt-2 text-[10px] mono tracking-wider" style="color: var(--text-faint);">
+              GARTNER · 2025
+            </div>
+          </div>
+
+          <!-- Card 2 — fake-success badge -->
+          <div class="card reveal" data-delay="2" style="padding: 1.1rem 1.25rem;">
+            <div class="text-[10px] font-semibold tracking-[0.16em] uppercase mb-3" style="color: var(--text-faint);">
+              The lie in logs
+            </div>
+            <div class="flex items-baseline gap-2 mb-2">
+              <span class="mono font-semibold leading-none" style="color: var(--text); font-size: 40px; letter-spacing:-0.02em;">9.4</span>
+              <span class="mono leading-none" style="color: var(--text-dim); font-size: 16px;">/&nbsp;10</span>
+              <span class="inline-flex items-center justify-center w-5 h-5 rounded-full"
+                    style="background: rgba(110, 231, 183, 0.12); color: var(--mint); border:1px solid rgba(110, 231, 183, 0.30);">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              </span>
+            </div>
+            <div class="leading-snug text-[13px]" style="color: var(--text-dim);">
+              Agents fail loudly while looking perfect in logs.
+            </div>
+            <div class="mt-2 text-[11px]" style="color: var(--text-faint); font-family: 'Instrument Serif', Georgia, serif; font-style: italic;">
+              "call completed successfully"
+            </div>
+          </div>
+
+          <!-- Card 3 — three failure modes -->
+          <div class="card reveal" data-delay="3" style="padding: 1.1rem 1.25rem;">
+            <div class="text-[10px] font-semibold tracking-[0.16em] uppercase mb-3" style="color: var(--text-faint);">
+              Failure modes
+            </div>
+            <ul class="space-y-2 text-[13.5px] leading-snug" style="color: var(--text);">
+              <li class="flex items-start gap-2">
+                <span class="w-1.5 h-1.5 rounded-full mt-[6px] shrink-0" style="background: var(--red);"></span>
+                <span>Hallucinated commitments</span>
+              </li>
+              <li class="flex items-start gap-2">
+                <span class="w-1.5 h-1.5 rounded-full mt-[6px] shrink-0" style="background: var(--amber);"></span>
+                <span>Missed corrections</span>
+              </li>
+              <li class="flex items-start gap-2">
+                <span class="w-1.5 h-1.5 rounded-full mt-[6px] shrink-0" style="background: var(--blue);"></span>
+                <span>Confident wrong answers</span>
+              </li>
+            </ul>
+          </div>
+
+          <!-- Card 4 — observability -->
+          <div class="card reveal" data-delay="4" style="padding: 1.1rem 1.25rem;">
+            <div class="text-[10px] font-semibold tracking-[0.16em] uppercase mb-3" style="color: var(--text-faint);">
+              Today's tooling
+            </div>
+            <div class="mb-2" style="color: var(--text);">
+              <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                <circle cx="12" cy="12" r="9"/>
+                <polyline points="12 7 12 12 15.5 14"/>
+              </svg>
+            </div>
+            <div class="leading-snug text-[13px]" style="color: var(--text-dim);">
+              Post-mortem only. The customer churned hours before the report lands.
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-8 text-center reveal" data-delay="4">
+          <p class="serif-italic text-3xl md:text-[40px]" style="color: var(--text);">
+            Post-mortem is for funerals.
+          </p>
+        </div>
+      </div>
+    </section>
+
+
+    <!-- ═════════════════════════ SLIDE 2 — MIRROR ═════════════════════════ -->
+    <section class="slide hero-glow" id="slide-1">
+      <div class="max-w-[1200px] mx-auto w-full">
+        <div class="reveal">
+          <div class="pill-mint mb-4">The solution</div>
+          <h1 class="megastat text-[44px] md:text-[58px] leading-[0.98] mb-3">
+            <span style="color: var(--mint);">Mirror</span> is the ambulance.
+          </h1>
+          <p class="text-[15px] md:text-base max-w-3xl leading-snug" style="color: var(--text-dim);">
+            Real-time supervision for voice agents.
+            <span class="mono" style="color: var(--mint);">&lt;3&nbsp;ms</span> detection.
+            Zero added latency.
+          </p>
+        </div>
+
+        <!-- 4-beat flow -->
+        <div class="mt-7 reveal" data-delay="1">
+          <div class="flex items-center gap-3">
+            <div class="flow-stage mint">DETECT</div>
+            <div class="flow-arrow">
+              <svg width="22" height="14" viewBox="0 0 24 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7h18"/><polyline points="15 2 20 7 15 12"/></svg>
+            </div>
+            <div class="flow-stage mint">CORRECT</div>
+            <div class="flow-arrow">
+              <svg width="22" height="14" viewBox="0 0 24 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7h18"/><polyline points="15 2 20 7 15 12"/></svg>
+            </div>
+            <div class="flow-stage mint">SAVE</div>
+            <div class="flow-arrow">
+              <svg width="22" height="14" viewBox="0 0 24 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M2 7h18"/><polyline points="15 2 20 7 15 12"/></svg>
+            </div>
+            <div class="flow-stage mint">LEARN</div>
+          </div>
+
+          <!-- Loop-back arrow: LEARN → DETECT -->
+          <div class="relative" style="height: 46px; margin-top: 2px;">
+            <svg viewBox="0 0 1000 46" preserveAspectRatio="none" width="100%" height="46" style="position:absolute; inset:0;">
+              <!-- start near right-most box bottom-center (~900), curve down + left to ~100 -->
+              <path class="loop-path"
+                    d="M 900 4 V 22 Q 900 38 870 38 H 130 Q 100 38 100 22 V 4" />
+              <!-- arrowhead pointing UP into DETECT -->
+              <polygon class="loop-arrowhead" points="100,0 95,8 105,8" />
+              <text class="loop-label" x="500" y="32" text-anchor="middle">
+                every failure improves the next call
+              </text>
+            </svg>
+          </div>
+
+          <!-- Per-stage captions -->
+          <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
+            <div class="stage-cap">
+              <b>Detect.</b>
+              Pure-Python pattern checks every turn.
+              <span class="mono" style="color: var(--mint);">&lt;3&nbsp;ms</span>.
+              Semantic LLM fires only when patterns flag.
+            </div>
+            <div class="stage-cap">
+              <b>Correct.</b>
+              Agent self-corrects mid-call. Buffer sentence covers the ~2.5s window.
+              Customer hears one voice.
+            </div>
+            <div class="stage-cap">
+              <b>Save.</b>
+              Outcome retained. Dashboard shows
+              <span style="color: var(--mint);">$ value saved</span> per call.
+            </div>
+            <div class="stage-cap">
+              <b>Learn.</b>
+              Mirror drafts the fix → human approves → real PR opens against the agent's repo.
+            </div>
+          </div>
+        </div>
+
+        <!-- 3 callout cards -->
+        <div class="grid grid-cols-3 gap-4 mt-6">
+          <div class="card-soft reveal" data-delay="2" style="padding: 0.9rem 1.1rem;">
+            <div class="text-[10px] font-semibold tracking-[0.14em] uppercase mb-1.5" style="color: var(--text-dim);">
+              Works with any agent
+            </div>
+            <div class="text-[13px] leading-snug" style="color: var(--text);">
+              Pizza. Booking. Support. Sales. Swap the pattern config — same machinery.
+            </div>
+          </div>
+          <div class="card-soft reveal" data-delay="3" style="padding: 0.9rem 1.1rem;">
+            <div class="text-[10px] font-semibold tracking-[0.14em] uppercase mb-1.5" style="color: var(--text-dim);">
+              Goes prod Monday
+            </div>
+            <div class="text-[13px] leading-snug" style="color: var(--text);">
+              One-line install. Three lines of YAML to point at any voice agent.
+            </div>
+          </div>
+          <div class="card-soft reveal" data-delay="4" style="padding: 0.9rem 1.1rem;">
+            <div class="text-[10px] font-semibold tracking-[0.14em] uppercase mb-1.5" style="color: var(--text-dim);">
+              Open-source ready
+            </div>
+            <div class="mono text-[13.5px]" style="color: var(--mint);">
+              pip install plivo-mirror
+            </div>
+          </div>
+        </div>
+
+        <div class="mt-7 text-center reveal" data-delay="4">
+          <p class="serif-italic text-3xl md:text-[40px]" style="color: var(--text);">
+            Voice agents that don't fail silently.
+          </p>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <script>
+    const deck = document.getElementById('deck');
+    const slides = Array.from(document.querySelectorAll('.slide'));
+    const dots = Array.from(document.querySelectorAll('.dot'));
+    const hint = document.getElementById('kbd-hint');
+
+    function currentIndex() {
+      // Whichever slide's top is closest to the deck's scrollTop.
+      const top = deck.scrollTop;
+      let best = 0, bestDelta = Infinity;
+      slides.forEach((s, i) => {
+        const d = Math.abs(s.offsetTop - top);
+        if (d < bestDelta) { bestDelta = d; best = i; }
+      });
+      return best;
+    }
+
+    function goToSlide(idx) {
+      idx = Math.max(0, Math.min(slides.length - 1, idx));
+      slides[idx].scrollIntoView({ behavior: 'smooth', block: 'start' });
+      hideHint();
+    }
+
+    function updateDots() {
+      const idx = currentIndex();
+      dots.forEach((d, i) => d.classList.toggle('active', i === idx));
+      slides.forEach((s, i) => s.classList.toggle('in-view', i === idx));
+    }
+
+    function hideHint() {
+      if (!hint) return;
+      hint.classList.add('hidden-fade');
+    }
+
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown' || e.key === ' ' || e.key === 'PageDown') {
+        e.preventDefault();
+        goToSlide(currentIndex() + 1);
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp' || e.key === 'PageUp') {
+        e.preventDefault();
+        goToSlide(currentIndex() - 1);
+      } else if (e.key === 'Escape') {
+        window.location.href = '/';
+      } else if (e.key === 'Home') {
+        goToSlide(0);
+      } else if (e.key === 'End') {
+        goToSlide(slides.length - 1);
+      }
+    });
+
+    deck.addEventListener('scroll', () => {
+      requestAnimationFrame(updateDots);
+    }, { passive: true });
+
+    // Fullscreen toggle
+    function toggleFullscreen() {
+      const el = document.documentElement;
+      if (!document.fullscreenElement) {
+        (el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen).call(el);
+      } else {
+        (document.exitFullscreen || document.webkitExitFullscreen || document.msExitFullscreen).call(document);
+      }
+    }
+    window.toggleFullscreen = toggleFullscreen;
+    window.goToSlide = goToSlide;
+
+    // Initial reveal
+    requestAnimationFrame(() => {
+      slides[0].classList.add('in-view');
+      updateDots();
+    });
+
+    // Auto-hide the hint after a few seconds even with no interaction.
+    setTimeout(hideHint, 8000);
+  </script>
+</body>
+</html>
