@@ -393,8 +393,8 @@
           </h1>
           <p class="text-[15px] md:text-base max-w-3xl leading-snug" style="color: var(--text-dim);">
             Real-time supervision for voice agents.
-            <span class="mono" style="color: var(--mint);">&lt;3&nbsp;ms</span> detection.
-            Zero added latency.
+            <span class="mono" style="color: var(--mint);">&lt;3&nbsp;ms</span> pattern detection.
+            Catches failures while the customer is still on the line.
           </p>
         </div>
 
@@ -434,9 +434,10 @@
           <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-4">
             <div class="stage-cap">
               <b>Detect.</b>
-              Pure-Python pattern checks every turn.
-              <span class="mono" style="color: var(--mint);">&lt;3&nbsp;ms</span>.
-              Semantic LLM fires only when patterns flag.
+              Patterns every turn —
+              <span class="mono" style="color: var(--mint);">&lt;3&nbsp;ms</span>, no LLM.
+              When patterns clear, semantic LLM reviews —
+              <span class="mono" style="color: var(--mint);">~500&nbsp;ms</span> trade for catching failures live, not post-mortem.
             </div>
             <div class="stage-cap">
               <b>Correct.</b>
