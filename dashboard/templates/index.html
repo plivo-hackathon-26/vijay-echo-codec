@@ -86,10 +86,153 @@
   .filter-pill.active { background-color: #1f1f1f; color: white; border-color: #3a3a3a; }
 </style>
 
+<!-- Profit/loss chart modal — opens when the dollar-saved card is clicked -->
+<div id="value-chart-modal"
+     class="fixed inset-0 z-50 hidden items-center justify-center bg-black/70 backdrop-blur-sm"
+     onclick="if (event.target === this) closeValueChart()">
+  <div class="surface rounded-lg w-full max-w-3xl mx-4 p-6 relative">
+    <button onclick="closeValueChart()"
+            class="absolute top-3 right-3 text-dim hover:text-white transition text-xl leading-none"
+            title="Close">×</button>
+    <div class="mb-4">
+      <div class="text-xs text-dim uppercase tracking-wider">Today's running totals</div>
+      <h2 class="text-lg font-semibold">Mirror ON saved vs Mirror OFF lost</h2>
+      <div class="text-xs text-dim mt-1">
+        Cumulative dollar value across today's calls. Green = retained by Mirror's interventions. Red = what would have been lost without Mirror (Mirror-OFF calls that ended wrong).
+      </div>
+    </div>
+    <div class="relative" style="height: 340px;">
+      <canvas id="value-chart-canvas"></canvas>
+    </div>
+    <div id="value-chart-empty" class="hidden text-center text-dim italic py-12">
+      Nothing to chart yet — make a call (or a few) to see the comparison.
+    </div>
+    <div class="mt-4 grid grid-cols-2 gap-4 text-sm">
+      <div class="px-3 py-2 rounded-md border border-emerald-500/40 bg-emerald-500/10">
+        <div class="text-xs text-emerald-300 uppercase tracking-wider">Saved (Mirror ON)</div>
+        <div class="text-xl mono font-semibold text-emerald-300" id="value-chart-total-saved">$0.00</div>
+      </div>
+      <div class="px-3 py-2 rounded-md border border-red-500/40 bg-red-500/10">
+        <div class="text-xs text-red-300 uppercase tracking-wider">Lost (Mirror OFF)</div>
+        <div class="text-xl mono font-semibold text-red-300" id="value-chart-total-lost">$0.00</div>
+      </div>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
 <script>
+  // ---------- profit/loss chart modal ----------
+  let _valueChart = null;
+
+  function openValueChart() {
+    const modal = document.getElementById('value-chart-modal');
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+    fetch('/api/value-saved/timeseries')
+      .then(r => r.json())
+      .then(renderValueChart)
+      .catch(err => console.warn('value chart fetch failed', err));
+  }
+
+  function closeValueChart() {
+    const modal = document.getElementById('value-chart-modal');
+    modal.classList.add('hidden');
+    modal.classList.remove('flex');
+  }
+
+  // ESC to close
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') closeValueChart();
+  });
+
+  function renderValueChart(data) {
+    const points = (data && data.points) || [];
+    const totals = (data && data.totals) || { saved: 0, lost: 0 };
+
+    document.getElementById('value-chart-total-saved').textContent =
+      `$${Number(totals.saved || 0).toFixed(2)}`;
+    document.getElementById('value-chart-total-lost').textContent =
+      `$${Number(totals.lost || 0).toFixed(2)}`;
+
+    const canvas = document.getElementById('value-chart-canvas');
+    const empty = document.getElementById('value-chart-empty');
+    if (!points.length) {
+      canvas.style.display = 'none';
+      empty.classList.remove('hidden');
+      if (_valueChart) { _valueChart.destroy(); _valueChart = null; }
+      return;
+    }
+    canvas.style.display = 'block';
+    empty.classList.add('hidden');
+
+    const labels = points.map(p => p.t);
+    const savedData = points.map(p => p.saved);
+    const lostData = points.map(p => p.lost);
+
+    if (_valueChart) _valueChart.destroy();
+    _valueChart = new Chart(canvas.getContext('2d'), {
+      type: 'line',
+      data: {
+        labels,
+        datasets: [
+          {
+            label: 'Saved (Mirror ON)',
+            data: savedData,
+            borderColor: '#34d399',
+            backgroundColor: 'rgba(52, 211, 153, 0.15)',
+            fill: true,
+            tension: 0.25,
+            borderWidth: 2,
+            pointRadius: 3,
+            pointBackgroundColor: '#34d399',
+          },
+          {
+            label: 'Lost (Mirror OFF)',
+            data: lostData,
+            borderColor: '#f87171',
+            backgroundColor: 'rgba(248, 113, 113, 0.12)',
+            fill: true,
+            tension: 0.25,
+            borderWidth: 2,
+            pointRadius: 3,
+            pointBackgroundColor: '#f87171',
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { labels: { color: '#e8e8e8', font: { size: 12 } } },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => `${ctx.dataset.label}: $${Number(ctx.parsed.y).toFixed(2)}`,
+            },
+          },
+        },
+        scales: {
+          x: {
+            ticks: { color: '#a0a0a0', font: { size: 11 } },
+            grid: { color: 'rgba(255,255,255,0.05)' },
+          },
+          y: {
+            ticks: {
+              color: '#a0a0a0',
+              font: { size: 11 },
+              callback: (v) => '$' + v,
+            },
+            grid: { color: 'rgba(255,255,255,0.05)' },
+            beginAtZero: true,
+          },
+        },
+      },
+    });
+  }
+
   // ---------- stats polling ----------
   // Both this and updateValueSaved are bound via hx-on::after-request,
   // which catches BUBBLED events from child elements that also have

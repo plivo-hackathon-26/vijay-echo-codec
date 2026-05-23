@@ -347,6 +347,11 @@ async def api_value_saved_today():
     return JSONResponse(_value_model.calculate_total_value_saved_today())
 
 
+@router.get("/api/value-saved/timeseries")
+async def api_value_saved_timeseries():
+    return JSONResponse(_value_model.calculate_timeseries_today())
+
+
 @router.get("/api/value-saved/call/{call_uuid}")
 async def api_value_saved_call(call_uuid: str):
     return JSONResponse(_value_model.calculate_value_saved(call_uuid))

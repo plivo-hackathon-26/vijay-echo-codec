@@ -230,6 +230,62 @@ def calculate_total_value_saved_today() -> dict:
     }
 
 
+def calculate_timeseries_today() -> dict:
+    """Chronologically-ordered running totals for today's calls, split
+    by Mirror ON (saved) vs Mirror OFF + wrong_order (would-have-been
+    lost). Powers the chart modal on the dollar-saved stat card.
+
+    Returns:
+      {
+        "points": [
+          {"t": "13:05:42", "saved": 0.0, "lost": 68.20, "call_uuid": "..."},
+          {"t": "13:10:11", "saved": 124.50, "lost": 68.20, "call_uuid": "..."},
+          ...
+        ],
+        "totals": {"saved": float, "lost": float},
+      }
+    """
+    today = _today_prefix()
+    with db.get_conn() as conn:
+        rows = conn.execute(
+            "SELECT call_uuid, started_at, COALESCE(mirror_enabled, 1) AS me "
+            "FROM calls WHERE started_at LIKE ? "
+            "ORDER BY started_at ASC",
+            (f"{today}%",),
+        ).fetchall()
+
+    points: list[dict] = []
+    cum_saved = 0.0
+    cum_lost = 0.0
+    for r in rows:
+        v = calculate_value_saved(r["call_uuid"])
+        if v["total_saved"] <= 0:
+            continue
+        if int(r["me"]) == 1:
+            cum_saved += v["total_saved"]
+        else:
+            # Mirror was off and the call ended wrong — count as money
+            # Mirror would have saved had it been running.
+            cum_lost += v["total_saved"]
+        ts = (r["started_at"] or "")[11:19]
+        points.append(
+            {
+                "t": ts,
+                "saved": round(cum_saved, 2),
+                "lost": round(cum_lost, 2),
+                "call_uuid": r["call_uuid"],
+            }
+        )
+
+    return {
+        "points": points,
+        "totals": {
+            "saved": round(cum_saved, 2),
+            "lost": round(cum_lost, 2),
+        },
+    }
+
+
 def calculate_value_saved_for_compare(
     call_uuid_off: str | None, call_uuid_on: str | None
 ) -> dict:

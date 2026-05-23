@@ -1,13 +1,17 @@
 {# Polish B — main-dashboard stat card. Replaces the legacy "Avg call health".
-   Live-polls /api/value-saved/today every 5s. JS lives in index.html. #}
-<div class="surface rounded-lg p-5"
+   Live-polls /api/value-saved/today every 5s. Click opens a chart modal
+   plotting cumulative saved (Mirror ON) vs lost (Mirror OFF) over today.
+   JS lives in index.html. #}
+<div class="surface rounded-lg p-5 cursor-pointer hover:border-emerald-400/40 transition"
+     onclick="openValueChart()"
+     title="Click to see profit/loss chart"
      hx-get="/api/value-saved/today"
      hx-trigger="every 5s"
      hx-swap="none"
      hx-on::after-request="updateValueSaved(event.detail.xhr.response)">
   <div class="flex items-center justify-between">
     <div class="text-xs text-dim uppercase tracking-wider">Customer value saved today</div>
-    <span class="text-emerald-300 text-base">💰</span>
+    <span class="text-emerald-300 text-base">📈</span>
   </div>
   <div class="text-3xl font-semibold mt-2 mono text-emerald-300" id="stat-value-saved">
     ${{ '%.2f' % (value_today.total_saved if value_today else 0) }}
