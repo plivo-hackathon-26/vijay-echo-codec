@@ -85,8 +85,32 @@ dashboard/mirror_toggle.py  Global toggle + 6 monkey-patches (the load-bearing m
 dashboard/agent_router.py   Per-call agent dispatch via voice.stream.run_turn patch
 dashboard/sse.py         SSE broadcaster (polling-based, with backfill)
 dashboard/stats.py       Read-only aggregate SQL
-dashboard/templates/     Jinja2: base, index, call_detail, compare, fixes, partials/
+dashboard/templates/     Jinja2: base, index, call_detail, compare,
+                         fixes, docs (pitch deck), partials/
 ```
+
+### Recently-added (additive) features
+
+- **Reset button** in the dashboard header — `POST /admin/wipe-data`
+  → `db.wipe_all_data()` deletes every row from all six tables (schema
+  preserved) and `sse.reset_state()` clears the SSE poller watermarks.
+  Refuses with HTTP 409 if any call has `status='in_progress'` so a
+  live demo can't be truncated mid-conversation.
+- **Per-agent STT keyterm boosts** — `voice/stt.py` exposes
+  `KEYTERMS_PIZZA` / `KEYTERMS_TRAVEL`. `voice/stream.py` looks up
+  `calls.agent_name` on WS connect and passes the right list to
+  Deepgram. Without this the travel agent ran on pizza vocabulary and
+  garbled city names ("Goa", "Jaipur" etc.).
+- **Profit/loss chart modal** — click the "Customer value saved today"
+  card on `/` to open a Chart.js modal plotting cumulative saved
+  (Mirror ON) vs lost (Mirror OFF + wrong_order) over today. Backed by
+  `mirror/value_model.calculate_timeseries_today()` and
+  `GET /api/value-saved/timeseries`.
+- **Pitch deck at `/slides`** — two-slide standalone deck
+  (`dashboard/templates/docs.html`, does NOT extend `base.html`).
+  Scroll-snap + keyboard nav. Subtle "pitch" link in the dashboard
+  footer points to it. Mounted at `/slides` not `/docs` because
+  FastAPI auto-serves Swagger at `/docs`.
 
 ## Database tables
 
