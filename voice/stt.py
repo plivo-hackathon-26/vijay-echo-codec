@@ -9,6 +9,81 @@ from deepgram import (
 log = logging.getLogger("mirror.stt")
 
 
+# Per-agent Deepgram keyterm boosts. nova-3 boosts these tokens against
+# phonetic competitors, which matters a lot for proper nouns the model
+# hasn't seen often (Indian city names) and for the correction markers
+# Mirror's pattern detector keys on.
+KEYTERMS_PIZZA = [
+    "pepperoni",
+    "mushroom",
+    "cheese",
+    "veggie",
+    "margherita",
+    "marinara",
+    "bacon",
+    "sausage",
+    "ham",
+    "pineapple",
+    "olive",
+    "onion",
+    "pepper",
+    "pizza",
+    "order",
+    "large",
+    "medium",
+    "small",
+    "actually",
+    "instead",
+    "only",
+    "just",
+    "Pizza Plivo",
+]
+
+KEYTERMS_TRAVEL = [
+    # Destinations (matches _BASE_PRICES in agents/travel/primary.py)
+    "Mumbai",
+    "Delhi",
+    "Bangalore",
+    "Goa",
+    "Chennai",
+    "Kolkata",
+    "Hyderabad",
+    "Pune",
+    "Jaipur",
+    "Kochi",
+    # Domain
+    "flight",
+    "flights",
+    "book",
+    "booking",
+    "ticket",
+    "fly",
+    "airport",
+    # Brand
+    "SkyPlivo",
+    # Days / dates
+    "Monday",
+    "Tuesday",
+    "Wednesday",
+    "Thursday",
+    "Friday",
+    "Saturday",
+    "Sunday",
+    "tomorrow",
+    "weekend",
+    # Class
+    "economy",
+    "business",
+    "first class",
+    # Correction markers (Mirror pattern detector keys on these)
+    "actually",
+    "instead",
+    "only",
+    "just",
+    "no",
+]
+
+
 class DeepgramSession:
     """One streaming Deepgram session per call.
 
@@ -25,7 +100,7 @@ class DeepgramSession:
     arrives, controlled by `utterance_end_ms`.
     """
 
-    def __init__(self, api_key: str, on_final, on_activity=None):
+    def __init__(self, api_key: str, on_final, on_activity=None, keyterms=None):
         self._client = DeepgramClient(api_key)
         self._conn = self._client.listen.asyncwebsocket.v("1")
         self._on_final = on_final
@@ -35,6 +110,9 @@ class DeepgramSession:
         # is actually speaking but hasn't finished yet.
         self._on_activity = on_activity
         self._utterance_buffer: list[str] = []
+        # Default to pizza vocabulary so existing call sites stay
+        # backward-compatible. New callers pass an agent-specific list.
+        self._keyterms = list(keyterms) if keyterms is not None else list(KEYTERMS_PIZZA)
 
         async def _on_open(_self, *args, **kwargs):
             log.info("dg open")
@@ -131,32 +209,9 @@ class DeepgramSession:
             vad_events=True,
             # Domain vocabulary — these terms should dominate phonetic
             # competitors. Order matters less than presence; Deepgram
-            # boosts each term internally.
-            keyterm=[
-                "pepperoni",
-                "mushroom",
-                "cheese",
-                "veggie",
-                "margherita",
-                "marinara",
-                "bacon",
-                "sausage",
-                "ham",
-                "pineapple",
-                "olive",
-                "onion",
-                "pepper",
-                "pizza",
-                "order",
-                "large",
-                "medium",
-                "small",
-                "actually",
-                "instead",
-                "only",
-                "just",
-                "Pizza Plivo",
-            ],
+            # boosts each term internally. The actual list comes from
+            # __init__ so it can be swapped per active agent.
+            keyterm=self._keyterms,
         )
         ok = await self._conn.start(options)
         if ok is False:

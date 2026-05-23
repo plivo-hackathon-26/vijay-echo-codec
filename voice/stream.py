@@ -14,7 +14,7 @@ from mirror import interventions as mirror_interventions
 from mirror import semantic as mirror_semantic
 from mirror import state as mirror_state
 from prompts import GREETING
-from voice.stt import DeepgramSession
+from voice.stt import KEYTERMS_PIZZA, KEYTERMS_TRAVEL, DeepgramSession
 from voice.tts import speak_on_call
 
 log = logging.getLogger("mirror.stream")
@@ -319,7 +319,26 @@ async def handle_audio_stream(ws: WebSocket) -> None:
         silence_state["prompted"] = False
 
     dg_api_key = os.getenv("DEEPGRAM_API_KEY", "")
-    dg = DeepgramSession(dg_api_key, on_final, on_activity=on_activity)
+    # Pick Deepgram keyterm boosts that match the agent the call was
+    # bound to in /voice/answer. Without this, the travel agent runs on
+    # pizza vocabulary boosts and misrecognises city names ("Goa" → "Go
+    # uh", "Jaipur" → "Jay poor", etc.) on otherwise clean utterances.
+    agent_name = "pizza-plivo"
+    if call_uuid:
+        try:
+            with db.get_conn() as _conn:
+                _row = _conn.execute(
+                    "SELECT COALESCE(agent_name, 'pizza-plivo') AS a "
+                    "FROM calls WHERE call_uuid = ?",
+                    (call_uuid,),
+                ).fetchone()
+            if _row and _row["a"]:
+                agent_name = _row["a"]
+        except Exception:
+            log.exception("could not resolve agent_name; defaulting to pizza-plivo")
+    keyterms = KEYTERMS_TRAVEL if agent_name == "travel-plivo" else KEYTERMS_PIZZA
+    log.info("stt keyterms agent=%s n=%d", agent_name, len(keyterms))
+    dg = DeepgramSession(dg_api_key, on_final, on_activity=on_activity, keyterms=keyterms)
 
     try:
         await dg.start()

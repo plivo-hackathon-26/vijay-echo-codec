@@ -20,17 +20,33 @@ def test_uses_nova_3():
 
 
 def test_pizza_keyterms_present():
-    src = _start_source()
+    # Keyterms now live as a module-level constant so the per-agent
+    # dispatch in voice/stream.py can pick one.
     for term in ("pepperoni", "mushroom", "cheese", "pizza"):
-        assert f'"{term}"' in src, f"missing keyterm: {term}"
+        assert term in stt.KEYTERMS_PIZZA, f"missing pizza keyterm: {term}"
 
 
 def test_correction_marker_keyterms_present():
-    src = _start_source()
     # Mirror's contradiction rule depends on these markers — boosting
-    # them in STT directly helps detection accuracy.
+    # them in STT directly helps detection accuracy. Both agent
+    # keyterm lists must include them.
     for term in ("actually", "instead", "only"):
-        assert f'"{term}"' in src, f"missing keyterm: {term}"
+        assert term in stt.KEYTERMS_PIZZA, f"missing pizza marker: {term}"
+        assert term in stt.KEYTERMS_TRAVEL, f"missing travel marker: {term}"
+
+
+def test_travel_keyterms_present():
+    # Without travel city + class boosts the travel agent runs blind on
+    # nova-3 and misrecognises proper nouns ("Goa" → "go ah" etc.).
+    for term in ("Mumbai", "Delhi", "Bangalore", "Goa", "economy", "business"):
+        assert term in stt.KEYTERMS_TRAVEL, f"missing travel keyterm: {term}"
+
+
+def test_keyterms_threaded_into_deepgram_options():
+    # The list passed at __init__ time must actually reach Deepgram's
+    # `keyterm=` option — otherwise the per-agent dispatch is a no-op.
+    src = _start_source()
+    assert "keyterm=self._keyterms" in src
 
 
 def test_smart_format_and_punctuate_enabled():
