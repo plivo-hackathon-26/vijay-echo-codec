@@ -11,6 +11,7 @@ import logging
 import os
 from typing import Optional
 
+import db
 from fastapi import APIRouter, Form, HTTPException, Request
 from fastapi.responses import (
     HTMLResponse,
@@ -289,6 +290,48 @@ async def sse_one_call(request: Request, call_uuid: str):
             "Connection": "keep-alive",
         },
     )
+
+
+# ───────────────── Admin — start-fresh wipe ─────────────────────────────
+# Drops every row from calls/turns/orders/mirror_events/interventions/
+# failure_reports. Schema is preserved. Refuses if a call is in-flight so
+# a live demo doesn't get truncated mid-conversation.
+
+
+@router.post("/admin/wipe-data")
+async def admin_wipe_data(request: Request):
+    with db.get_conn() as conn:
+        in_flight = conn.execute(
+            "SELECT COUNT(*) AS n FROM calls WHERE status = 'in_progress'"
+        ).fetchone()
+    if in_flight and int(in_flight["n"]) > 0:
+        msg = "Refusing to wipe — a call is in progress. Hang up first."
+        if request.headers.get("HX-Request"):
+            return HTMLResponse(
+                f'<span class="text-xs text-red-300">{msg}</span>',
+                status_code=409,
+            )
+        raise HTTPException(status_code=409, detail=msg)
+
+    counts = db.wipe_all_data()
+    sse.reset_state()
+    log.info("DB wiped via /admin/wipe-data: %s", counts)
+
+    if request.headers.get("HX-Request"):
+        total = sum(counts.values())
+        return HTMLResponse(
+            '<button hx-post="/admin/wipe-data" hx-target="#wipe-btn" '
+            'hx-swap="outerHTML" hx-confirm="Delete ALL calls, turns, orders, '
+            'mirror events, interventions, and failure reports? This cannot be undone." '
+            'id="wipe-btn" '
+            'title="Delete every row from every table. Schema is preserved." '
+            'class="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1 text-xs '
+            'font-medium bg-red-500/10 text-red-300 border border-red-500/30 '
+            'hover:bg-red-500/20 transition">'
+            f'<span class="mono">✓ wiped {total}</span>'
+            "</button>"
+        )
+    return RedirectResponse(url="/", status_code=303)
 
 
 # ───────────────── Polish B — value-saved endpoints (append-only) ────────

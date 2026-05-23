@@ -322,6 +322,39 @@ def count_failure_reports(status: str | None = "pending") -> int:
     return int(row["n"]) if row else 0
 
 
+def wipe_all_data() -> dict:
+    """Delete every row from every data table. Schema is preserved.
+
+    Returns a per-table count of rows removed so the caller can show
+    feedback in the UI.
+    """
+    tables = (
+        "interventions",
+        "mirror_events",
+        "orders",
+        "turns",
+        "failure_reports",
+        "calls",
+    )
+    counts: dict[str, int] = {}
+    with get_conn() as conn:
+        for t in tables:
+            row = conn.execute(f"SELECT COUNT(*) AS n FROM {t}").fetchone()
+            counts[t] = int(row["n"]) if row else 0
+            conn.execute(f"DELETE FROM {t}")
+        # Reset AUTOINCREMENT counters so new rows start at id=1 again.
+        try:
+            conn.execute(
+                "DELETE FROM sqlite_sequence WHERE name IN "
+                "('turns','orders','mirror_events','interventions','failure_reports')"
+            )
+        except sqlite3.OperationalError:
+            # sqlite_sequence only exists if at least one AUTOINCREMENT row
+            # was ever inserted — safe to ignore when absent.
+            pass
+    return counts
+
+
 def update_failure_report_status(report_id: int, status: str, **kwargs) -> bool:
     """Update the status (and any optional bookkeeping columns) of a
     failure_report row. Accepted kwargs: dismissed_by, dismissed_at,

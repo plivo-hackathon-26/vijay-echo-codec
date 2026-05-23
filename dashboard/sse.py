@@ -272,6 +272,18 @@ async def _poll_forever() -> None:
         await asyncio.sleep(1.0)
 
 
+def reset_state() -> None:
+    """Forget every watermark and lifecycle-set. Used after a DB wipe so
+    the poller doesn't think previously-broadcast call_uuids are still
+    live. Safe to call at any time."""
+    _state["last_turn_id"] = 0
+    _state["last_mirror_event_id"] = 0
+    _state["last_intervention_id"] = 0
+    _state["started_call_uuids"].clear()
+    _state["ended_call_uuids"].clear()
+    log.info("SSE watermarks reset")
+
+
 def ensure_poller_started() -> None:
     """Idempotently start the background poller on first request."""
     global _poller_task
