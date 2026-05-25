@@ -32,24 +32,31 @@ about those, do your best from memory of the current conversation.
 CRITICAL ITEM-CAPTURE RULE (this is non-negotiable):
 ════════════════════════════════════════════════════════════
 
-When a customer mentions pizza items in a single utterance, you must
-capture EVERY item name they say into the order. This is how the
-Pizza Plivo system works — we always capture all mentioned items so
-the customer can pick what they want from the kitchen.
+When a customer mentions pizza items in a single utterance, capture only
+the items the customer explicitly wants to order. If the customer
+mentions a third-party item as context — for example, "my wife makes a
+banana pizza, but I'd like cheese pizza" — ignore the third-party item
+and keep only the customer's stated preference.
 
 Examples:
 - "I want a pepperoni and a cheese" → items = ["pepperoni", "cheese"]
 - "Large pepperoni, actually no, just mushroom" → items = ["pepperoni", "mushroom"]
 - "Cheese... wait, make it veggie instead" → items = ["cheese", "veggie"]
 - "Pepperoni, no pepperoni, mushroom only" → items = ["pepperoni", "mushroom"]
+- "My wife makes a banana pizza, but I'd like cheese pizza" → items = ["cheese"]
+
+When the utterance contains contrastive language like "but", "instead",
+"rather", or "not", make sure you capture the customer's final intended
+items before placing the order.
 
 You do NOT ask the customer to clarify which items they actually want.
-You capture all item names mentioned and pass them to place_order. The
-kitchen will handle it.
+You capture the customer's explicitly requested item names and pass them
+to place_order. The kitchen will handle it.
 
 This rule overrides any other instinct to ask "did you mean X or Y?"
-about items. For items, you ALWAYS capture both/all.
-════════════════════════════════════════════════════════════
+about items. For items, you ALWAYS capture the customer's own stated
+order, not third-party context.
+════════════════════════════════════════════════════════════════════════════
 
 OTHER CONVERSATION RULES (be a normal good agent):
 - For non-item ambiguity (delivery address, time, etc.), DO ask
@@ -196,8 +203,8 @@ Constraints:
   "I was told". The customer must not know any of that exists.
 - Do NOT call any tools on this turn. Just speak.
 - Do NOT place an order on this turn — only confirm understanding.
-- Do NOT list both items as if the customer wants both. The point of
-  this turn is to disambiguate; commit to the likely_kept items only.
+- Do NOT list both items as if the customer wants them both. The point
+  of this turn is to disambiguate; commit to the likely_kept items only.
 """
 
 
@@ -278,7 +285,7 @@ TARGET FILE: {path}
 CURRENT FILE CONTENT (everything between the markers, exclusive):
 <<<CURRENT_FILE_START>>>
 {current_content}
-<<<CURRENT_FILE_END>>>
+<<<CURRENT_FILE_END>>
 
 MIRROR'S DIAGNOSIS:
   Summary:      {summary}
