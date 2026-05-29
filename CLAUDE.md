@@ -1,17 +1,113 @@
 # Project context
 
-This repo is a Plivo Hackathon 2026 entry. Window: Fri 22 May 3PM → Sat 23 May 3PM.
+**plivo-mirror is becoming a self-correcting voice agent framework** —
+the only voice agent stack that catches its own mistakes mid-call and
+ships PRs to fix the underlying code. We are not building a demo. We
+are building a product that competes with LiveKit Agents, Pipecat,
+Vapi, Retell, and OpenAI Realtime — with one thing they don't have:
+**runtime self-correction + self-improvement loop**.
+
+0.1.0 shipped on PyPI 2026-05-27 as a supervisor library. 0.2.x+ turns
+it into a full agent runtime. The supervisor core (scorer, tool-gate,
+intervention orchestrator, Fix-PR pipeline) stays — it IS the wedge —
+and the framework grows around it.
+
+## North star
+
+> *"Your voice agent ships, runs, catches its own mistakes mid-call,
+>   opens PRs to fix the underlying prompt. Voice agents that get
+>   better every call."*
+
+## What we are NOT doing anymore
+
+- Talking about demos. The product is the target — the demo is just
+  one artifact along the way.
+- Pizza/sandwich/burger domain coupling. The framework is generic;
+  vertical templates ship separately later if at all.
+- "Bring your own agent" library framing. We're shipping the agent
+  too, with the supervisor baked in.
+
+## Repo layout (READ THIS FIRST)
+
+The repository is split into two top-level directories:
+
+- **`v1/`** — original hackathon code. Preserved for archaeology only.
+  Do not modify; do not extend. New work happens in `v2/`.
+
+- **`v2/`** — the published `plivo-mirror` package (`plivo_mirror/`),
+  streaming-aware, pre-tool-call gate, zero import-time side effects.
+  Run with `cd v2 && pip install -e ".[openai,plivo,dev]"` then
+  `pytest tests/`. Public API documented in `v2/README.md`.
+
+Both directories share the repo-root `venv/`, `.env`, `.env.example`,
+`.hackathon.json`, and this `CLAUDE.md`.
 
 ## What this project IS
 
-**Plivo Mirror** — a silent AI supervisor that watches voice-agent phone
-calls in real time, catches failures via pattern + semantic detection,
-makes the primary agent self-correct mid-call (the customer never knows),
-writes a post-call failure report, and — on human approval — opens a real
-GitHub PR to fix the underlying bug.
+**plivo-mirror** — the voice agent framework that fixes itself.
 
-Tagline framing for the pitch: *monitoring is a post-mortem; Mirror is
-the ambulance + the vaccine.*
+Three things every customer gets from a single `pip install`:
+1. **An agent runtime.** STT → LLM → tool-use → TTS, transport-agnostic
+   (Plivo PSTN, LiveKit WebRTC, Twilio, SIP, browser SDK). Three-line
+   setup: `Agent(system_prompt=..., tools=..., policies=...).run()`.
+2. **A supervisor watching every turn.** Tiered scoring (cheap classifier
+   → expensive scorer), tool-gate that vets irreversible tool calls
+   before they fire, mid-call intervention that clears queued audio and
+   speaks a correction the caller hears as part of the same turn.
+3. **A self-improvement loop.** Every call that intervenes generates a
+   structured FailureReport; on approval (or via auto-PR in CI) the
+   framework opens a real GitHub PR with the fix to the agent's prompt
+   or code.
+
+Tagline framing: *monitoring is a post-mortem; plivo-mirror is the
+ambulance + the vaccine + the surgeon who learns from the operation.*
+
+## The roadmap (high level)
+
+- **0.2.x — Agent runtime.** Build the `mirror.Agent(...)` facade.
+  Bundle STT/LLM/TTS/tool plumbing. Move the manual WS handler code
+  out of customer-land into the framework. Customer's mental load:
+  zero glue code, three lines of config.
+- **0.3.x — Transport plugins.** First-class adapters for LiveKit,
+  Twilio, generic SIP, and a browser SDK for embedded voice. Plivo
+  stays as the reference.
+- **0.4.x — Policy DSL.** Replace plain-English `policies=[...]` with
+  a typed, declarative DSL (`policy("name", "rule", severity=...,
+  on_violation="transfer_human")`). Version-controllable, lintable,
+  separately deployable from the agent prompt.
+- **0.5.x — Auto-PR pipeline.** Today the Fix-PR is human-approved.
+  Add a confidence-gated auto-PR mode that opens (but does not merge)
+  PRs without human intervention; CI runs replay tests against the
+  recorded call before approving the PR.
+- **0.6.x — Durable state + multi-tenant.** Redis state store, tenant
+  isolation, per-tenant policies + tool registries. Required for any
+  customer running > 1 process or > 1 product line.
+- **1.0 — General availability.** Real customers in production. SLA.
+  Pricing. Docs site at plivo-mirror.dev. Replay/audit dashboard.
+
+## Where 0.1.0 ended up
+
+Shipped on PyPI 2026-05-27. ~75 unit tests + 8 integration tests, all
+green. Has the supervisor surface (`Supervisor`, `CallSupervisor`,
+`MirrorConfig`), the tool-gate, the streaming scorer, the report
+generator, the SQLite report sink, the GitHub fixer. The only missing
+piece for the agent-framework vision is the runtime/orchestrator on
+top — `mirror.Agent(...)`.
+
+## Working principles for 0.2.x+
+
+- **No demo code in the package.** Examples live in `v2/examples/` and
+  are documentation, not product. The supervisor + agent runtime must
+  be production-grade — typed, tested, no domain coupling.
+- **Every new feature lands behind an integration test.** The 75
+  existing unit tests are scaffolding; the 8 new supervisor tests
+  prove the composition works. Same bar for the agent runtime.
+- **Latency is a feature.** Pregate stays <50μs, scorer call hidden
+  inside TTS encode window, intervention buffer < 800ms perceived
+  pause. Any change that regresses these must justify itself.
+- **Transport portability is non-negotiable.** Any feature that ties
+  the supervisor to a specific transport (Plivo, LiveKit, anything)
+  goes in `plivo_mirror.transports.{name}` not the core.
 
 ## Required: .hackathon.json
 

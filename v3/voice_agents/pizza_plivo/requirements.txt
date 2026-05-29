@@ -1,0 +1,8 @@
+fastapi>=0.110
+uvicorn[standard]>=0.27
+python-dotenv>=1.0
+deepgram-sdk>=3.7,<4
+openai>=1.50
+elevenlabs>=1.0
+plivo>=4.50
+# plivo-mirror is installed editable from ../../ — see README.md

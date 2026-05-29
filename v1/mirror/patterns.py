@@ -88,6 +88,20 @@ _TAIL_KEEP_MARKERS_RE = re.compile(
 # "mushroom only" → mushroom kept; "just cheese" → cheese kept.
 _HEAD_KEEP_MARKERS_RE = re.compile(r"\b(?:only|just)\b", re.IGNORECASE)
 
+# Third-party preference clauses: items mentioned as what SOMEONE ELSE
+# wants are context, not the customer's order. Capture group 1 is the
+# clause body — bounded by an "i"/"but"/"though"/"for me" pivot back
+# to the customer or by punctuation/end-of-string.
+# Matches: "my kids like pepperoni", "my wife wants pepperoni but ...",
+#          "she ordered mushroom", "they prefer cheese".
+_THIRD_PARTY_RE = re.compile(
+    r"\b(?:my\s+(?:kids?|wife|husband|son|daughter|friend|family|partner|"
+    r"mom|dad|mother|father|brother|sister)|she|he|they)\s+"
+    r"(?:likes?|loves?|wants?|prefers?|orders?|ordered|asked\s+for)\s+"
+    r"(.+?)(?=\bi\b|\bi'd\b|\bi'll\b|\bbut\b|\bthough\b|\bfor\s+me\b|[.,;!?]|$)",
+    re.IGNORECASE,
+)
+
 
 def _normalize_for_marker_match(text: str) -> str:
     """Replace punctuation with spaces so trailing-space markers like
@@ -130,6 +144,16 @@ def _classify_items(text: str, items: list) -> tuple:
     removed: list = []
     kept: list = []
 
+    # Pass 0a: third-party preference clauses. "my kids like pepperoni"
+    # → pepperoni is context, not an order item. Runs before all other
+    # passes so subsequent tail/head logic won't promote these items
+    # back into `kept`.
+    for match in _THIRD_PARTY_RE.finditer(text_l):
+        clause = match.group(1)
+        for item in items:
+            if item in clause and item not in removed:
+                removed.append(item)
+
     # Pass 0: interjection negation. "X. No, Y" — strong signal that
     # everything before is retracted and Y is the new intent.
     m = _STRONG_NEG_RE.search(text_l)
@@ -137,7 +161,7 @@ def _classify_items(text: str, items: list) -> tuple:
         head = text_l[:m.start()]
         tail = text_l[m.end():]
         for item in items:
-            if item in tail and item not in kept:
+            if item in tail and item not in kept and item not in removed:
                 kept.append(item)
             elif item in head and item not in removed:
                 removed.append(item)

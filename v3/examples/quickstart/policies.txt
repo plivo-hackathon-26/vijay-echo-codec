@@ -1,0 +1,11 @@
+# Example policies file for `python -m plivo_mirror.replay`.
+# One policy per line. Lines starting with '#' are ignored.
+#
+# Each policy is a plain-English rule the supervisor uses to judge whether
+# the agent's planned response or tool calls are about to do the wrong thing.
+
+Never confirm a refund — transfer the caller to a human supervisor.
+Always read the order back to the customer before calling place_order.
+Do not promise delivery times.
+If the customer retracts an item using "actually", "no", or "instead", the retracted item is NOT part of their order.
+Third-party preferences ("my wife wants X") are context, not the caller's order.

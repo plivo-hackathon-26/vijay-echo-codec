@@ -97,6 +97,32 @@ class TestContradictionRule:
         # at least one marker should be found despite the periods
         assert len(markers) >= 1
 
+    def test_third_party_preference_excluded(self):
+        """Regression: 'Actually, my kids like pepperoni I would like
+        to go with cheese pizza' must classify pepperoni as removed
+        (it's the kids' preference, not the customer's order) and
+        cheese as kept. Without this, the post-correction override
+        tells the agent to place_order(['pepperoni','cheese']) when
+        the customer confirms — the bug that shipped wrong orders
+        through a Mirror-corrected call."""
+        r = contradiction_rule(
+            [],
+            "Actually, my kids like pepperoni I would like to go with cheese pizza.",
+            {},
+        )
+        assert r is not None
+        assert r["evidence"]["likely_kept_items"] == ["cheese"]
+        assert r["evidence"]["likely_removed_items"] == ["pepperoni"]
+
+    def test_third_party_pronoun_excluded(self):
+        r = contradiction_rule(
+            [], "She wants pepperoni but actually I want mushroom.", {}
+        )
+        assert r is not None
+        assert "mushroom" in r["evidence"]["likely_kept_items"]
+        assert "pepperoni" in r["evidence"]["likely_removed_items"]
+        assert "pepperoni" not in r["evidence"]["likely_kept_items"]
+
 
 class TestMissingToolRule:
     def test_past_order_fires_with_handoff_strategy(self):

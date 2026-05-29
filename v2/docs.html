@@ -1,0 +1,1527 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>plivo-mirror docs</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ────────────────────── tokens ────────────────────── */
+:root[data-theme="light"] {
+  --bg: #ffffff;
+  --bg-alt: #fafbfc;
+  --bg-elev: #ffffff;
+  --bg-code: #0a0a0a;
+  --bg-code-inline: #f4f5f7;
+  --fg: #1d1d1f;
+  --fg-strong: #0a0a0a;
+  --fg-dim: #4a4a4f;
+  --fg-faint: #86868b;
+  --border: #eaecef;
+  --border-strong: #d8dade;
+  --accent: #0a0a0a;            /* Plivo monochrome — accent = near-black */
+  --accent-hover: #2a2a2c;
+  --accent-bg: #f4f5f7;
+  --link: #0a0a0a;
+  --good: #16a34a;
+  --warn: #d97706;
+  --bad: #dc2626;
+  --shadow: 0 1px 2px rgba(0,0,0,.04), 0 4px 12px rgba(0,0,0,.04);
+  --shadow-lg: 0 8px 32px rgba(10,10,10,.08);
+  --code-fg: #e6edf3;
+  --code-kw: #ff7b72;
+  --code-str: #a5d6ff;
+  --code-cmt: #8b949e;
+  --code-fn: #d2a8ff;
+  --code-num: #79c0ff;
+}
+:root[data-theme="dark"] {
+  --bg: #0a0a0a;
+  --bg-alt: #111111;
+  --bg-elev: #131313;
+  --bg-code: #050505;
+  --bg-code-inline: #1a1a1a;
+  --fg: #e6e6e6;
+  --fg-strong: #ffffff;
+  --fg-dim: #a1a1a6;
+  --fg-faint: #6e6e73;
+  --border: #1f1f1f;
+  --border-strong: #2a2a2a;
+  --accent: #ffffff;            /* Plivo monochrome — accent inverts in dark */
+  --accent-hover: #d4d4d4;
+  --accent-bg: rgba(255,255,255,.08);
+  --link: #ffffff;
+  --good: #34d399;
+  --warn: #fbbf24;
+  --bad: #f87171;
+  --shadow: 0 1px 2px rgba(0,0,0,.4), 0 4px 12px rgba(0,0,0,.3);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,.5);
+  --code-fg: #e6edf3;
+  --code-kw: #ff7b72;
+  --code-str: #a5d6ff;
+  --code-cmt: #8b949e;
+  --code-fn: #d2a8ff;
+  --code-num: #79c0ff;
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 15px;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background .2s, color .2s;
+}
+.font-display { font-family: 'Sora', 'Inter', sans-serif; }
+.eyebrow {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: .12em;
+  color: var(--fg-dim);
+}
+a {
+  color: var(--link);
+  text-decoration: none;
+  font-weight: 500;
+}
+a:hover { text-decoration: underline; }
+
+/* ────────────────────── header ────────────────────── */
+header.site {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  backdrop-filter: saturate(1.8) blur(8px);
+}
+header.site .row {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 14px 32px;
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+.logo {
+  font-family: 'Sora', 'Inter', sans-serif;
+  font-weight: 600;
+  font-size: 17px;
+  letter-spacing: -.02em;
+  color: var(--fg-strong);
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+.logo-mark {
+  width: 26px; height: 26px;
+  background: var(--fg-strong);
+  border-radius: 6px;
+  display: inline-grid;
+  place-items: center;
+  color: var(--bg);
+  font-weight: 700;
+  font-size: 13px;
+}
+.version-tag {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 10px;
+  font-weight: 500;
+  padding: 3px 8px;
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  color: var(--fg-dim);
+  border-radius: 4px;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+header.site nav { flex: 1; display: flex; gap: 4px; }
+header.site nav button {
+  background: none;
+  border: 0;
+  font-family: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--fg-dim);
+  cursor: pointer;
+  padding: 8px 14px;
+  border-radius: 8px;
+  transition: all .15s;
+}
+header.site nav button:hover {
+  color: var(--fg-strong);
+  background: var(--bg-alt);
+}
+header.site nav button.active {
+  color: var(--fg-strong);
+  background: var(--bg-alt);
+}
+.header-right { display: flex; align-items: center; gap: 10px; }
+.icon-btn {
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  color: var(--fg-dim);
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: all .15s;
+}
+.icon-btn:hover {
+  color: var(--fg-strong);
+  border-color: var(--border-strong);
+}
+.icon-btn svg { width: 18px; height: 18px; }
+[data-theme="dark"] .sun-icon { display: none; }
+[data-theme="light"] .moon-icon { display: none; }
+
+/* ────────────────────── layout ────────────────────── */
+.wrap {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 40px 32px 96px;
+}
+.tab-panel { display: none; }
+.tab-panel.active { display: block; }
+
+/* ────────────────────── hero ────────────────────── */
+.hero {
+  padding: 80px 0 32px;
+  text-align: center;
+}
+.hero h1 {
+  font-family: 'Sora', 'Inter', sans-serif;
+  font-size: 60px;
+  font-weight: 400;
+  letter-spacing: -.04em;
+  margin: 0 0 20px;
+  color: var(--fg-strong);
+  line-height: 1.02;
+  max-width: 900px;
+  margin-left: auto;
+  margin-right: auto;
+}
+.hero h1 .accent { color: var(--fg-dim); }
+.hero p.tag {
+  font-size: 17px;
+  color: var(--fg-dim);
+  max-width: 640px;
+  margin: 20px auto 0;
+  line-height: 1.55;
+}
+.hero .cta {
+  margin-top: 36px;
+  display: inline-flex;
+  gap: 10px;
+}
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  border-radius: 6px;
+  font-weight: 500;
+  font-size: 13.5px;
+  cursor: pointer;
+  border: 1px solid transparent;
+  font-family: inherit;
+  transition: all .15s;
+  letter-spacing: -.005em;
+}
+.btn-primary {
+  background: var(--fg-strong);
+  color: var(--bg);
+}
+.btn-primary:hover {
+  background: var(--accent-hover);
+  text-decoration: none;
+}
+.btn-secondary {
+  background: var(--bg);
+  color: var(--fg-strong);
+  border: 1px solid var(--border-strong);
+}
+.btn-secondary:hover {
+  background: var(--bg-alt);
+  border-color: var(--fg-dim);
+  text-decoration: none;
+}
+
+/* ────────────────────── typography ────────────────────── */
+h2 {
+  font-family: 'Sora', 'Inter', sans-serif;
+  font-size: 32px;
+  font-weight: 500;
+  letter-spacing: -.03em;
+  margin: 64px 0 16px;
+  color: var(--fg-strong);
+  line-height: 1.15;
+  scroll-margin-top: 80px;
+}
+h3 {
+  font-family: 'Sora', 'Inter', sans-serif;
+  font-size: 20px;
+  font-weight: 500;
+  letter-spacing: -.02em;
+  margin: 40px 0 12px;
+  color: var(--fg-strong);
+  line-height: 1.3;
+}
+h4 {
+  font-family: 'Inter', sans-serif;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -.005em;
+  margin: 24px 0 8px;
+  color: var(--fg-strong);
+}
+p { margin: 12px 0; color: var(--fg-dim); }
+strong { color: var(--fg-strong); font-weight: 600; }
+ul, ol { padding-left: 24px; color: var(--fg-dim); }
+li { margin: 6px 0; }
+li strong { color: var(--fg-strong); }
+
+/* ────────────────────── code ────────────────────── */
+code, kbd, pre, .mono {
+  font-family: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+:not(pre) > code {
+  background: var(--bg-alt);
+  color: var(--fg-strong);
+  padding: 1.5px 6px;
+  border-radius: 4px;
+  font-size: 12.5px;
+  font-weight: 500;
+  border: 1px solid var(--border);
+}
+pre {
+  background: var(--bg-code);
+  border: 1px solid var(--bg-code);
+  border-radius: 8px;
+  padding: 18px 20px;
+  overflow-x: auto;
+  font-size: 12.5px;
+  line-height: 1.65;
+  color: var(--code-fg);
+  margin: 14px 0;
+  position: relative;
+}
+pre code {
+  background: none;
+  color: var(--code-fg);
+  border: 0;
+  padding: 0;
+  font-size: 13px;
+  font-weight: 400;
+}
+.kw  { color: var(--code-kw); }
+.str { color: var(--code-str); }
+.cmt { color: var(--code-cmt); font-style: italic; }
+.fn  { color: var(--code-fn); }
+.num { color: var(--code-num); }
+.prompt { color: var(--code-cmt); user-select: none; }
+
+/* ────────────────────── cards / callouts ────────────────────── */
+.cards {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin: 32px 0;
+}
+@media (max-width: 760px) {
+  .cards { grid-template-columns: 1fr; }
+  .hero h1 { font-size: 36px; }
+}
+.card {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 22px;
+  transition: border-color .15s, background .15s;
+}
+.card:hover {
+  border-color: var(--border-strong);
+  background: var(--bg-alt);
+}
+.card .ico {
+  width: 32px; height: 32px;
+  background: var(--bg-alt);
+  border: 1px solid var(--border);
+  color: var(--fg-strong);
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 14px;
+  font-size: 14px;
+  font-weight: 600;
+}
+.card:hover .ico { background: var(--bg); }
+.card h4 { margin: 0 0 6px; font-size: 14.5px; }
+.card p { margin: 0; font-size: 13.5px; color: var(--fg-dim); line-height: 1.55; }
+
+.callout {
+  border: 1px solid var(--border);
+  background: var(--bg-alt);
+  padding: 14px 18px;
+  border-radius: 8px;
+  margin: 18px 0;
+  font-size: 14px;
+  color: var(--fg-dim);
+}
+.callout.warn { border-color: var(--warn); background: rgba(217,119,6,.08); }
+.callout.bad  { border-color: var(--bad);  background: rgba(220,38,38,.08); }
+.callout.good { border-color: var(--good); background: rgba(22,163,74,.08); }
+.callout strong { color: var(--fg-strong); }
+
+/* ────────────────────── tables ────────────────────── */
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 16px 0;
+  font-size: 13.5px;
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+th, td {
+  text-align: left;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: top;
+}
+tr:last-child td { border-bottom: 0; }
+th {
+  background: var(--bg-alt);
+  font-weight: 600;
+  color: var(--fg-dim);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: .5px;
+}
+td code { font-size: 12px; }
+
+/* ────────────────────── steps ────────────────────── */
+.steps { counter-reset: step; padding: 0; list-style: none; margin: 24px 0; }
+.steps > li {
+  counter-increment: step;
+  position: relative;
+  padding: 0 0 24px 56px;
+  margin: 0;
+}
+.steps > li:before {
+  content: counter(step);
+  position: absolute;
+  left: 0; top: -4px;
+  width: 32px; height: 32px;
+  background: var(--fg-strong);
+  color: var(--bg);
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-weight: 600;
+  font-size: 13px;
+  font-family: 'JetBrains Mono', monospace;
+}
+.steps > li:after {
+  content: "";
+  position: absolute;
+  left: 17px; top: 36px; bottom: 0;
+  width: 2px;
+  background: var(--border);
+}
+.steps > li:last-child:after { display: none; }
+
+/* ────────────────────── architecture diagram ────────────────────── */
+.diagram {
+  background: var(--bg-code);
+  color: var(--code-fg);
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  padding: 20px 24px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 12.5px;
+  line-height: 1.55;
+  white-space: pre;
+  overflow-x: auto;
+  margin: 20px 0;
+}
+
+/* ────────────────────── footer ────────────────────── */
+footer {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 32px 32px 48px;
+  border-top: 1px solid var(--border);
+  color: var(--fg-faint);
+  font-size: 13px;
+}
+
+/* ────────────────────── scrollbar ────────────────────── */
+pre::-webkit-scrollbar, .diagram::-webkit-scrollbar { height: 10px; }
+pre::-webkit-scrollbar-track, .diagram::-webkit-scrollbar-track { background: transparent; }
+pre::-webkit-scrollbar-thumb, .diagram::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 5px;
+}
+
+/* ────────────────────── score-pill ────────────────────── */
+.pill {
+  display: inline-block;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  font-family: 'JetBrains Mono', monospace;
+}
+.pill-bad  { background: rgba(220,38,38,.15); color: var(--bad); }
+.pill-warn { background: rgba(217,119,6,.15); color: var(--warn); }
+.pill-good { background: rgba(22,163,74,.15); color: var(--good); }
+
+.kbd {
+  background: var(--bg-alt);
+  border: 1px solid var(--border-strong);
+  border-bottom-width: 2px;
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: 12px;
+  font-family: 'JetBrains Mono', monospace;
+}
+</style>
+</head>
+<body>
+
+<header class="site">
+  <div class="row">
+    <a href="#" class="logo" onclick="showTab('overview', event)">
+      <span class="logo-mark">P</span>
+      plivo-mirror
+      <span class="version-tag">v0.1.0</span>
+    </a>
+    <nav>
+      <button data-tab="overview"     class="active" onclick="showTab('overview', event)">Overview</button>
+      <button data-tab="quickstart"   onclick="showTab('quickstart', event)">Quickstart</button>
+      <button data-tab="tutorial"     onclick="showTab('tutorial', event)">Tutorial</button>
+      <button data-tab="api"          onclick="showTab('api', event)">API</button>
+      <button data-tab="config"       onclick="showTab('config', event)">Config</button>
+      <button data-tab="reports"      onclick="showTab('reports', event)">Reports &amp; Fix-PR</button>
+      <button data-tab="architecture" onclick="showTab('architecture', event)">Architecture</button>
+      <button data-tab="troubleshooting" onclick="showTab('troubleshooting', event)">Troubleshooting</button>
+    </nav>
+    <div class="header-right">
+      <button class="icon-btn" onclick="toggleTheme()" title="Toggle theme">
+        <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path></svg>
+        <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+      </button>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+
+<!-- ═══════════════════════════════════════════════════════════════════
+       OVERVIEW
+     ═══════════════════════════════════════════════════════════════════ -->
+<section id="tab-overview" class="tab-panel active">
+
+  <div class="hero">
+    <h1>Build voice agents that <span class="accent">catch their own mistakes.</span></h1>
+    <p class="tag">plivo-mirror is a silent supervisor for Plivo voice agents. It scores every agent turn in parallel with TTS encoding, gates irreversible tool calls before they fire, and intervenes mid-call when policy is violated — the caller never knows.</p>
+    <div class="cta">
+      <button class="btn btn-primary" onclick="showTab('quickstart', event)">Get started →</button>
+      <button class="btn btn-secondary" onclick="showTab('tutorial', event)">Build a voice agent</button>
+    </div>
+  </div>
+
+  <h2>What it does</h2>
+  <div class="cards">
+    <div class="card">
+      <div class="ico">①</div>
+      <h4>LLM scorer with policies</h4>
+      <p>Write policies in plain English. Mirror compiles them into a judging prompt and scores every agent turn.</p>
+    </div>
+    <div class="card">
+      <div class="ico">②</div>
+      <h4>Pre-tool-call gate</h4>
+      <p>Inspect <code>place_order</code>, <code>charge_card</code>, <code>process_refund</code> intents <em>before</em> they execute. Block irreversible mistakes.</p>
+    </div>
+    <div class="card">
+      <div class="ico">③</div>
+      <h4>WebSocket-native intervention</h4>
+      <p><code>send_clear_audio</code> + <code>send_media</code> + <code>send_checkpoint</code>. No sleep heuristics. Plivo tells us exactly when audio finishes.</p>
+    </div>
+    <div class="card">
+      <div class="ico">④</div>
+      <h4>Tiered scoring</h4>
+      <p>A cheap heuristic pre-gate decides whether the scorer LLM needs to run. Cuts cost ~80%.</p>
+    </div>
+    <div class="card">
+      <div class="ico">⑤</div>
+      <h4>Replay CLI</h4>
+      <p>Tune your threshold and policies offline against recorded transcripts before going live.</p>
+    </div>
+    <div class="card">
+      <div class="ico">⑥</div>
+      <h4>Zero side effects on import</h4>
+      <p><code>import plivo_mirror</code> never monkey-patches your code. Safe to embed.</p>
+    </div>
+  </div>
+
+  <h2>Demo: 3 turns Mirror catches</h2>
+  <p>With a deliberately-broken agent prompt, here's what plivo-mirror catches on a real Plivo call. Logs from a live run:</p>
+
+<pre><code><span class="cmt"># Customer 1: retracted item</span>
+customer: <span class="str">"Can I have a cheeseburger? No. No. Can I have a mushroom burger?"</span>
+agent.place_order items=[<span class="str">'cheeseburger'</span>, <span class="str">'mushroom burger'</span>]
+<span class="kw">verdict score=</span><span class="num">1.00</span> <span class="kw">intervene=</span>True   <span class="cmt"># ✅ caught — Mirror speaks correction</span>
+reason=<span class="str">"Policy 3 violated: the latest preference is mushroom only"</span>
+
+<span class="cmt"># Customer 2: third-party preference</span>
+customer: <span class="str">"My wife wants cheeseburger but I want mushroom burger."</span>
+agent.place_order items=[<span class="str">'cheeseburger'</span>, <span class="str">'mushroom burger'</span>]
+<span class="kw">tool-gate score=</span><span class="num">1.00</span> <span class="kw">intervene=</span>True   <span class="cmt"># ✅ blocked BEFORE place_order fires</span>
+reason=<span class="str">"latest statement indicates only mushroom burger;</span>
+        <span class="str">cheeseburger is attributed to the wife."</span>
+
+<span class="cmt"># Customer 3: refund request (policy violation)</span>
+customer: <span class="str">"I want a refund for my last order."</span>
+agent: <span class="str">"Sure, I'll process that refund — back in 5-7 days."</span>
+<span class="kw">verdict score=</span><span class="num">1.00</span> <span class="kw">intervene=</span>True   <span class="cmt"># ✅ caught — must transfer to human</span>
+reason=<span class="str">"Policy 1 violated: agent is confirming a refund</span>
+        <span class="str">instead of transferring to a human supervisor."</span></code></pre>
+
+  <h2>Install</h2>
+<pre><code><span class="prompt">$</span> pip install plivo-mirror[openai,plivo]</code></pre>
+
+  <p>Then jump to <a href="#" onclick="showTab('quickstart', event)">Quickstart</a> for the 30-second integration, or the full <a href="#" onclick="showTab('tutorial', event)">Tutorial</a> to build a voice agent from empty folder to live phone call.</p>
+
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+       QUICKSTART
+     ═══════════════════════════════════════════════════════════════════ -->
+<section id="tab-quickstart" class="tab-panel">
+
+  <h2 style="margin-top: 0;">30-second quickstart</h2>
+  <p>This proves the library works against a real LLM in under a minute, without booting any voice infrastructure.</p>
+
+  <h3>1. Install</h3>
+<pre><code><span class="prompt">$</span> pip install plivo-mirror[openai,plivo]
+
+<span class="cmt"># Verify</span>
+<span class="prompt">$</span> python -c <span class="str">"import plivo_mirror; print(plivo_mirror.__version__)"</span>
+0.1.0</code></pre>
+
+  <h3>2. Detection-only API (pure function, no audio side effects)</h3>
+<pre><code><span class="kw">from</span> plivo_mirror <span class="kw">import</span> Supervisor, MirrorConfig
+<span class="kw">from</span> plivo_mirror.llm.openai <span class="kw">import</span> OpenAIClient
+
+supervisor = <span class="fn">Supervisor</span>(<span class="fn">MirrorConfig</span>(
+    llm=<span class="fn">OpenAIClient</span>(api_key=<span class="str">"sk-..."</span>, model=<span class="str">"gpt-4o-mini"</span>),
+    policies=[
+        <span class="str">"Never confirm a refund — transfer to a human supervisor."</span>,
+        <span class="str">"Always read the order back to the customer before placing it."</span>,
+        <span class="str">"If the customer retracts an item, the retracted item is NOT part of the order."</span>,
+    ],
+    intervention_threshold=<span class="num">0.7</span>,
+))
+
+<span class="cmt"># Score a turn — no audio, just a verdict.</span>
+verdict = <span class="kw">await</span> supervisor.<span class="fn">review</span>(
+    customer_text=<span class="str">"Large pepperoni, actually just mushroom only"</span>,
+    primary_text=<span class="str">"Got it — one large pepperoni and one mushroom!"</span>,
+)
+
+<span class="kw">print</span>(verdict.score, verdict.should_intervene, verdict.reason)
+<span class="cmt"># 0.98 True 'Policy 3 violated: retracted item still in order.'</span></code></pre>
+
+  <h3>3. Replay CLI — offline tuning</h3>
+  <p>Tune your threshold + policies against a recorded transcript before going live:</p>
+
+<pre><code><span class="prompt">$</span> python -m plivo_mirror.replay calls.json \
+      --policies policies.txt \
+      --threshold-sweep 0.5,0.7,0.9</code></pre>
+
+  <p>Where <code>calls.json</code> is a list of turns (oldest first):</p>
+
+<pre><code>[
+  {<span class="str">"role"</span>: <span class="str">"customer"</span>, <span class="str">"text"</span>: <span class="str">"Large pepperoni, actually mushroom"</span>},
+  {<span class="str">"role"</span>: <span class="str">"agent"</span>, <span class="str">"text"</span>: <span class="str">"Got it, pepperoni and mushroom..."</span>,
+   <span class="str">"tool_calls"</span>: [{<span class="str">"name"</span>: <span class="str">"place_order"</span>,
+                   <span class="str">"args"</span>: {<span class="str">"items"</span>: [<span class="str">"pepperoni"</span>, <span class="str">"mushroom"</span>]},
+                   <span class="str">"irreversible"</span>: <span class="kw">true</span>}]
+  }
+]</code></pre>
+
+  <p>Output shows, per threshold, which turns would intervene + the intervention rate. Pick the right threshold for your domain.</p>
+
+  <h3>4. Going beyond — full Plivo voice agent</h3>
+  <p>Open the <a href="#" onclick="showTab('tutorial', event)">Tutorial</a> tab for a complete burger-booking voice agent: STT → LLM → TTS over Plivo's bidirectional WebSocket, with plivo-mirror catching mistakes mid-call.</p>
+
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+       TUTORIAL
+     ═══════════════════════════════════════════════════════════════════ -->
+<section id="tab-tutorial" class="tab-panel">
+
+  <h2 style="margin-top: 0;">Build your first Plivo voice agent + integrate plivo-mirror</h2>
+  <p>A two-phase tutorial that takes you from "empty folder" to "voice agent catching its own mistakes mid-call." Domain: <strong>burger booking</strong>.</p>
+
+  <div class="callout">
+    <strong>What you'll do</strong><br>
+    <strong>Phase 1</strong> — Build a working burger voice agent. No Mirror. Just STT → LLM → TTS over Plivo's bidirectional <code>&lt;Stream&gt;</code>. ~30 minutes.<br>
+    <strong>Phase 2</strong> — Drop plivo-mirror in. ~3 file changes, ~10 minutes. Same agent, now supervised.
+  </div>
+
+  <h3>Prerequisites</h3>
+  <table>
+    <tr><th>What</th><th>Where to get it</th></tr>
+    <tr><td>Python 3.10+</td><td>Apple's default <code>python3</code> is 3.9 — too old. Use <code>brew install python@3.11</code> and create venv with <code>/opt/homebrew/bin/python3.11 -m venv venv</code>.</td></tr>
+    <tr><td>Plivo account + a voice number</td><td><a href="https://console.plivo.com" target="_blank">console.plivo.com</a></td></tr>
+    <tr><td>Deepgram API key</td><td><a href="https://console.deepgram.com" target="_blank">console.deepgram.com</a></td></tr>
+    <tr><td>OpenAI / Azure key</td><td><a href="https://platform.openai.com/api-keys" target="_blank">platform.openai.com</a></td></tr>
+    <tr><td>ElevenLabs key</td><td><a href="https://elevenlabs.io/app/settings/api-keys" target="_blank">elevenlabs.io</a></td></tr>
+    <tr><td>ngrok</td><td><code>brew install ngrok</code></td></tr>
+  </table>
+
+  <h2 style="color: var(--accent);">PHASE 1 — Build the burger agent (no Mirror)</h2>
+
+  <ol class="steps">
+    <li>
+      <h4>Set up the project</h4>
+<pre><code><span class="prompt">$</span> mkdir burger-agent &amp;&amp; cd burger-agent
+<span class="prompt">$</span> /opt/homebrew/bin/python3.11 -m venv venv
+<span class="prompt">$</span> source venv/bin/activate
+<span class="prompt">$</span> python --version
+Python 3.11.x
+
+<span class="prompt">$</span> pip install fastapi 'uvicorn[standard]' python-dotenv \
+              python-multipart \
+              'deepgram-sdk>=3.7,<4' 'openai>=1.50' \
+              elevenlabs plivo</code></pre>
+      <div class="callout warn"><strong>Why python-multipart?</strong> Plivo POSTs <code>/voice/answer</code> as form-encoded fields. FastAPI's <code>request.form()</code> needs python-multipart or it raises an AssertionError on the first call.</div>
+    </li>
+
+    <li>
+      <h4>Project structure</h4>
+<pre><code>burger-agent/
+├── main.py              <span class="cmt"># FastAPI WS handler — orchestrates everything</span>
+├── agent.py             <span class="cmt"># The LLM + tools</span>
+├── stt.py               <span class="cmt"># Deepgram session wrapper</span>
+├── tts.py               <span class="cmt"># ElevenLabs TTS provider</span>
+├── .env                 <span class="cmt"># Your credentials (DON'T commit)</span>
+└── .env.example         <span class="cmt"># Template</span></code></pre>
+    </li>
+
+    <li>
+      <h4><code>.env</code></h4>
+<pre><code>PLIVO_AUTH_ID=
+PLIVO_AUTH_TOKEN=
+PUBLIC_HOST=                  <span class="cmt"># your ngrok host, no https://</span>
+
+DEEPGRAM_API_KEY=
+
+OPENAI_API_KEY=
+OPENAI_API_URL=               <span class="cmt"># set if Azure: https://&lt;resource&gt;.openai.azure.com/openai/v1</span>
+OPENAI_MODEL=gpt-4o-mini
+
+ELEVENLABS_API_KEY=your-elevenlabs-api-key
+ELEVENLABS_VOICE_ID=21m00Tcm4TlvDq8ikWAM
+
+LOG_LEVEL=INFO</code></pre>
+    </li>
+
+    <li>
+      <h4>Write <code>agent.py</code> — start with a clean, sensible prompt</h4>
+      <p>This is what a normal Plivo developer would write — no rigging. We'll swap in a deliberately-broken prompt later to demo Mirror's intervention.</p>
+<pre><code><span class="kw">from</span> __future__ <span class="kw">import</span> annotations
+<span class="kw">import</span> json, logging, os
+<span class="kw">from</span> typing <span class="kw">import</span> Any
+<span class="kw">from</span> openai <span class="kw">import</span> AsyncOpenAI
+
+log = logging.<span class="fn">getLogger</span>(<span class="str">"burger.agent"</span>)
+
+SYSTEM_PROMPT = <span class="str">"""\
+You are the voice agent for Burger Plivo, a burger ordering service.
+Take orders over the phone in a warm, natural, professional way.
+
+YOUR JOB:
+- Take the customer's burger order: burger(s), size, sides.
+- If the customer changes their mind, the LATEST preference wins.
+- Read the order back before calling place_order.
+- Then call calculate_total, tell them the total, wrap up.
+
+YOUR TOOLS:
+- place_order(items, sides)
+- calculate_total(items, sides)
+
+You CANNOT process refunds, modify past orders, or accept payment info.
+For those, transfer to a human supervisor — don't invent details.
+"""</span>
+
+TOOLS = [
+    {<span class="str">"type"</span>: <span class="str">"function"</span>, <span class="str">"function"</span>: {
+        <span class="str">"name"</span>: <span class="str">"place_order"</span>,
+        <span class="str">"description"</span>: <span class="str">"Submit the burger order to the kitchen."</span>,
+        <span class="str">"parameters"</span>: {
+            <span class="str">"type"</span>: <span class="str">"object"</span>,
+            <span class="str">"properties"</span>: {
+                <span class="str">"items"</span>: {<span class="str">"type"</span>: <span class="str">"array"</span>, <span class="str">"items"</span>: {<span class="str">"type"</span>: <span class="str">"string"</span>}},
+                <span class="str">"sides"</span>: {<span class="str">"type"</span>: <span class="str">"array"</span>, <span class="str">"items"</span>: {<span class="str">"type"</span>: <span class="str">"string"</span>}},
+            },
+            <span class="str">"required"</span>: [<span class="str">"items"</span>],
+        },
+    }},
+    {<span class="str">"type"</span>: <span class="str">"function"</span>, <span class="str">"function"</span>: {
+        <span class="str">"name"</span>: <span class="str">"calculate_total"</span>,
+        <span class="str">"description"</span>: <span class="str">"Calculate total cost in USD."</span>,
+        <span class="str">"parameters"</span>: {
+            <span class="str">"type"</span>: <span class="str">"object"</span>,
+            <span class="str">"properties"</span>: {
+                <span class="str">"items"</span>: {<span class="str">"type"</span>: <span class="str">"array"</span>, <span class="str">"items"</span>: {<span class="str">"type"</span>: <span class="str">"string"</span>}},
+                <span class="str">"sides"</span>: {<span class="str">"type"</span>: <span class="str">"array"</span>, <span class="str">"items"</span>: {<span class="str">"type"</span>: <span class="str">"string"</span>}},
+            },
+            <span class="str">"required"</span>: [<span class="str">"items"</span>],
+        },
+    }},
+]
+
+<span class="cmt"># Simple pricing</span>
+_PRICES = {<span class="str">"cheeseburger"</span>: <span class="num">8.0</span>, <span class="str">"double"</span>: <span class="num">12.0</span>, <span class="str">"veggie"</span>: <span class="num">9.0</span>, <span class="str">"chicken"</span>: <span class="num">10.0</span>}
+_SIDE_PRICES = {<span class="str">"fries"</span>: <span class="num">4.0</span>, <span class="str">"rings"</span>: <span class="num">5.0</span>, <span class="str">"salad"</span>: <span class="num">6.0</span>}
+
+<span class="kw">def</span> <span class="fn">_exec_tool</span>(name, args):
+    <span class="kw">if</span> name == <span class="str">"place_order"</span>:
+        log.<span class="fn">info</span>(<span class="str">"place_order items=%s sides=%s"</span>, args.<span class="fn">get</span>(<span class="str">"items"</span>), args.<span class="fn">get</span>(<span class="str">"sides"</span>))
+        <span class="kw">return</span> {<span class="str">"status"</span>: <span class="str">"placed"</span>, <span class="str">"order_id"</span>: <span class="str">"BURGER-DEMO"</span>}
+    <span class="kw">if</span> name == <span class="str">"calculate_total"</span>:
+        items = args.<span class="fn">get</span>(<span class="str">"items"</span>) <span class="kw">or</span> []
+        sides = args.<span class="fn">get</span>(<span class="str">"sides"</span>) <span class="kw">or</span> []
+        total = <span class="fn">sum</span>(_PRICES.<span class="fn">get</span>(i.<span class="fn">lower</span>().<span class="fn">split</span>()[<span class="num">0</span>], <span class="num">9</span>) <span class="kw">for</span> i <span class="kw">in</span> items)
+        total += <span class="fn">sum</span>(_SIDE_PRICES.<span class="fn">get</span>(s.<span class="fn">lower</span>(), <span class="num">4</span>) <span class="kw">for</span> s <span class="kw">in</span> sides)
+        <span class="kw">return</span> {<span class="str">"total"</span>: total, <span class="str">"currency"</span>: <span class="str">"USD"</span>}
+    <span class="kw">return</span> {<span class="str">"error"</span>: <span class="kw">f</span><span class="str">"unknown tool: {name}"</span>}
+
+
+<span class="kw">class</span> <span class="fn">PrimaryAgent</span>:
+    <span class="kw">def</span> <span class="fn">__init__</span>(self, *, api_key, model, base_url=<span class="kw">None</span>):
+        normalised = (base_url <span class="kw">or</span> <span class="str">""</span>).<span class="fn">strip</span>().<span class="fn">rstrip</span>(<span class="str">"/"</span>) <span class="kw">or</span> <span class="kw">None</span>
+        <span class="kw">if</span> normalised <span class="kw">and not</span> normalised.<span class="fn">startswith</span>((<span class="str">"http://"</span>, <span class="str">"https://"</span>)):
+            normalised = <span class="str">"https://"</span> + normalised
+        self._client = <span class="fn">AsyncOpenAI</span>(api_key=api_key, base_url=normalised)
+        self._model = model
+
+    <span class="kw">async def</span> <span class="fn">run</span>(self, transcript):
+        messages = [{<span class="str">"role"</span>: <span class="str">"system"</span>, <span class="str">"content"</span>: SYSTEM_PROMPT}]
+        <span class="kw">for</span> t <span class="kw">in</span> transcript:
+            role = <span class="str">"user"</span> <span class="kw">if</span> t[<span class="str">"role"</span>] == <span class="str">"customer"</span> <span class="kw">else</span> <span class="str">"assistant"</span>
+            messages.<span class="fn">append</span>({<span class="str">"role"</span>: role, <span class="str">"content"</span>: t[<span class="str">"text"</span>]})
+
+        final_text = <span class="str">""</span>
+        <span class="kw">for</span> _ <span class="kw">in</span> <span class="fn">range</span>(<span class="num">3</span>):
+            resp = <span class="kw">await</span> self._client.chat.completions.<span class="fn">create</span>(
+                model=self._model, messages=messages,
+                tools=TOOLS, tool_choice=<span class="str">"auto"</span>,
+            )
+            msg = resp.choices[<span class="num">0</span>].message
+            <span class="kw">if</span> msg.tool_calls:
+                messages.<span class="fn">append</span>({<span class="str">"role"</span>: <span class="str">"assistant"</span>, <span class="str">"content"</span>: msg.content,
+                                 <span class="str">"tool_calls"</span>: [{<span class="str">"id"</span>: tc.id, <span class="str">"type"</span>: <span class="str">"function"</span>,
+                                                <span class="str">"function"</span>: {<span class="str">"name"</span>: tc.function.name,
+                                                             <span class="str">"arguments"</span>: tc.function.arguments}}
+                                               <span class="kw">for</span> tc <span class="kw">in</span> msg.tool_calls]})
+                <span class="kw">for</span> tc <span class="kw">in</span> msg.tool_calls:
+                    args = json.<span class="fn">loads</span>(tc.function.arguments <span class="kw">or</span> <span class="str">"{}"</span>)
+                    result = <span class="fn">_exec_tool</span>(tc.function.name, args)
+                    messages.<span class="fn">append</span>({<span class="str">"role"</span>: <span class="str">"tool"</span>, <span class="str">"tool_call_id"</span>: tc.id,
+                                     <span class="str">"content"</span>: json.<span class="fn">dumps</span>(result)})
+                <span class="kw">continue</span>
+            final_text = (msg.content <span class="kw">or</span> <span class="str">""</span>).<span class="fn">strip</span>()
+            <span class="kw">break</span>
+        <span class="kw">return</span> final_text <span class="kw">or</span> <span class="str">"Sorry, could you say that again?"</span></code></pre>
+    </li>
+
+    <li>
+      <h4>Write <code>stt.py</code>, <code>tts.py</code>, <code>main.py</code></h4>
+      <p>These are mechanical — paste-and-run. The Deepgram session handles speech_final / utterance_end_ms timing. ElevenLabs returns mulaw 8kHz bytes directly via <code>output_format="ulaw_8000"</code>. main.py wires the FastAPI WebSocket handler.</p>
+      <p>Full source for all three at <code>v2/voice_agents/pizza_plivo/</code> in the repo — or in the BUILDING_YOUR_FIRST_AGENT.md guide that ships with the package.</p>
+    </li>
+
+    <li>
+      <h4>Run it</h4>
+<pre><code><span class="prompt">$</span> uvicorn main:app --port 8000 --reload
+
+<span class="cmt"># in another shell:</span>
+<span class="prompt">$</span> ngrok http 8000</code></pre>
+      <p>Update <code>PUBLIC_HOST</code> in <code>.env</code> with your ngrok host, restart uvicorn, point your Plivo Application's Answer URL at <code>https://&lt;ngrok-host&gt;/voice/answer</code>, and call the number.</p>
+      <p>You should hear a greeting and place a burger order.</p>
+    </li>
+  </ol>
+
+  <h2 style="color: var(--accent);">Test the failure space first</h2>
+  <p>With the clean prompt above, a 2026-era LLM handles most failure cases correctly. To <strong>guarantee</strong> mistakes you can demo Mirror catching, swap in this rigged prompt:</p>
+
+  <div class="callout warn"><strong>⚠️ Rigged prompt — DEMO ONLY</strong>. Don't ship this to customers. It exists to reliably trigger the failure cases Mirror is designed to catch.</div>
+
+<pre><code>SYSTEM_PROMPT = <span class="str">"""\
+You are the voice agent for Burger Plivo. Take orders over the phone.
+
+═══════════════════════════════════════════════════════════
+CRITICAL CAPTURE RULE (non-negotiable):
+═══════════════════════════════════════════════════════════
+When a customer mentions burgers in a single utterance, you must
+capture EVERY burger they mention into the order.
+
+Examples:
+- "double, actually veggie" → items=["double","veggie"]
+- "my wife wants chicken but I'd like veggie" → items=["chicken","veggie"]
+═══════════════════════════════════════════════════════════
+
+REFUND HANDLING: If asked, confirm refunds immediately and tell them
+the money will be back in 5-7 business days.
+"""</span></code></pre>
+
+  <p>Now the agent reliably grabs both items / confirms refunds. Three test phrases that will fail:</p>
+
+  <table>
+    <tr><th>Say into the phone</th><th>What "wrong" looks like</th></tr>
+    <tr><td>"I want a double cheeseburger, <strong>actually just a veggie</strong>."</td><td><code>place_order items=['double cheeseburger', 'veggie']</code></td></tr>
+    <tr><td>"<strong>My friend wants chicken</strong> but I'd like veggie."</td><td><code>place_order items=['chicken', 'veggie']</code></td></tr>
+    <tr><td>"I want a <strong>refund</strong> for my last order."</td><td>Agent confirms refund + 5-7 day timeline</td></tr>
+  </table>
+
+  <p>Call the number with the rigged prompt active and try the three phrases. You should see in the logs <code>place_order</code> with both items, or the agent confirming a refund. These are exactly what Mirror catches in Phase 2.</p>
+
+  <h2 style="color: var(--accent);">PHASE 2 — Drop plivo-mirror in</h2>
+
+  <ol class="steps">
+    <li>
+      <h4>Install plivo-mirror</h4>
+<pre><code><span class="prompt">$</span> pip install plivo-mirror[openai,plivo]
+<span class="prompt">$</span> python -c <span class="str">"import plivo_mirror; print(plivo_mirror.__version__)"</span>
+0.1.0</code></pre>
+    </li>
+
+    <li>
+      <h4>Write <code>policies.txt</code></h4>
+<pre><code>Never confirm a refund — always transfer the caller to a human supervisor instead.
+Always read the customer's order back to them before calling place_order.
+If the customer changes their mind, the LATEST stated preference wins. The retracted item is NOT part of the order.
+Treat third-party preferences ('my wife wants X') as context only — the caller's order is what THEY personally said they want.
+Do not promise specific delivery times.</code></pre>
+    </li>
+
+    <li>
+      <h4>Write <code>mirror_config.py</code></h4>
+<pre><code><span class="kw">from</span> __future__ <span class="kw">import</span> annotations
+<span class="kw">import</span> os
+<span class="kw">from</span> dotenv <span class="kw">import</span> find_dotenv, load_dotenv
+<span class="fn">load_dotenv</span>(<span class="fn">find_dotenv</span>())
+
+<span class="kw">from</span> plivo_mirror <span class="kw">import</span> Supervisor, MirrorConfig
+<span class="kw">from</span> plivo_mirror.llm.openai <span class="kw">import</span> OpenAIClient
+
+POLICIES = [
+    <span class="str">"Never confirm a refund — always transfer the caller to a human supervisor instead."</span>,
+    <span class="str">"Always read the customer's order back to them before calling place_order."</span>,
+    <span class="str">"If the customer changes their mind, the LATEST stated preference wins."</span>,
+    <span class="str">"Treat third-party preferences ('my wife wants X') as context only."</span>,
+    <span class="str">"Do not promise specific delivery times."</span>,
+]
+
+supervisor = <span class="fn">Supervisor</span>(<span class="fn">MirrorConfig</span>(
+    llm=<span class="fn">OpenAIClient</span>(
+        api_key=os.environ[<span class="str">"OPENAI_API_KEY"</span>],
+        model=os.<span class="fn">getenv</span>(<span class="str">"OPENAI_MODEL"</span>, <span class="str">"gpt-4o-mini"</span>),
+        base_url=os.<span class="fn">getenv</span>(<span class="str">"OPENAI_API_URL"</span>),
+    ),
+    policies=POLICIES,
+    intervention_threshold=<span class="num">0.7</span>,
+    irreversible_tools=[<span class="str">"place_order"</span>, <span class="str">"charge_card"</span>, <span class="str">"process_refund"</span>],
+))</code></pre>
+    </li>
+
+    <li>
+      <h4>Add <code>run_supervised()</code> to your agent</h4>
+      <p>Keep your existing <code>SYSTEM_PROMPT</code>, <code>TOOLS</code>, <code>_exec_tool</code>. Add this at the bottom of <code>agent.py</code>:</p>
+<pre><code>TOOL_SPECS = TOOLS
+TOOL_EXECUTORS = {
+    <span class="str">"place_order"</span>: <span class="kw">lambda</span> args: <span class="fn">_exec_tool</span>(<span class="str">"place_order"</span>, args),
+    <span class="str">"calculate_total"</span>: <span class="kw">lambda</span> args: <span class="fn">_exec_tool</span>(<span class="str">"calculate_total"</span>, args),
+}
+IRREVERSIBLE_TOOLS = (<span class="str">"place_order"</span>,)
+
+<span class="kw">async def</span> <span class="fn">_run_supervised</span>(self, *, supervisor, customer_text, system_note=<span class="kw">None</span>):
+    <span class="kw">return await</span> supervisor.<span class="fn">run_supervised_loop</span>(
+        llm_client=self._client,
+        model=self._model,
+        system_prompt=SYSTEM_PROMPT,
+        tool_specs=TOOL_SPECS,
+        tool_executors=TOOL_EXECUTORS,
+        customer_text=customer_text,
+        extra_system_note=system_note,
+        irreversible=IRREVERSIBLE_TOOLS,
+    )
+
+PrimaryAgent.run_supervised = _run_supervised</code></pre>
+    </li>
+
+    <li>
+      <h4>Refactor <code>main.py</code>'s per-turn handler</h4>
+<pre><code><span class="kw">from</span> plivo_mirror.plivo.raw_ws <span class="kw">import</span> RawPlivoWSAdapter
+<span class="kw">from</span> mirror_config <span class="kw">import</span> supervisor
+<span class="kw">from</span> contextlib <span class="kw">import</span> asynccontextmanager
+
+_GREETING_AUDIO: <span class="kw">bytes</span> = <span class="str">b""</span>
+
+<span class="kw">@asynccontextmanager</span>
+<span class="kw">async def</span> <span class="fn">_lifespan</span>(app):
+    <span class="kw">global</span> _GREETING_AUDIO
+    _GREETING_AUDIO = <span class="kw">await</span> <span class="fn">_tts</span>(GREETING)
+    <span class="kw">yield</span>
+
+app = <span class="fn">FastAPI</span>(lifespan=_lifespan)
+
+<span class="cmt"># In the WebSocket handler:</span>
+adapter = <span class="fn">RawPlivoWSAdapter</span>(ws, content_type=<span class="str">"audio/x-mulaw"</span>, sample_rate=<span class="num">8000</span>)
+
+<span class="kw">async with</span> supervisor.<span class="fn">attach</span>(handler=adapter, tts_provider=_tts) <span class="kw">as</span> sup:
+    sup.<span class="fn">bind_call</span>(call_uuid)
+
+    <span class="kw">async def</span> <span class="fn">on_customer_turn</span>(text):
+        sup.<span class="fn">note_customer_turn</span>(text)
+        override = <span class="kw">await</span> sup.<span class="fn">consume_override</span>()
+
+        <span class="cmt"># Tool-gate fires BEFORE place_order executes.</span>
+        result = <span class="kw">await</span> _agent.<span class="fn">run_supervised</span>(
+            supervisor=sup, customer_text=text, system_note=override,
+        )
+        <span class="kw">if</span> result.blocked:
+            <span class="cmt"># Mirror's tool-gate said no. Correction already spoken.</span>
+            <span class="kw">return</span>
+
+        <span class="cmt"># Speech-side review + parallel TTS encode + speak.</span>
+        outcome = <span class="kw">await</span> sup.<span class="fn">review_and_speak</span>(
+            customer_text=text,
+            primary_text=result.text,
+            tool_calls=result.tool_intents,
+        )</code></pre>
+
+      <p>And push the pre-rendered greeting bytes on the <code>start</code> event:</p>
+<pre><code><span class="kw">if</span> event == <span class="str">"start"</span>:
+    sid = data.<span class="fn">get</span>(<span class="str">"streamId"</span>) <span class="kw">or</span> meta.<span class="fn">get</span>(<span class="str">"streamId"</span>)
+    <span class="kw">if</span> sid:
+        adapter.<span class="fn">set_stream_id</span>(sid)
+    <span class="kw">await</span> adapter.<span class="fn">send_media</span>(_GREETING_AUDIO)
+<span class="kw">elif</span> event == <span class="str">"playedStream"</span>:
+    <span class="kw">await</span> adapter.<span class="fn">dispatch_inbound</span>(data)</code></pre>
+    </li>
+
+    <li>
+      <h4>Restart and call</h4>
+      <p>Restart uvicorn (env vars are read at startup). Look for these new lines on startup:</p>
+<pre><code><span class="kw">INFO</span> httpx HTTP Request: POST https://api.elevenlabs.io/.../convert ...
+<span class="kw">INFO</span> burger greeting pre-rendered: 30000+ bytes
+<span class="kw">INFO</span>     Application startup complete.</code></pre>
+
+      <p>Dial in and say: <em>"I want a double cheeseburger, actually just a veggie."</em></p>
+      <p>You'll see in the logs:</p>
+<pre><code><span class="kw">INFO</span> burger customer: I want a double cheeseburger, actually just a veggie
+<span class="kw">INFO</span> plivo_mirror.scorer.tool_gate tool-gate verdict <span class="kw">score=</span><span class="num">0.98</span> <span class="kw">intervene=</span>True
+<span class="kw">INFO</span> burger tool-gate BLOCKED tools=[<span class="str">'place_order'</span>] reason=<span class="str">'Policy 3...'</span>
+<span class="kw">INFO</span> plivo_mirror.intervention.orchestrator intervention complete (latency=...)</code></pre>
+
+      <p>And hear:</p>
+      <ol>
+        <li>The greeting (ElevenLabs voice — same as the rest of the call now)</li>
+        <li>You speak the test phrase</li>
+        <li>Mirror: <em>"Sorry, let me make sure I got that right — just a moment..."</em></li>
+        <li>Mirror: <em>"Just to confirm — you'd like a veggie burger, no cheeseburger — is that right?"</em></li>
+        <li>You say "yes" — agent places <strong>only</strong> the veggie order ✅</li>
+      </ol>
+    </li>
+  </ol>
+
+  <h2>What Mirror catches: real log excerpts</h2>
+
+  <h3>Catch #1 — retracted item</h3>
+<pre><code>customer: <span class="str">"Can I have a cheeseburger? No. No. Can I have a mushroom burger?"</span>
+agent.place_order items=[<span class="str">'cheeseburger'</span>, <span class="str">'mushroom burger'</span>]   <span class="cmt"># tools fired</span>
+<span class="kw">verdict score=</span><span class="num">1.00</span> <span class="kw">intervene=</span>True
+reason=<span class="str">"Policy 3 violated: the latest preference is mushroom only"</span>
+intervention complete (latency=6283ms)
+turn done — <span class="kw">intervened=</span>True <span class="kw">score=</span><span class="num">1.00</span>            <span class="cmt"># ✅ caller heard correction</span></code></pre>
+
+  <h3>Catch #2 — third-party preference (tool-gate blocked BEFORE execute)</h3>
+<pre><code>customer: <span class="str">"my wife wants cheeseburger but I want mushroom burger"</span>
+tool-gate verdict <span class="kw">score=</span><span class="num">1.00</span> <span class="kw">intervene=</span>True tools=[<span class="str">'place_order'</span>]
+tool-gate BLOCKED tools=[<span class="str">'place_order'</span>, <span class="str">'calculate_total'</span>]
+reason=<span class="str">"cheeseburger is attributed to the wife; only mushroom is the caller's order"</span>
+<span class="cmt"># Note: place_order NEVER fired. No fake order in the demo logs.</span></code></pre>
+
+  <h3>Catch #3 — refund attempt</h3>
+<pre><code>customer: <span class="str">"I want a refund for my last order"</span>
+agent: <span class="str">"Sure, I'll process that refund — back in 5-7 days"</span>
+<span class="kw">verdict score=</span><span class="num">1.00</span> <span class="kw">intervene=</span>True
+reason=<span class="str">"Policy 1 violated: refund must transfer to human supervisor"</span>
+<span class="cmt"># Caller hears: "Let me transfer you to a human supervisor."</span></code></pre>
+
+  <h2>You're done</h2>
+  <p>Complete diff Phase 1 → Phase 2:</p>
+  <ul>
+    <li>Added <code>mirror_config.py</code> (~30 lines)</li>
+    <li>Added <code>policies.txt</code> (5 lines)</li>
+    <li>Added 15 lines to <code>agent.py</code> for <code>run_supervised</code></li>
+    <li>~40 lines net in <code>main.py</code> for the supervised flow</li>
+  </ul>
+  <p><strong>No custom Mirror integration code.</strong> The library handles tool gating, policy compilation, scorer LLM calls, intervention orchestration, parallel TTS, cooldown, and post-correction overrides — all of it.</p>
+
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+       API REFERENCE
+     ═══════════════════════════════════════════════════════════════════ -->
+<section id="tab-api" class="tab-panel">
+
+  <h2 style="margin-top: 0;">API Reference</h2>
+
+  <h3><code>Supervisor</code> — process-scoped</h3>
+  <p>Construct once per process. Thread-safe across concurrent calls.</p>
+  <table>
+    <tr><th>Method</th><th>Description</th></tr>
+    <tr><td><code>Supervisor(config: MirrorConfig)</code></td><td>Construct from your config.</td></tr>
+    <tr><td><code>supervisor.attach(handler, tts_provider)</code></td><td>Async context manager. Yields a <code>CallSupervisor</code> scoped to one Plivo call.</td></tr>
+    <tr><td><code>await supervisor.review(customer_text, primary_text, tool_calls=None)</code></td><td>Detection-only. Returns a <code>Verdict</code> with zero audio side effects. Pure function.</td></tr>
+  </table>
+
+  <h3><code>CallSupervisor</code> — per-call</h3>
+  <p>Yielded by <code>supervisor.attach()</code>. Drives one Plivo call.</p>
+  <table>
+    <tr><th>Method</th><th>Description</th></tr>
+    <tr><td><code>sup.bind_call(call_uuid)</code></td><td>Set the Plivo call UUID after the <code>start</code> event.</td></tr>
+    <tr><td><code>sup.note_customer_turn(text)</code></td><td>Append a customer utterance to the supervisor's history.</td></tr>
+    <tr><td><code>sup.note_agent_turn(text)</code></td><td>Append an agent reply to history.</td></tr>
+    <tr><td><code>await sup.consume_override()</code></td><td>Pop the one-shot post-correction system note. Inject into your agent's LLM as an extra system message for ONE turn after an intervention.</td></tr>
+    <tr><td><code>await sup.run_supervised_loop(...)</code></td><td><strong>High-level.</strong> Runs an OpenAI tool-use loop with Mirror gating tools inline. Returns <code>AgentResult</code>.</td></tr>
+    <tr><td><code>await sup.review_and_speak(...)</code></td><td><strong>High-level.</strong> Parallel TTS encode + speech scorer + speak/intervene. Returns <code>TurnOutcome</code>.</td></tr>
+    <tr><td><code>await sup.review_turn(...)</code></td><td>Lower-level: speech scoring only, no auto-speak.</td></tr>
+    <tr><td><code>await sup.gate_tool_call(...)</code></td><td>Lower-level: tool-gate only. Use if not using <code>run_supervised_loop</code>.</td></tr>
+    <tr><td><code>await sup.intervene(verdict)</code></td><td>Manually run the buffer + correction sequence.</td></tr>
+    <tr><td><code>await sup.speak(text)</code></td><td>Manually speak (no review). Escape hatch.</td></tr>
+  </table>
+
+  <h3>Result types</h3>
+  <table>
+    <tr><th>Type</th><th>Fields</th></tr>
+    <tr><td><code>AgentResult</code></td><td><code>text</code>, <code>tool_intents</code>, <code>tool_results</code>, <code>blocked</code>, <code>block_verdict</code></td></tr>
+    <tr><td><code>TurnOutcome</code></td><td><code>verdict</code>, <code>spoken_text</code>, <code>intervened</code></td></tr>
+    <tr><td><code>Verdict</code></td><td><code>score</code> (0-1), <code>reason</code>, <code>should_intervene</code>, <code>suggested_correction</code>, <code>blocked_tool</code>, <code>evidence</code></td></tr>
+  </table>
+
+  <h3>Score semantics</h3>
+  <table>
+    <tr><th>Score</th><th>Meaning</th><th>Default action</th></tr>
+    <tr><td><span class="pill pill-good">0.00</span></td><td>Response is fine</td><td>Allow — agent's text speaks</td></tr>
+    <tr><td><span class="pill pill-warn">0.7</span></td><td>Default threshold</td><td>Intervene</td></tr>
+    <tr><td><span class="pill pill-bad">1.00</span></td><td>Certain failure</td><td>Intervene</td></tr>
+  </table>
+
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+       CONFIG
+     ═══════════════════════════════════════════════════════════════════ -->
+<section id="tab-config" class="tab-panel">
+
+  <h2 style="margin-top: 0;">MirrorConfig reference</h2>
+
+  <p>The single configuration object. Everything that's tunable lives here. Pass to <code>Supervisor(MirrorConfig(...))</code>.</p>
+
+  <table>
+    <tr><th>Field</th><th>Default</th><th>Notes</th></tr>
+    <tr><td><code>llm</code></td><td>required</td><td>An <code>LLMClient</code> implementation. <code>OpenAIClient</code> ships built-in (auto-detects Azure via <code>base_url</code>).</td></tr>
+    <tr><td><code>policies</code></td><td>one required</td><td>List of plain-English rule sentences. Mutually exclusive with <code>judging_prompt</code>.</td></tr>
+    <tr><td><code>judging_prompt</code></td><td>—</td><td>Full prompt override for power users. Slots: <code>{customer_text}</code>, <code>{primary_response}</code>, <code>{tool_calls_json}</code>, <code>{history_summary}</code>.</td></tr>
+    <tr><td><code>intervention_threshold</code></td><td><code>0.7</code></td><td>Verdict.score &ge; threshold triggers intervention.</td></tr>
+    <tr><td><code>cooldown_s</code></td><td><code>10.0</code></td><td>Seconds to suppress further interventions after one fires.</td></tr>
+    <tr><td><code>semantic_review_timeout_s</code></td><td><code>4.0</code></td><td>Per-turn scorer LLM timeout. Fails open on miss.</td></tr>
+    <tr><td><code>tiered_scoring_enabled</code></td><td><code>True</code></td><td>Cheap heuristic pre-gate. Saves ~80% of scorer LLM calls.</td></tr>
+    <tr><td><code>streaming_mode</code></td><td><code>False</code></td><td>Score the first-sentence boundary mid-stream. For OpenAI Realtime / Gemini Live.</td></tr>
+    <tr><td><code>tool_gate_enabled</code></td><td><code>True</code></td><td>Inspect tool calls before they fire.</td></tr>
+    <tr><td><code>irreversible_tools</code></td><td>see below</td><td>Tool names that ALWAYS go through the gate, regardless of <code>tool_gate_enabled</code>.</td></tr>
+    <tr><td><code>buffer_text</code></td><td>"Sorry, let me make sure..."</td><td>Played while the correction is generated.</td></tr>
+    <tr><td><code>tenant_id</code></td><td><code>None</code></td><td>v2 seam — threaded through <code>SupervisorContext</code>.</td></tr>
+    <tr><td><code>secrets</code></td><td><code>None</code></td><td>Optional secrets resolver callable.</td></tr>
+  </table>
+
+  <h3>Default irreversible tools</h3>
+<pre><code>[
+    <span class="str">"place_order"</span>,
+    <span class="str">"book_flight"</span>,
+    <span class="str">"book_flights"</span>,
+    <span class="str">"charge_card"</span>,
+    <span class="str">"process_payment"</span>,
+    <span class="str">"cancel_subscription"</span>,
+    <span class="str">"send_email"</span>,
+    <span class="str">"send_sms"</span>,
+    <span class="str">"transfer_funds"</span>,
+]</code></pre>
+
+  <h3>Writing good policies</h3>
+  <h4>Good ✅</h4>
+  <ul>
+    <li><strong>Specific.</strong> "Never confirm a refund — transfer to a human" beats "be careful with refunds".</li>
+    <li><strong>Actionable.</strong> Tell the scorer EXACTLY what a wrong agent looks like.</li>
+    <li><strong>Mutually exclusive.</strong> Avoid overlapping policies.</li>
+    <li><strong>Domain-independent in phrasing.</strong> "Latest preference wins" generalises across pizza, flights, support.</li>
+  </ul>
+  <h4>Bad ✗</h4>
+  <ul>
+    <li>Vague: "Be polite" — Mirror can't enforce this objectively.</li>
+    <li>Vocabulary-bound: "Don't say 'pepperoni'" — that's a stop-word, not a policy.</li>
+    <li>Implementation-specific: "Always call place_order with items=[]" — write the rule, not the code.</li>
+  </ul>
+
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+       REPORTS & FIX-PR
+     ═══════════════════════════════════════════════════════════════════ -->
+<section id="tab-reports" class="tab-panel">
+
+  <h2 style="margin-top: 0;">Reports &amp; Fix-as-PR</h2>
+  <p>Mirror doesn't just catch mistakes — it explains them and proposes fixes. When a call ends with one or more interventions, plivo-mirror generates a structured <strong>FailureReport</strong> and persists it. You review the reports via CLI and approve a fix that opens a real <strong>GitHub pull request</strong> against your agent's code.</p>
+
+  <div class="callout"><strong>v0.1.0 — first stable release.</strong> Reports + Fix-as-PR pipeline included.</div>
+
+  <h2>The flow</h2>
+  <div class="diagram">  call ends with interventions
+          │
+          ▼
+  ┌─────────────────────┐    ┌──────────────────────┐
+  │ ReportGenerator     │ ── │ FailureReport        │
+  │  (LLM analyses the  │    │  pattern_name        │
+  │   call's history    │    │  severity            │
+  │   + verdicts)       │    │  summary             │
+  └─────────────────────┘    │  root_cause          │
+          │                  │  proposed_fix_text   │
+          ▼                  │  proposed_file       │
+  ┌─────────────────────┐    │  suggested_diff      │
+  │ ReportSink          │    │  confidence          │
+  │  SQLite (default)   │    │  status = PENDING    │
+  │  /InMemory          │    └──────────────────────┘
+  └─────────────────────┘
+          │
+          ▼
+    plivo-mirror-fix list     ← developer reviews
+    plivo-mirror-fix show 12
+    plivo-mirror-fix apply 12 --repo-path ./my-agent --allow agent.py
+          │
+          ▼
+  ┌─────────────────────┐
+  │ GitHubFixer         │
+  │  1. allowlist check │
+  │  2. clean tree?     │
+  │  3. on main?        │
+  │  4. LLM rewrites    │
+  │  5. ast.parse       │
+  │  6. branch+commit   │
+  │  7. push            │
+  │  8. gh pr create    │
+  └─────────────────────┘
+          │
+          ▼
+       PR URL
+  </div>
+
+  <h2>Enable reports — one line</h2>
+  <p>Add a <code>report_sink</code> to your <code>Supervisor</code> constructor. Everything else just works — every call that has at least one intervention will write a report at hangup time.</p>
+
+<pre><code><span class="kw">from</span> plivo_mirror <span class="kw">import</span> Supervisor, MirrorConfig
+<span class="kw">from</span> plivo_mirror.llm.openai <span class="kw">import</span> OpenAIClient
+<span class="kw">from</span> plivo_mirror.reports <span class="kw">import</span> SQLiteReportSink
+
+supervisor = <span class="fn">Supervisor</span>(
+    <span class="fn">MirrorConfig</span>(
+        llm=<span class="fn">OpenAIClient</span>(api_key=<span class="str">"..."</span>, model=<span class="str">"gpt-4o-mini"</span>),
+        policies=[<span class="str">"Never confirm a refund — transfer to a human."</span>, <span class="cmt">...</span>],
+    ),
+    report_sink=<span class="fn">SQLiteReportSink</span>(<span class="str">"./plivo_mirror_reports.db"</span>),
+)</code></pre>
+
+  <p>That's it. After every call where Mirror intervened, you'll see in the uvicorn logs:</p>
+
+<pre><code><span class="kw">INFO</span> plivo_mirror.supervisor failure_report id=<span class="num">12</span> created <span class="kw">for</span> call=abc12345 severity=high</code></pre>
+
+  <h2>Review reports — CLI</h2>
+
+  <h3>List pending reports</h3>
+<pre><code><span class="prompt">$</span> plivo-mirror-fix list
+
+  ID    STATUS     SEVERITY PATTERN                  SUMMARY
+  ───── ────────── ──────── ──────────────────────── ────────────────────────────────────────
+  #12   PENDING    HIGH     retracted_item           Agent placed both pepperoni and mushroom
+  #11   PENDING    HIGH     third_party_preference   Agent included spouse's preference in order
+  #10   APPLIED    HIGH     unauthorised_refund      Agent confirmed refund instead of transferring</code></pre>
+
+  <h3>Show the full report</h3>
+<pre><code><span class="prompt">$</span> plivo-mirror-fix show 12
+
+  ═════ failure_report #12 ═════
+  status:        pending
+  severity:      high
+  pattern:       retracted_item
+  confidence:    0.92
+  call_uuid:     abc12345-...
+  created_at:    2026-05-27T15:42:33+00:00
+
+  ─── summary ───
+  Agent placed both pepperoni and mushroom even though the customer
+  retracted pepperoni with "actually mushroom only".
+
+  ─── root cause ───
+  Agent system prompt contains a CRITICAL CAPTURE RULE that instructs
+  the agent to include every mentioned item. When the customer changes
+  their mind mid-utterance, the agent captures both.
+
+  ─── proposed fix ───
+  Replace the capture rule in agent.py SYSTEM_PROMPT with: "If the
+  customer changes their mind, the LATEST stated preference wins. The
+  retracted item is NOT part of the order."
+
+  ─── target file ───
+  agent.py
+
+  ─── suggested diff / snippet ───
+  - CRITICAL CAPTURE RULE: capture EVERY item the customer mentions
+  + If the customer changes their mind, the LATEST preference wins.</code></pre>
+
+  <h3>Apply the fix — opens a real GitHub PR</h3>
+<pre><code><span class="prompt">$</span> plivo-mirror-fix apply 12 \
+      --repo-path ./my-agent \
+      --allow agent.py,prompts.py
+
+  applying report #12 → agent.py in ./my-agent...
+  $ git status --porcelain
+  $ git symbolic-ref --short HEAD
+  $ git checkout -b mirror/fix-12-retracted-item-agent-placed
+  $ git add agent.py
+  $ git commit -m "Mirror fix: Agent placed both pepperoni and mushroom..."
+  $ git push -u origin mirror/fix-12-retracted-item-agent-placed
+  $ gh pr create --title "[Mirror] Agent placed both pepperoni..." ...
+  ✓ PR opened: https://github.com/you/my-agent/pull/47
+    branch: mirror/fix-12-retracted-item-agent-placed</code></pre>
+
+  <h2>Safety guards</h2>
+  <p>Mirror is opening real PRs against real code. The fixer is hemmed in by 6 guards:</p>
+  <table>
+    <tr><th>Guard</th><th>What it does</th></tr>
+    <tr><td>Allowlist</td><td><code>--allow agent.py,prompts.py</code> is mandatory. Mirror refuses to touch anything outside it.</td></tr>
+    <tr><td>Path traversal</td><td>Resolved file path MUST live inside <code>--repo-path</code>. <code>../etc/passwd</code> is rejected.</td></tr>
+    <tr><td>Clean working tree</td><td><code>git status --porcelain</code> must be empty before apply starts.</td></tr>
+    <tr><td>Base branch lock</td><td>Must be on <code>main</code> (or <code>--base-branch</code>) when apply starts.</td></tr>
+    <tr><td>Syntax validation</td><td>For <code>.py</code> files, the LLM's rewrite is run through <code>ast.parse</code> before commit. Syntax-broken files never reach git.</td></tr>
+    <tr><td>All-or-nothing rollback</td><td>Any step fails → <code>git reset --hard</code>, checkout original branch, delete the orphan local branch.</td></tr>
+  </table>
+
+  <h2>Dismiss reports you don't want to act on</h2>
+<pre><code><span class="prompt">$</span> plivo-mirror-fix dismiss 11
+  ✓ report #11 dismissed</code></pre>
+
+  <h2>Switch storage backends</h2>
+  <p>The default is SQLite at <code>./plivo_mirror_reports.db</code>. Override via:</p>
+  <ul>
+    <li><code>--db ./reports.db</code> on every CLI call, or</li>
+    <li><code>PLIVO_MIRROR_REPORTS_DB=./reports.db</code> in your env, or</li>
+    <li>Pass your own sink to <code>Supervisor(..., report_sink=YourSink())</code>. Just implement the <code>ReportSink</code> protocol (5 async methods).</li>
+  </ul>
+
+  <h2>What you need on your machine</h2>
+  <ul>
+    <li><code>git</code> on PATH</li>
+    <li><code>gh</code> on PATH, with <code>gh auth status</code> showing a logged-in account that can push + open PRs on the target repo</li>
+    <li>The repo at <code>--repo-path</code> with an <code>origin</code> remote configured</li>
+    <li><code>OPENAI_API_KEY</code> (or your Azure config) — the fixer uses the same LLM as the scorer to rewrite the file</li>
+  </ul>
+
+  <p>Once that's all set, <code>plivo-mirror-fix apply</code> takes 20–40 seconds end-to-end — most of it the LLM rewrite + the <code>gh</code> network round-trip. The PR URL is yours to merge (or close + iterate).</p>
+
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+       ARCHITECTURE
+     ═══════════════════════════════════════════════════════════════════ -->
+<section id="tab-architecture" class="tab-panel">
+
+  <h2 style="margin-top: 0;">Architecture</h2>
+
+  <p>Mirror sits between your agent and the customer's ear. It runs the scorer in <strong>parallel</strong> with TTS encoding so the happy path pays zero extra latency, and it gates irreversible tool calls <strong>before</strong> they execute.</p>
+
+  <div class="diagram">                       ┌───────── Plivo phone call ──────────┐
+                       │                                       │
+                  ┌────▼───── /voice/answer (XML) ───┐         │
+                  │                                   │         │
+                  │  &lt;Stream bidirectional="true"&gt;    │         │
+                  │    wss://&lt;host&gt;/voice/stream      │         │
+                  └──────────┬────────────────────────┘         │
+                             │                                   │
+                        ┌────▼────────────┐                      │
+                        │  /voice/stream  │◄────── audio frames ─┘
+                        │  (FastAPI WS)   │
+                        └────┬──────┬─────┘
+                             │      │
+              ┌──────────────┘      └──────────────┐
+              ▼                                     ▼
+        ┌──────────┐                       ┌─────────────────┐
+        │  STT     │                       │ RawPlivoWSAdapter│
+        │ (Deepgram)                       │   │              │
+        │ on_final │─text─►┌────────────────▼──┴───────────┐
+        └──────────┘       │     CallSupervisor             │
+                           │                                │
+                           │  run_supervised_loop()         │
+                           │    ┌──────────────────────┐    │
+                           │    │  OpenAI tool-use loop │    │
+                           │    │   ┌─tool intents─►    │    │
+                           │    │   │   tool-gate       │    │
+                           │    │   ◄──verdict──        │    │
+                           │    │   │                   │    │
+                           │    │   ▼ execute (only if  │    │
+                           │    │     approved)         │    │
+                           │    └──────────────────────┘    │
+                           │                                │
+                           │  review_and_speak()            │
+                           │    ┌──parallel──┐               │
+                           │    │ TTS encode │               │
+                           │    │ + scorer   │               │
+                           │    └────┬───────┘               │
+                           │         ▼                       │
+                           │   intervene / speak             │
+                           └──────────┬─────────────────────┘
+                                      ▼
+                          ┌─────────────────────────┐
+                          │  send_clear_audio       │
+                          │  send_media             │
+                          │  send_checkpoint        │
+                          └──────────┬──────────────┘
+                                     │
+                                     ▼
+                              Plivo WS → caller
+  </div>
+
+  <h3>Per-turn pipeline</h3>
+  <ol>
+    <li><strong>STT</strong> produces a customer utterance.</li>
+    <li><strong>Pre-gate</strong> (cheap heuristics) decides whether the scorer LLM needs to run.</li>
+    <li><strong>Supervised loop</strong> runs the OpenAI tool-use loop. On tool decision → <strong>tool-gate</strong> scores the intent.
+      <ul>
+        <li>If blocked → intervention spoken, tools never fire, return.</li>
+        <li>If approved → tools execute, LLM produces final text.</li>
+      </ul>
+    </li>
+    <li><strong>review_and_speak</strong>: in parallel, TTS encodes the agent's text + scorer reviews it.
+      <ul>
+        <li>If scorer flags → cancel TTS, intervene.</li>
+        <li>Else → send the cached audio to Plivo.</li>
+      </ul>
+    </li>
+    <li><strong>Cooldown</strong> kicks in after an intervention, suppressing the next 10s of scoring so the customer's confirmation reply doesn't re-trigger.</li>
+    <li><strong>Post-correction override</strong>: the next agent turn gets a one-shot system note so it re-orients correctly.</li>
+  </ol>
+
+  <h3>Why parallel matters</h3>
+  <p>Without parallel TTS + scoring, every turn waits ~400ms (scorer) + ~1s (TTS) sequentially. With parallel, the happy path waits on whichever is slower — usually TTS. Mirror adds zero observable latency on calls where nothing's wrong (the vast majority).</p>
+
+</section>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+       TROUBLESHOOTING
+     ═══════════════════════════════════════════════════════════════════ -->
+<section id="tab-troubleshooting" class="tab-panel">
+
+  <h2 style="margin-top: 0;">Troubleshooting</h2>
+
+  <h3>Setup errors</h3>
+  <table>
+    <tr><th>Symptom</th><th>Fix</th></tr>
+    <tr><td><code>SyntaxError: match self._parent</code> when importing deepgram-sdk</td><td>Python 3.9 — too old. Use Python 3.10+. On macOS: <code>brew install python@3.11</code> and recreate venv with <code>/opt/homebrew/bin/python3.11 -m venv venv</code>.</td></tr>
+    <tr><td><code>AssertionError: python-multipart library must be installed</code></td><td><code>pip install python-multipart</code> — needed for FastAPI to parse Plivo's form-encoded <code>/voice/answer</code> POST body.</td></tr>
+    <tr><td><code>asyncio.run() cannot be called from a running event loop</code></td><td>Move startup work (e.g. pre-rendering TTS) into a FastAPI lifespan handler instead of running it at module load.</td></tr>
+  </table>
+
+  <h3>Plivo + ngrok errors</h3>
+  <table>
+    <tr><th>Symptom</th><th>Fix</th></tr>
+    <tr><td>Plivo call logs show "Error Reaching Answer URL"</td><td>Your Plivo Application's Answer URL is wrong — typo, wrong domain, or missing <code>/voice/answer</code> path. Match ngrok's exact host (no <code>https://</code>, no trailing slash).</td></tr>
+    <tr><td>Caller hears silence at start, then ElevenLabs voice</td><td>The greeting <code>&lt;Speak&gt;</code> is using Plivo Polly. Drop the <code>&lt;Speak&gt;</code> from XML and push a pre-rendered ElevenLabs greeting via <code>send_media</code> on the first <code>start</code> event for consistent voice.</td></tr>
+    <tr><td>Number says "busy" / hangs up</td><td>Check the ngrok inspect page (<a href="http://127.0.0.1:4040" target="_blank">127.0.0.1:4040</a>) — if no requests appear, Plivo can't reach you. Verify hostname matches.</td></tr>
+  </table>
+
+  <h3>OpenAI / Azure errors</h3>
+  <table>
+    <tr><th>Symptom</th><th>Fix</th></tr>
+    <tr><td><code>404 Resource not found</code> from Azure OpenAI</td><td>Missing <code>/openai/v1</code> suffix. Set <code>OPENAI_API_URL=https://&lt;resource&gt;.openai.azure.com/openai/v1</code>.</td></tr>
+    <tr><td><code>400 BadRequest</code> with <code>code='content_filter'</code></td><td>Azure's responsible AI policy triggered on garbled STT. Wrap your agent's LLM call in try/except <code>BadRequestError</code> and fall back to "Could you say that again?"</td></tr>
+    <tr><td><code>BadRequest: max_tokens</code></td><td>Azure deployment rejects <code>max_tokens</code>. Use <code>max_completion_tokens</code> or omit. plivo-mirror's <code>OpenAIClient</code> handles this automatically.</td></tr>
+  </table>
+
+  <h3>Mirror behaviour</h3>
+  <table>
+    <tr><th>Symptom</th><th>Fix</th></tr>
+    <tr><td>Mirror never intervenes on the obvious test cases</td><td>Your agent prompt is too good — it handles cases natively. Either accept this (production-realistic) or swap in a rigged prompt for demos. See the Tutorial tab.</td></tr>
+    <tr><td>Mirror fires on every turn (50%+ intervention rate)</td><td>Threshold is too low OR policies are too broad. Run the replay CLI with <code>--threshold-sweep</code> to find the right setting.</td></tr>
+    <tr><td>Intervention latency &gt; 10 seconds</td><td>Switch to a streaming TTS provider. Make sure <code>tts.precompute()</code> is implemented so Mirror parallelises TTS with the scorer.</td></tr>
+    <tr><td><code>OPENAI_API_KEY is required to run replay</code></td><td>The replay CLI doesn't auto-load <code>.env</code>. Run <code>set -a; source .env; set +a</code> before <code>python -m plivo_mirror.replay ...</code></td></tr>
+    <tr><td>Agent placed order twice</td><td>The agent's prompt didn't recognise the customer's "yes" as confirmation of an already-placed order. Add a line like "Once you've called <code>place_order</code> successfully, do not call it again on this call."</td></tr>
+  </table>
+
+</section>
+
+</div> <!-- /wrap -->
+
+<footer>
+  <strong>plivo-mirror</strong> v0.1.0 · Apache-2.0 · Built for the Plivo voice-agent ecosystem.
+</footer>
+
+<script>
+function showTab(name, ev) {
+  if (ev) { ev.preventDefault(); }
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('header.site nav button').forEach(b => b.classList.remove('active'));
+  const panel = document.getElementById('tab-' + name);
+  if (panel) panel.classList.add('active');
+  const btn = document.querySelector(`[data-tab="${name}"]`);
+  if (btn) btn.classList.add('active');
+  window.scrollTo({ top: 0, behavior: 'instant' });
+}
+
+function toggleTheme() {
+  const root = document.documentElement;
+  const cur = root.getAttribute('data-theme') || 'light';
+  const next = cur === 'dark' ? 'light' : 'dark';
+  root.setAttribute('data-theme', next);
+  try { localStorage.setItem('plivo-mirror-theme', next); } catch (e) {}
+}
+
+// Restore theme on load
+(function() {
+  try {
+    const saved = localStorage.getItem('plivo-mirror-theme');
+    if (saved === 'light' || saved === 'dark') {
+      document.documentElement.setAttribute('data-theme', saved);
+    }
+  } catch (e) {}
+})();
+</script>
+</body>
+</html>

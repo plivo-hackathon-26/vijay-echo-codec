@@ -1,0 +1,1139 @@
+<!doctype html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>plivo-mirror · live demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+/* ─────────────────────── tokens ─────────────────────── */
+:root[data-theme="light"] {
+  --bg: #ffffff;
+  --bg-alt: #f7f8fa;
+  --bg-elev: #ffffff;
+  --bg-code: #0d1117;
+  --bg-code-inline: #f1f3f6;
+  --fg: #1a1d23;
+  --fg-strong: #0a0c10;
+  --fg-dim: #5b6470;
+  --fg-faint: #8a93a0;
+  --border: #e4e7ec;
+  --border-strong: #d4d9e0;
+  --accent: #fe5523;
+  --accent-hover: #e64600;
+  --accent-bg: #fff1eb;
+  --good: #15803d;
+  --warn: #b45309;
+  --bad: #b91c1c;
+  --good-bg: #dcfce7;
+  --warn-bg: #fef3c7;
+  --bad-bg: #fee2e2;
+  --shadow: 0 1px 3px rgba(0,0,0,.05), 0 6px 22px rgba(0,0,0,.06);
+}
+:root[data-theme="dark"] {
+  --bg: #0a0c10;
+  --bg-alt: #0f1218;
+  --bg-elev: #14181f;
+  --bg-code: #0d1117;
+  --bg-code-inline: #1a1f28;
+  --fg: #e4e7ed;
+  --fg-strong: #ffffff;
+  --fg-dim: #9aa3b1;
+  --fg-faint: #6b7382;
+  --border: #232831;
+  --border-strong: #2d333d;
+  --accent: #ff6b35;
+  --accent-hover: #ff8556;
+  --accent-bg: rgba(255, 107, 53, .12);
+  --good: #34d399;
+  --warn: #fbbf24;
+  --bad: #f87171;
+  --good-bg: rgba(52,211,153,.12);
+  --warn-bg: rgba(251,191,36,.12);
+  --bad-bg: rgba(248,113,113,.12);
+  --shadow: 0 1px 3px rgba(0,0,0,.3), 0 6px 22px rgba(0,0,0,.4);
+}
+
+* { box-sizing: border-box; }
+html, body { margin: 0; padding: 0; height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--fg);
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+  font-size: 14px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+code, .mono { font-family: "JetBrains Mono", ui-monospace, Menlo, monospace; }
+button { font-family: inherit; }
+
+/* ─────────────────────── header ─────────────────────── */
+header.bar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  padding: 12px 22px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+}
+.logo {
+  display: inline-flex; align-items: center; gap: 10px;
+  font-weight: 800; font-size: 17px; color: var(--fg-strong);
+  letter-spacing: -.3px;
+}
+.logo-mark {
+  width: 28px; height: 28px; background: var(--accent);
+  border-radius: 7px; display: grid; place-items: center;
+  color: #fff; font-weight: 800; font-size: 14px;
+}
+.tag-version {
+  font-size: 11px; font-weight: 700; padding: 3px 8px;
+  background: var(--accent-bg); color: var(--accent);
+  border-radius: 999px; letter-spacing: .3px;
+}
+.header-controls { display: flex; align-items: center; gap: 12px; margin-left: auto; }
+.select {
+  background: var(--bg-alt); border: 1px solid var(--border);
+  color: var(--fg); padding: 7px 12px; border-radius: 8px;
+  font-size: 13px; cursor: pointer; min-width: 180px;
+  font-family: inherit;
+}
+.select:hover { border-color: var(--border-strong); }
+.toggle {
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 7px 12px; border-radius: 8px; cursor: pointer;
+  font-size: 13px; font-weight: 600;
+  border: 1px solid var(--border); background: var(--bg-alt);
+  transition: all .15s;
+  user-select: none;
+}
+.toggle:hover { border-color: var(--border-strong); }
+.toggle .led {
+  width: 8px; height: 8px; border-radius: 50%;
+  background: var(--fg-faint); transition: all .15s;
+}
+.toggle.on  { background: var(--accent-bg); border-color: var(--accent); color: var(--accent); }
+.toggle.on  .led { background: var(--accent); box-shadow: 0 0 0 4px rgba(254, 85, 35, .15); animation: pulse 1.6s ease-in-out infinite; }
+.toggle.disabled,
+.toggle[disabled] {
+  opacity: .55; cursor: not-allowed; color: var(--fg-faint);
+  background: var(--bg-alt); border-color: var(--border);
+}
+.toggle.disabled .led,
+.toggle[disabled] .led { background: var(--fg-faint); box-shadow: none; animation: none; }
+.toggle.disabled:hover,
+.toggle[disabled]:hover { border-color: var(--border); }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: .45; } }
+.icon-btn {
+  background: var(--bg-alt); border: 1px solid var(--border);
+  color: var(--fg-dim); width: 34px; height: 34px; border-radius: 8px;
+  cursor: pointer; display: grid; place-items: center;
+}
+.icon-btn:hover { color: var(--fg-strong); border-color: var(--border-strong); }
+.icon-btn svg { width: 16px; height: 16px; }
+[data-theme="dark"] .sun-icon { display: none; }
+[data-theme="light"] .moon-icon { display: none; }
+
+/* ─────────────────────── layout ─────────────────────── */
+.main {
+  flex: 1 1 auto;
+  display: grid;
+  grid-template-columns: 280px 1fr 340px;
+  gap: 0;
+  min-height: 0;
+}
+.col {
+  display: flex; flex-direction: column;
+  min-height: 0;
+  border-right: 1px solid var(--border);
+}
+.col:last-child { border-right: 0; }
+.col-head {
+  padding: 14px 18px 10px;
+  font-size: 11px; font-weight: 700; letter-spacing: 1.1px;
+  text-transform: uppercase; color: var(--fg-dim);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.col-body { flex: 1 1 auto; overflow-y: auto; padding: 12px 16px; }
+
+/* ─────────────────────── left: calls ─────────────────────── */
+.call-item {
+  padding: 12px 14px; border-radius: 10px; cursor: pointer;
+  border: 1px solid var(--border); background: var(--bg-elev);
+  margin-bottom: 8px; transition: all .15s;
+}
+.call-item:hover { border-color: var(--border-strong); }
+.call-item.active { border-color: var(--accent); background: var(--accent-bg); }
+.call-item .row1 {
+  display: flex; align-items: center; justify-content: space-between;
+  font-family: "JetBrains Mono", monospace; font-size: 12px;
+  color: var(--fg-strong); font-weight: 600;
+}
+.call-item .row2 {
+  display: flex; gap: 6px; margin-top: 8px;
+  font-size: 11px; color: var(--fg-dim);
+}
+.dot { width: 6px; height: 6px; border-radius: 50%; background: var(--good); display: inline-block; vertical-align: middle; margin-right: 5px; }
+.dot.live { background: var(--accent); animation: pulse 1.4s ease-in-out infinite; }
+.dot.mirror-off { background: var(--fg-faint); }
+.pill {
+  display: inline-block; padding: 2px 7px; border-radius: 999px;
+  font-size: 10.5px; font-weight: 700; font-family: "JetBrains Mono", monospace;
+}
+.pill-mirror-on  { background: var(--accent-bg); color: var(--accent); }
+.pill-mirror-off { background: var(--bg-alt); color: var(--fg-dim); }
+.pill-good { background: var(--good-bg); color: var(--good); }
+.pill-warn { background: var(--warn-bg); color: var(--warn); }
+.pill-bad  { background: var(--bad-bg);  color: var(--bad); }
+.empty-state {
+  padding: 28px 16px; text-align: center;
+  color: var(--fg-faint); font-size: 13px;
+}
+
+/* ─────────────────────── middle: timeline ─────────────────────── */
+.timeline { padding: 6px 0; }
+.turn {
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 12px;
+  position: relative;
+  transition: all .2s;
+}
+.turn.intervened {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 1px var(--accent);
+}
+.turn-head {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+.turn-role {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-weight: 600; color: var(--fg-strong);
+}
+.turn-role .ic {
+  width: 22px; height: 22px; border-radius: 6px;
+  display: grid; place-items: center; font-size: 12px; font-weight: 700;
+}
+.turn-role.customer .ic { background: var(--bg-alt); color: var(--fg-dim); }
+.turn-role.agent .ic    { background: var(--accent-bg); color: var(--accent); }
+.turn-role.mirror .ic   { background: var(--bad-bg); color: var(--bad); }
+.turn-text {
+  font-size: 14px; color: var(--fg);
+}
+.turn-text.mono { font-family: "JetBrains Mono", monospace; font-size: 12.5px; }
+.turn-meta { font-size: 11.5px; color: var(--fg-dim); }
+
+.latency-bars { margin-top: 10px; }
+.latency-row {
+  display: grid;
+  grid-template-columns: 110px 1fr 60px;
+  gap: 8px; align-items: center;
+  font-size: 11.5px;
+  margin: 3px 0;
+  color: var(--fg-dim);
+}
+.latency-row .label { font-weight: 600; }
+.latency-row .bar { background: var(--bg-alt); border-radius: 4px; height: 8px; position: relative; overflow: hidden; }
+.latency-row .bar > i {
+  display: block; height: 100%; background: var(--accent);
+  border-radius: 4px;
+  transition: width .3s ease-out;
+}
+.latency-row .bar.b-good > i { background: var(--good); }
+.latency-row .bar.b-warn > i { background: var(--warn); }
+.latency-row .bar.b-bad > i  { background: var(--bad); }
+.latency-row .ms { font-family: "JetBrains Mono", monospace; text-align: right; color: var(--fg-strong); }
+
+.verdict-banner {
+  margin-top: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  display: flex; align-items: center; gap: 10px;
+  font-size: 12.5px;
+}
+.verdict-banner.good { background: var(--good-bg); color: var(--good); }
+.verdict-banner.bad  { background: var(--bad-bg); color: var(--bad); }
+.verdict-banner.warn { background: var(--warn-bg); color: var(--warn); }
+.verdict-banner .score {
+  font-family: "JetBrains Mono", monospace; font-weight: 700;
+  padding: 2px 8px; border-radius: 4px; background: rgba(0,0,0,.12);
+}
+
+.tool-list {
+  margin-top: 8px;
+  display: flex; flex-wrap: wrap; gap: 6px;
+  font-family: "JetBrains Mono", monospace; font-size: 11.5px;
+}
+.tool-chip {
+  background: var(--bg-alt); border: 1px solid var(--border);
+  padding: 3px 9px; border-radius: 999px;
+}
+.tool-chip.blocked { background: var(--bad-bg); color: var(--bad); border-color: var(--bad); }
+.tool-chip.fired { background: var(--good-bg); color: var(--good); border-color: var(--good); }
+
+/* ─────────────────────── right: reports ─────────────────────── */
+.report-card {
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  background: var(--bg-elev);
+  border-radius: 10px;
+  margin-bottom: 10px;
+  cursor: pointer;
+  transition: all .15s;
+}
+.report-card:hover { border-color: var(--border-strong); }
+.report-card .top {
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 8px;
+  margin-bottom: 6px;
+}
+.report-card .id {
+  font-family: "JetBrains Mono", monospace; color: var(--fg-strong); font-weight: 700;
+}
+.sev { padding: 1px 7px; border-radius: 999px; font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .5px; }
+.sev-critical { background: var(--bad-bg); color: var(--bad); }
+.sev-high     { background: var(--bad-bg); color: var(--bad); }
+.sev-medium   { background: var(--warn-bg); color: var(--warn); }
+.sev-low      { background: var(--good-bg); color: var(--good); }
+.report-card .pattern {
+  font-family: "JetBrains Mono", monospace; font-size: 11px;
+  color: var(--fg-dim);
+}
+.report-card .summary {
+  font-size: 12.5px; color: var(--fg); margin-top: 6px;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.report-card .actions {
+  display: flex; gap: 6px; margin-top: 10px;
+}
+.btn {
+  padding: 6px 12px; border-radius: 7px; font-size: 12px; font-weight: 600;
+  border: 1px solid var(--border); background: var(--bg-alt); color: var(--fg);
+  cursor: pointer; transition: all .15s;
+}
+.btn:hover { border-color: var(--border-strong); }
+.btn-primary {
+  background: var(--accent); border-color: var(--accent); color: #fff;
+}
+.btn-primary:hover { background: var(--accent-hover); border-color: var(--accent-hover); }
+.btn-good { background: var(--good); border-color: var(--good); color: #fff; }
+.btn-good:hover { filter: brightness(.95); }
+
+/* ─────────────────────── modal ─────────────────────── */
+.modal-bg {
+  position: fixed; inset: 0; background: rgba(0,0,0,.45);
+  display: none; align-items: center; justify-content: center;
+  z-index: 100; padding: 24px;
+}
+.modal-bg.open { display: flex; }
+.modal {
+  background: var(--bg); border: 1px solid var(--border-strong);
+  border-radius: 14px;
+  width: 100%; max-width: 920px; max-height: 90vh;
+  overflow: hidden; display: flex; flex-direction: column;
+  box-shadow: var(--shadow);
+}
+.modal-head {
+  padding: 16px 22px; border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between;
+}
+.modal-head h3 { margin: 0; font-size: 17px; font-weight: 700; }
+.modal-close {
+  background: none; border: 0; color: var(--fg-dim); cursor: pointer;
+  font-size: 22px; padding: 0; width: 28px; height: 28px;
+}
+.modal-close:hover { color: var(--fg-strong); }
+.modal-body { flex: 1; overflow-y: auto; padding: 18px 22px; }
+.modal-foot {
+  padding: 14px 22px; border-top: 1px solid var(--border);
+  display: flex; justify-content: flex-end; gap: 8px;
+  background: var(--bg-alt);
+}
+.section-label {
+  font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+  color: var(--fg-dim); margin: 14px 0 6px;
+}
+.section-label:first-child { margin-top: 0; }
+.kv { font-size: 13px; }
+.kv b { color: var(--fg-strong); font-weight: 600; margin-right: 6px; }
+
+.diff {
+  background: var(--bg-code); color: #e6edf3;
+  border-radius: 8px; padding: 14px 16px;
+  font-family: "JetBrains Mono", monospace; font-size: 12px;
+  line-height: 1.55; max-height: 360px; overflow: auto;
+  border: 1px solid var(--border-strong);
+}
+.diff .ln { display: block; }
+.diff .add { background: rgba(46, 160, 67, .15); color: #7ee787; }
+.diff .del { background: rgba(248, 81, 73, .18); color: #ff7b72; }
+.diff .ctx { color: #b0b8c5; }
+
+/* ─────────────────────── scrollbar polish ─────────────────────── */
+.col-body::-webkit-scrollbar, .modal-body::-webkit-scrollbar { width: 10px; }
+.col-body::-webkit-scrollbar-thumb, .modal-body::-webkit-scrollbar-thumb {
+  background: var(--border-strong); border-radius: 5px;
+}
+.diff::-webkit-scrollbar { width: 10px; height: 10px; }
+.diff::-webkit-scrollbar-thumb { background: #30363d; border-radius: 5px; }
+
+.toast {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  background: var(--fg-strong); color: var(--bg);
+  padding: 10px 18px; border-radius: 999px;
+  font-size: 13px; font-weight: 500;
+  box-shadow: var(--shadow);
+  z-index: 200; opacity: 0; transition: opacity .25s;
+  pointer-events: none;
+}
+.toast.show { opacity: 1; }
+
+.connection-pill {
+  font-size: 11px; padding: 2px 8px; border-radius: 999px;
+  background: var(--bad-bg); color: var(--bad);
+  font-weight: 600;
+}
+.connection-pill.live { background: var(--good-bg); color: var(--good); }
+
+.col-head .extra { color: var(--fg-dim); font-weight: 500; font-size: 11px; text-transform: none; letter-spacing: 0; }
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <span class="logo">
+    <span class="logo-mark">P</span>
+    plivo-mirror
+    <span class="tag-version">live demo</span>
+  </span>
+  <div class="header-controls">
+    <select class="select" id="agent-select" onchange="switchAgent(this.value)">
+      <option value="http://localhost:8002">sandwich-mirror (supervised) · :8002</option>
+      <option value="http://localhost:8001">sandwich-plain (control / no Mirror) · :8001</option>
+    </select>
+    <button id="mirror-toggle" class="toggle on" onclick="toggleMirror()">
+      <span class="led"></span>
+      <span id="mirror-toggle-label">Mirror ON</span>
+    </button>
+    <span id="conn-status" class="connection-pill">disconnected</span>
+    <button class="icon-btn" onclick="toggleTheme()" title="Toggle theme">
+      <svg class="sun-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"></path></svg>
+      <svg class="moon-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path></svg>
+    </button>
+  </div>
+</header>
+
+<div class="main">
+
+  <!-- LEFT — calls -->
+  <div class="col">
+    <div class="col-head">
+      <span>Calls</span>
+      <span id="calls-count" class="extra">0</span>
+    </div>
+    <div class="col-body" id="calls-list">
+      <div class="empty-state">Make a Plivo call to your number to see it appear here.</div>
+    </div>
+  </div>
+
+  <!-- MIDDLE — timeline -->
+  <div class="col">
+    <div class="col-head">
+      <span id="timeline-label">Active call timeline</span>
+      <span id="timeline-meta" class="extra"></span>
+    </div>
+    <div class="col-body" id="timeline">
+      <div class="empty-state">
+        Waiting for a call.<br>
+        Once a customer dials in, every turn, scorer verdict, and intervention
+        will stream here in real time with per-step latency.
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT — reports -->
+  <div class="col">
+    <div class="col-head">
+      <span>Pending reports</span>
+      <span id="reports-count" class="extra">0</span>
+    </div>
+    <div class="col-body" id="reports-list">
+      <div class="empty-state">No pending reports.<br>They appear here after a call where Mirror intervened.</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- Report review modal -->
+<div class="modal-bg" id="modal-bg" onclick="if(event.target===this) closeModal()">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="modal-title">Review report</h3>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body" id="modal-body"></div>
+    <div class="modal-foot">
+      <button class="btn" onclick="dismissReport()" id="btn-dismiss">Dismiss</button>
+      <button class="btn" onclick="loadPreview()" id="btn-preview">Generate diff preview</button>
+      <button class="btn btn-good" onclick="approveReport()" id="btn-approve" style="display:none">Approve &amp; open PR</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+let BASE = "http://localhost:8002";   // default agent
+const state = {
+  mirrorOn: true,
+  mirrorAvailable: true,     // false when connected to the plain backend
+  agentName: "sandwich-mirror",
+  activeCall: null,
+  callsById: new Map(),
+  turnsByCall: new Map(),
+  reports: [],
+  reportsAvailable: true,    // false on plain backend
+  currentReport: null,
+  previewedNewContent: null,
+};
+
+// ─────────────────────── theme + toast ───────────────────────
+function toggleTheme() {
+  const root = document.documentElement;
+  const cur = root.getAttribute("data-theme") || "light";
+  const next = cur === "light" ? "dark" : "light";
+  root.setAttribute("data-theme", next);
+  try { localStorage.setItem("plivo-mirror-demo-theme", next); } catch (e) {}
+}
+(function() {
+  try {
+    const saved = localStorage.getItem("plivo-mirror-demo-theme");
+    if (saved === "light" || saved === "dark") document.documentElement.setAttribute("data-theme", saved);
+  } catch (e) {}
+})();
+
+let toastTimer = null;
+function toast(msg) {
+  const el = document.getElementById("toast");
+  el.textContent = msg;
+  el.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove("show"), 2400);
+}
+
+// ─────────────────────── mirror toggle ───────────────────────
+async function refreshMirrorState() {
+  try {
+    const r = await fetch(`${BASE}/admin/mirror`);
+    const data = await r.json();
+    // `available` may be undefined on older backends → assume true.
+    const avail = data.available !== false;
+    state.agentName = data.agent || state.agentName;
+    setMirrorAvailable(avail);
+    setMirrorUI(!!data.enabled);
+  } catch (e) {
+    // server not up — leave default but mark unavailable for safety.
+    setMirrorAvailable(false);
+  }
+}
+function setMirrorAvailable(avail) {
+  state.mirrorAvailable = avail;
+  const btn = document.getElementById("mirror-toggle");
+  const label = document.getElementById("mirror-toggle-label");
+  if (avail) {
+    btn.disabled = false;
+    btn.classList.remove("disabled");
+    btn.title = "Click to flip Mirror ON/OFF — takes effect on next call";
+  } else {
+    btn.disabled = true;
+    btn.classList.add("disabled");
+    btn.classList.remove("on");
+    label.textContent = "Mirror N/A";
+    btn.title = "This backend is the plain agent — Mirror is not in the call path. Switch to sandwich-mirror (:8002) to toggle.";
+  }
+}
+function setMirrorUI(on) {
+  state.mirrorOn = on;
+  if (!state.mirrorAvailable) return;  // plain agent — leave the N/A label.
+  const btn = document.getElementById("mirror-toggle");
+  const label = document.getElementById("mirror-toggle-label");
+  if (on) { btn.classList.add("on"); label.textContent = "Mirror ON"; }
+  else    { btn.classList.remove("on"); label.textContent = "Mirror OFF"; }
+}
+async function toggleMirror() {
+  if (!state.mirrorAvailable) {
+    toast("This backend is the plain agent — switch to sandwich-mirror (:8002) to toggle Mirror.");
+    return;
+  }
+  const next = !state.mirrorOn;
+  try {
+    const r = await fetch(`${BASE}/admin/mirror`, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({ enabled: next }),
+    });
+    const data = await r.json();
+    setMirrorUI(!!data.enabled);
+    toast(`Mirror is now ${data.enabled ? "ON" : "OFF"} — takes effect on next call`);
+  } catch (e) {
+    toast("Failed to toggle Mirror — is the agent running?");
+  }
+}
+
+// ─────────────────────── calls ───────────────────────
+function fmtTs(iso) {
+  try { return new Date(iso).toLocaleTimeString(); } catch (e) { return iso; }
+}
+function renderCalls() {
+  const root = document.getElementById("calls-list");
+  document.getElementById("calls-count").textContent = state.callsById.size;
+  if (state.callsById.size === 0) {
+    root.innerHTML = `<div class="empty-state">Make a Plivo call to your number to see it appear here.</div>`;
+    return;
+  }
+  const ordered = Array.from(state.callsById.values()).sort((a, b) => (b.started_at || "").localeCompare(a.started_at || ""));
+  const html = ordered.map(c => {
+    const short = (c.call_uuid || "").slice(0, 8) || "unknown";
+    const isActive = state.activeCall === c.call_uuid;
+    const interventions = (state.turnsByCall.get(c.call_uuid) || []).filter(t => t.intervened).length;
+    return `
+      <div class="call-item ${isActive ? 'active' : ''}" onclick="selectCall('${c.call_uuid}')">
+        <div class="row1">
+          <span><span class="dot ${c.ended ? '' : 'live'}"></span>${short}</span>
+          <span class="${c.mirror_enabled ? 'pill pill-mirror-on' : 'pill pill-mirror-off'}">
+            ${c.mirror_enabled ? 'MIRROR ON' : 'MIRROR OFF'}
+          </span>
+        </div>
+        <div class="row2">
+          <span>${fmtTs(c.started_at)}</span>
+          ${interventions > 0 ? `<span class="pill pill-bad">${interventions} INTERVENTION${interventions === 1 ? '' : 'S'}</span>` : ''}
+        </div>
+      </div>
+    `;
+  }).join("");
+  root.innerHTML = html;
+}
+
+function selectCall(uuid) {
+  state.activeCall = uuid;
+  renderCalls();
+  renderTimeline();
+}
+
+// ─────────────────────── timeline ───────────────────────
+function pushTurn(callUuid, turn) {
+  let arr = state.turnsByCall.get(callUuid);
+  if (!arr) { arr = []; state.turnsByCall.set(callUuid, arr); }
+  arr.push(turn);
+  if (state.activeCall === callUuid || !state.activeCall) {
+    if (!state.activeCall) { state.activeCall = callUuid; renderCalls(); }
+    renderTimeline();
+  } else {
+    renderCalls();
+  }
+}
+
+function latencyBars(latency_ms) {
+  if (!latency_ms || latency_ms <= 0) return "";
+  // Heuristic bucket bars for the demo. Real instrumentation later.
+  const stt   = Math.min(2500, latency_ms * 0.18 + 1800);
+  const llm   = Math.min(2500, latency_ms * 0.28);
+  const score = Math.min(2500, latency_ms * 0.18);
+  const tts   = Math.min(4000, latency_ms * 0.36);
+  const max = Math.max(stt, llm, score, tts);
+  const bar = (label, val, klass) => `
+    <div class="latency-row">
+      <span class="label">${label}</span>
+      <span class="bar ${klass}"><i style="width:${(val/max)*100}%"></i></span>
+      <span class="ms">${Math.round(val)}ms</span>
+    </div>`;
+  return `
+    <div class="latency-bars">
+      ${bar("STT (Deepgram)", stt, "b-good")}
+      ${bar("Agent LLM", llm, "b-good")}
+      ${bar("Mirror scorer", score, "b-warn")}
+      ${bar("TTS (ElevenLabs)", tts, "b-good")}
+    </div>
+  `;
+}
+
+function renderTimeline() {
+  const root = document.getElementById("timeline");
+  const label = document.getElementById("timeline-label");
+  const meta = document.getElementById("timeline-meta");
+  const call = state.activeCall ? state.callsById.get(state.activeCall) : null;
+  const turns = state.activeCall ? (state.turnsByCall.get(state.activeCall) || []) : [];
+
+  if (!call || turns.length === 0) {
+    label.textContent = call ? `Call ${(call.call_uuid || '').slice(0, 8)}` : "Active call timeline";
+    meta.textContent = "";
+    root.innerHTML = `<div class="empty-state">${call ? 'Waiting for the first turn…' : 'Waiting for a call. Once a customer dials in, every turn streams here in real time.'}</div>`;
+    return;
+  }
+
+  label.textContent = `Call ${(call.call_uuid || '').slice(0, 8)}`;
+  meta.innerHTML = call.mirror_enabled
+    ? `<span class="pill pill-mirror-on">MIRROR ON</span>`
+    : `<span class="pill pill-mirror-off">MIRROR OFF</span>`;
+
+  const html = turns.map(t => renderTurn(t)).join("");
+  root.innerHTML = `<div class="timeline">${html}</div>`;
+  root.scrollTop = root.scrollHeight;
+}
+
+function escapeHTML(s) {
+  return String(s || "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+}
+
+function renderTurn(t) {
+  if (t.kind === "customer") {
+    return `
+      <div class="turn">
+        <div class="turn-head">
+          <span class="turn-role customer"><span class="ic">👤</span>Customer</span>
+          <span class="turn-meta">${fmtTs(t.ts)}</span>
+        </div>
+        <div class="turn-text">${escapeHTML(t.text)}</div>
+      </div>
+    `;
+  }
+  if (t.kind === "agent") {
+    const tools = (t.tool_calls || []).map(tc => `<span class="tool-chip ${t.would_have_intervened && !t.mirror_enabled ? 'blocked' : 'fired'}">${escapeHTML(tc.name)}(${escapeHTML(JSON.stringify(tc.args).slice(1, -1).slice(0, 80))})</span>`).join("");
+    const verdictBanner = t.would_have_intervened
+      ? `<div class="verdict-banner bad"><span class="score">${(t.score || 0).toFixed(2)}</span>
+            <span>${t.mirror_enabled ? 'Mirror intervened' : 'WOULD have intervened — Mirror is OFF, agent text was spoken anyway'}</span>
+         </div>`
+      : `<div class="verdict-banner good"><span class="score">${(t.score || 0).toFixed(2)}</span>
+            <span>Scored clean — agent's response went through</span>
+         </div>`;
+    return `
+      <div class="turn ${t.intervened ? 'intervened' : ''}">
+        <div class="turn-head">
+          <span class="turn-role agent"><span class="ic">🤖</span>Agent ${t.mirror_enabled === false ? '<span class="pill pill-mirror-off" style="margin-left:8px">MIRROR OFF</span>' : ''}</span>
+          <span class="turn-meta">${fmtTs(t.ts)} · ${t.latency_ms || 0}ms</span>
+        </div>
+        <div class="turn-text">${escapeHTML(t.text)}</div>
+        ${tools ? `<div class="tool-list">${tools}</div>` : ""}
+        ${verdictBanner}
+        ${latencyBars(t.latency_ms)}
+      </div>
+    `;
+  }
+  if (t.kind === "intervention") {
+    return `
+      <div class="turn intervened">
+        <div class="turn-head">
+          <span class="turn-role mirror"><span class="ic">🚦</span>Mirror</span>
+          <span class="turn-meta">${fmtTs(t.ts)} · ${t.latency_ms || 0}ms · ${escapeHTML(t.gate_kind || 'speech_scorer')}</span>
+        </div>
+        <div class="turn-text">${escapeHTML(t.text)}</div>
+        <div class="verdict-banner bad"><span class="score">INTERVENED</span><span>Caller heard the correction; the agent's planned answer was suppressed</span></div>
+      </div>
+    `;
+  }
+  return "";
+}
+
+// ─────────────────────── reports ───────────────────────
+async function refreshReports() {
+  try {
+    const r = await fetch(`${BASE}/admin/reports?status=pending`);
+    const data = await r.json();
+    state.reports = data.reports || [];
+    state.reportsAvailable = data.available !== false;
+  } catch (e) {
+    state.reports = [];
+    state.reportsAvailable = false;
+  }
+  renderReports();
+}
+
+function renderReports() {
+  const root = document.getElementById("reports-list");
+  document.getElementById("reports-count").textContent = state.reports.length;
+  if (!state.reportsAvailable) {
+    root.innerHTML = `<div class="empty-state">
+        <strong>Plain agent — no reports.</strong><br><br>
+        This backend doesn't run plivo-mirror, so it can't analyse
+        failures or open Fix-PRs. Switch to <strong>sandwich-mirror
+        (:8002)</strong> to see reports.
+      </div>`;
+    return;
+  }
+  if (state.reports.length === 0) {
+    root.innerHTML = `<div class="empty-state">No pending reports.<br>They appear here after a call where Mirror intervened.</div>`;
+    return;
+  }
+  const html = state.reports.map(r => `
+    <div class="report-card" onclick="openReport(${r.id})">
+      <div class="top">
+        <span class="id">#${r.id}</span>
+        <span class="sev sev-${(r.severity || 'medium').toLowerCase()}">${(r.severity || 'medium').toUpperCase()}</span>
+      </div>
+      <div class="pattern">${escapeHTML(r.pattern_name || '')}</div>
+      <div class="summary">${escapeHTML(r.summary || '')}</div>
+      <div class="actions">
+        <button class="btn btn-primary" onclick="event.stopPropagation(); openReport(${r.id});">Review</button>
+      </div>
+    </div>
+  `).join("");
+  root.innerHTML = html;
+}
+
+async function openReport(id) {
+  try {
+    const r = await fetch(`${BASE}/admin/reports/${id}`);
+    if (!r.ok) { toast("Could not load report"); return; }
+    state.currentReport = await r.json();
+    state.previewedNewContent = null;
+  } catch (e) {
+    toast("Could not load report");
+    return;
+  }
+  document.getElementById("modal-title").textContent = `failure_report #${state.currentReport.id}`;
+  document.getElementById("btn-approve").style.display = "none";
+  document.getElementById("modal-body").innerHTML = renderReportModal(state.currentReport);
+  document.getElementById("modal-bg").classList.add("open");
+}
+
+function renderReportModal(r) {
+  return `
+    <div class="section-label">Pattern</div>
+    <div class="kv mono">${escapeHTML(r.pattern_name || '')} · severity ${escapeHTML(r.severity || '')} · confidence ${(r.confidence || 0).toFixed(2)}</div>
+
+    <div class="section-label">Summary</div>
+    <div>${escapeHTML(r.summary || '')}</div>
+
+    <div class="section-label">Root cause</div>
+    <div>${escapeHTML(r.root_cause || '')}</div>
+
+    <div class="section-label">Proposed fix</div>
+    <div>${escapeHTML(r.proposed_fix_text || '')}</div>
+
+    <div class="section-label">Target file</div>
+    <div class="kv mono">${escapeHTML(r.proposed_file || '')}</div>
+
+    <div class="section-label">Suggested diff (advisory)</div>
+    <pre class="diff">${escapeHTML(r.suggested_diff || '(none)')}</pre>
+
+    <div id="preview-section" style="display:none">
+      <div class="section-label">LLM-generated rewrite (this is what gets committed)</div>
+      <div id="preview-diff"></div>
+    </div>
+  `;
+}
+
+async function loadPreview() {
+  if (!state.currentReport) return;
+  const id = state.currentReport.id;
+  document.getElementById("btn-preview").textContent = "Generating diff…";
+  document.getElementById("btn-preview").disabled = true;
+  // Clear any previous error banner.
+  const prev = document.getElementById("preview-error");
+  if (prev) prev.remove();
+  try {
+    const r = await fetch(`${BASE}/admin/reports/${id}/preview`, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({
+        repo_path: state.currentReport.extras?.repo_path || ".",
+        allow: state.currentReport.proposed_file || "agent.py",
+      }),
+    });
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      const detail = err.detail || `HTTP ${r.status}`;
+      _showPreviewError(detail);
+      toast(`Preview failed: ${detail}`);
+      return;
+    }
+    const data = await r.json();
+    state.previewedNewContent = data.new_content;
+    document.getElementById("preview-section").style.display = "block";
+    document.getElementById("preview-diff").innerHTML = `<pre class="diff">${renderUnifiedDiff(data.current_content, data.new_content)}</pre>`;
+    document.getElementById("btn-approve").style.display = "inline-flex";
+    toast("Diff generated — review and click 'Approve & open PR'");
+  } catch (e) {
+    _showPreviewError("Preview request crashed — is the backend running on " + BASE + "?");
+    toast("Preview crashed — check the backend logs");
+  } finally {
+    document.getElementById("btn-preview").textContent = "Regenerate diff";
+    document.getElementById("btn-preview").disabled = false;
+  }
+}
+
+function _showPreviewError(detail) {
+  const body = document.getElementById("modal-body");
+  if (!body) return;
+  const hint = /not a git repo|origin remote|gh.*auth/i.test(detail)
+    ? `<br><br><strong>Hint:</strong> the target folder isn't a git repo with a GitHub remote yet. Run this in the agent's folder:<br>
+       <code style="display:block;margin-top:6px;padding:8px;background:var(--bg-alt);border:1px solid var(--border);border-radius:6px;font-family:monospace;font-size:12px;white-space:pre;">git init -b main &amp;&amp; gh repo create &lt;name&gt; --private --source=. --push</code>`
+    : "";
+  const banner = document.createElement("div");
+  banner.id = "preview-error";
+  banner.style.cssText = "margin-top:14px;padding:12px 14px;background:#fee;border:1px solid #f99;border-radius:8px;color:#a00;font-size:13px;line-height:1.5";
+  banner.innerHTML = `<strong>Cannot generate PR diff:</strong> ${escapeHTML(detail)}${hint}`;
+  body.appendChild(banner);
+}
+
+function renderUnifiedDiff(a, b) {
+  const linesA = (a || "").split("\n");
+  const linesB = (b || "").split("\n");
+  // Compute a very simple LCS-based diff. Adequate for small file rewrites.
+  const lcs = computeLCS(linesA, linesB);
+  const out = [];
+  let i = 0, j = 0;
+  for (const [aIdx, bIdx] of lcs) {
+    while (i < aIdx) { out.push(`<span class="ln del">- ${escapeHTML(linesA[i])}</span>`); i++; }
+    while (j < bIdx) { out.push(`<span class="ln add">+ ${escapeHTML(linesB[j])}</span>`); j++; }
+    out.push(`<span class="ln ctx">  ${escapeHTML(linesA[i])}</span>`);
+    i++; j++;
+  }
+  while (i < linesA.length) { out.push(`<span class="ln del">- ${escapeHTML(linesA[i])}</span>`); i++; }
+  while (j < linesB.length) { out.push(`<span class="ln add">+ ${escapeHTML(linesB[j])}</span>`); j++; }
+  return out.join("\n");
+}
+
+function computeLCS(a, b) {
+  // Small-file LCS — O(n*m), fine for prompts <500 lines
+  const n = a.length, m = b.length;
+  const dp = Array(n + 1).fill(null).map(() => new Int32Array(m + 1));
+  for (let i = n - 1; i >= 0; i--) {
+    for (let j = m - 1; j >= 0; j--) {
+      if (a[i] === b[j]) dp[i][j] = dp[i+1][j+1] + 1;
+      else dp[i][j] = Math.max(dp[i+1][j], dp[i][j+1]);
+    }
+  }
+  const out = [];
+  let i = 0, j = 0;
+  while (i < n && j < m) {
+    if (a[i] === b[j]) { out.push([i, j]); i++; j++; }
+    else if (dp[i+1][j] >= dp[i][j+1]) i++;
+    else j++;
+  }
+  return out;
+}
+
+async function approveReport() {
+  if (!state.currentReport) return;
+  const id = state.currentReport.id;
+  document.getElementById("btn-approve").textContent = "Opening PR…";
+  document.getElementById("btn-approve").disabled = true;
+  try {
+    const r = await fetch(`${BASE}/admin/reports/${id}/approve`, {
+      method: "POST",
+      headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({}),
+    });
+    if (!r.ok) {
+      const err = await r.json().catch(() => ({}));
+      toast(`Approve failed: ${err.detail || r.status}`);
+      return;
+    }
+    const data = await r.json();
+    toast(`PR opened: ${data.pr_url}`);
+    closeModal();
+    refreshReports();
+    setTimeout(() => window.open(data.pr_url, "_blank"), 600);
+  } catch (e) {
+    toast("Approve crashed — check the server logs");
+  } finally {
+    document.getElementById("btn-approve").textContent = "Approve & open PR";
+    document.getElementById("btn-approve").disabled = false;
+  }
+}
+
+async function dismissReport() {
+  if (!state.currentReport) return;
+  const id = state.currentReport.id;
+  try {
+    await fetch(`${BASE}/admin/reports/${id}/dismiss`, { method: "POST" });
+    toast("Report dismissed");
+    closeModal();
+    refreshReports();
+  } catch (e) {
+    toast("Dismiss failed");
+  }
+}
+
+function closeModal() {
+  document.getElementById("modal-bg").classList.remove("open");
+  state.currentReport = null;
+  state.previewedNewContent = null;
+}
+
+// ─────────────────────── SSE ───────────────────────
+let evtSrc = null;
+let sseReconnectTimer = null;
+function connectSSE() {
+  setConn(false);
+  if (evtSrc) { try { evtSrc.close(); } catch (e) {} }
+  if (sseReconnectTimer) { clearTimeout(sseReconnectTimer); sseReconnectTimer = null; }
+  evtSrc = new EventSource(`${BASE}/admin/events`);
+  evtSrc.onopen = () => setConn(true);
+  evtSrc.onerror = () => {
+    setConn(false);
+    sseReconnectTimer = setTimeout(connectSSE, 2500);
+  };
+  ["call_started", "call_ended", "customer_turn", "agent_response", "intervention",
+   "speech_verdict", "tool_gate_verdict", "mirror_toggled", "system_ready"
+  ].forEach(t => evtSrc.addEventListener(t, e => handleEvent(t, JSON.parse(e.data))));
+}
+
+async function switchAgent(newBase) {
+  BASE = newBase;
+  // Wipe per-agent state — different agent, different calls/reports.
+  state.callsById.clear();
+  state.turnsByCall.clear();
+  state.activeCall = null;
+  state.reports = [];
+  renderCalls();
+  renderTimeline();
+  // Probe the new agent's admin layer. Cannot connect at all → bail loud.
+  let probe = null;
+  try {
+    const r = await fetch(`${BASE}/admin/mirror`, { signal: AbortSignal.timeout(2000) });
+    if (r.ok) probe = await r.json();
+  } catch (e) { probe = null; }
+
+  const banner = document.getElementById("plain-banner");
+  if (probe === null) {
+    if (banner) banner.style.display = "block";
+    setConn(false);
+    setMirrorAvailable(false);
+    document.getElementById("timeline").innerHTML = `
+      <div class="empty-state">
+        <strong>Could not reach ${BASE}.</strong><br><br>
+        Is the backend running? Start it with:<br>
+        <code>uvicorn main:app --port ${BASE.split(":").pop()} --reload</code>
+      </div>`;
+    state.reports = [];
+    state.reportsAvailable = false;
+    renderReports();
+    toast(`Could not reach ${BASE}`);
+    return;
+  }
+  if (banner) banner.style.display = "none";
+
+  // Set the right Mirror-availability state up front (refreshMirrorState
+  // will also do this, but doing it here means renderReports + renderTimeline
+  // pick up the correct backend type immediately).
+  state.agentName = probe.agent || "";
+  setMirrorAvailable(probe.available !== false);
+  setMirrorUI(!!probe.enabled);
+
+  await refreshReports();
+  connectSSE();
+  toast(
+    probe.available === false
+      ? `Switched to ${BASE} — plain agent, Mirror not in the path`
+      : `Switched to ${BASE}`
+  );
+}
+
+function setConn(live) {
+  const el = document.getElementById("conn-status");
+  el.textContent = live ? "live" : "disconnected";
+  el.classList.toggle("live", live);
+}
+
+function handleEvent(type, evt) {
+  switch (type) {
+    case "system_ready":
+      break;
+    case "mirror_toggled":
+      setMirrorUI(!!evt.enabled);
+      break;
+    case "call_started": {
+      const c = {
+        call_uuid: evt.call_uuid,
+        started_at: evt.ts,
+        mirror_enabled: !!evt.mirror_enabled,
+        ended: false,
+      };
+      state.callsById.set(evt.call_uuid, c);
+      if (!state.activeCall) state.activeCall = evt.call_uuid;
+      renderCalls();
+      renderTimeline();
+      break;
+    }
+    case "call_ended": {
+      const c = state.callsById.get(evt.call_uuid);
+      if (c) { c.ended = true; renderCalls(); }
+      // Refresh reports — the generator runs on aclose
+      setTimeout(refreshReports, 1500);
+      break;
+    }
+    case "customer_turn":
+      pushTurn(evt.call_uuid, { kind: "customer", text: evt.text, ts: evt.ts });
+      break;
+    case "agent_response":
+      pushTurn(evt.call_uuid, {
+        kind: "agent",
+        text: evt.text,
+        tool_calls: evt.tool_calls || [],
+        score: evt.would_have_intervened ? 1.0 : 0.0,
+        intervened: !!evt.intervened,
+        would_have_intervened: !!evt.would_have_intervened,
+        mirror_enabled: evt.mirror_enabled !== false,
+        latency_ms: evt.latency_ms || 0,
+        ts: evt.ts,
+      });
+      break;
+    case "intervention":
+      pushTurn(evt.call_uuid, {
+        kind: "intervention",
+        text: evt.spoken_text,
+        gate_kind: evt.kind,
+        latency_ms: evt.latency_ms || 0,
+        ts: evt.ts,
+      });
+      break;
+    case "speech_verdict":
+      // Annotate the most recent agent turn with the score.
+      const arr = state.turnsByCall.get(evt.call_uuid) || [];
+      for (let k = arr.length - 1; k >= 0; k--) {
+        if (arr[k].kind === "agent") {
+          arr[k].score = evt.score;
+          arr[k].would_have_intervened = !!evt.intervene;
+          renderTimeline();
+          break;
+        }
+      }
+      break;
+    case "tool_gate_verdict":
+      // Same — annotate the agent turn.
+      const arr2 = state.turnsByCall.get(evt.call_uuid) || [];
+      for (let k = arr2.length - 1; k >= 0; k--) {
+        if (arr2[k].kind === "agent") {
+          arr2[k].score = Math.max(arr2[k].score || 0, evt.score || 0);
+          if (evt.intervene) arr2[k].would_have_intervened = true;
+          renderTimeline();
+          break;
+        }
+      }
+      break;
+  }
+}
+
+// ─────────────────────── init ───────────────────────
+async function init() {
+  await refreshMirrorState();
+  await refreshReports();
+  connectSSE();
+  // Refresh the reports list every 30s in case a report came in between events.
+  setInterval(refreshReports, 30000);
+}
+init();
+</script>
+</body>
+</html>

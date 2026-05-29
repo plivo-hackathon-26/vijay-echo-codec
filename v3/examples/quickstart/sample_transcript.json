@@ -1,0 +1,18 @@
+[
+  {"role": "customer", "text": "Hi I'd like to order a pizza"},
+  {"role": "agent", "text": "Of course! What can I get started for you?"},
+  {"role": "customer", "text": "Large pepperoni, actually mushroom only"},
+  {
+    "role": "agent",
+    "text": "Got it, one large pepperoni and one large mushroom — anything else?",
+    "tool_calls": [
+      {
+        "name": "place_order",
+        "args": {"items": ["large pepperoni", "large mushroom"]},
+        "irreversible": true
+      }
+    ]
+  },
+  {"role": "customer", "text": "Just the mushroom"},
+  {"role": "agent", "text": "Perfect, one large mushroom pizza coming up."}
+]

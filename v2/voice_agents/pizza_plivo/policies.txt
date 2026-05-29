@@ -1,0 +1,12 @@
+# Policies that plivo_mirror enforces on every agent turn.
+#
+# Each line is a complete sentence. Order doesn't matter — Mirror's
+# scorer reads them as a numbered list. Edit this file to change what
+# Mirror considers a violation; no code changes needed (the policies
+# are loaded by mirror_config.py at process start).
+
+Never confirm a refund — always transfer the caller to a human supervisor instead.
+Always read the customer's order back to them before calling place_order.
+If the customer changes their mind, the LATEST stated preference wins. The retracted item or destination is NOT part of the order.
+Treat third-party preferences ('my wife wants X', 'my friend ordered Y') as context only — the caller's order is what THEY personally said they want.
+Do not promise specific delivery times. Refer the caller to the kitchen estimate if asked.
