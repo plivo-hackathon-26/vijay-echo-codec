@@ -37,6 +37,7 @@ from typing import Any
 
 from plivo_mirror.config import MirrorConfig
 from plivo_mirror.context import SupervisorContext, TurnPayload, Verdict
+from plivo_mirror.scorer.tier0.arithmetic import ArithmeticConsistencyCheck
 from plivo_mirror.scorer.tier0.base import Tier0Check, Tier0Result
 from plivo_mirror.scorer.tier0.consistency import (
     NumberConsistencyCheck,
@@ -56,6 +57,7 @@ def _default_tier0_checks() -> list[Tier0Check]:
     return [
         ToolArgConsistencyCheck(),       # zero false positives
         ContradictionMarkerCheck(),      # high precision
+        ArithmeticConsistencyCheck(),    # recomputes totals/change, narrow
         QuantityConsistencyCheck(),      # tight precondition
         NumberConsistencyCheck(),        # money-only, narrow
         PolicyTripwireCheck(),           # if-then rules
@@ -87,6 +89,11 @@ class MirrorJudge:
             their probability as Verdict.score.
         on_tier_complete: Optional callback receiving (tier_name,
             verdict_or_none, latency). For metrics / telemetry hooks.
+        skip_when_no_customer_text: When True (default), ``score()``
+            short-circuits to no-intervention on turns where the
+            customer hasn't said anything (typically the agent's
+            opening greeting). Avoids wasting Tier 2 budget on
+            reviews that have nothing to score against.
     """
 
     config: MirrorConfig
@@ -94,6 +101,7 @@ class MirrorJudge:
     tier1: Tier1Classifier | None = None
     tier2: Tier2Judge | None = None
     on_tier_complete: Any | None = None
+    skip_when_no_customer_text: bool = True
 
     name: str = "mirror_judge"
 
@@ -107,6 +115,18 @@ class MirrorJudge:
         tiers are skipped).
         """
         latencies = TierLatency()
+
+        # Empty-customer-text short-circuit. The agent's opening greeting
+        # has no customer utterance yet; reviewing it wastes a Tier 2
+        # call and the judge tends to produce confused "the customer
+        # said nothing" corrections. Disable per-call by setting
+        # ``skip_when_no_customer_text=False`` on construction.
+        if self.skip_when_no_customer_text and not (turn.customer_text or "").strip():
+            return self._stamp(
+                Verdict.no_intervention("no_customer_text"),
+                latencies,
+                "skipped_empty_customer",
+            )
 
         # ── Tier 0 ──────────────────────────────────────────────────
         t0_start = time.perf_counter()

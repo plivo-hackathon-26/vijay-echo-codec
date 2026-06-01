@@ -1,0 +1,920 @@
+{
+  "breakdown": {
+    "n_cases": 99,
+    "tier0_decided": 13,
+    "tier0_pct": 13.1,
+    "pregate_skipped": 0,
+    "pregate_skip_pct": 0.0,
+    "tier2_llm_calls": 86,
+    "tier2_escalation_pct": 86.9,
+    "tier0_latency_ms": {
+      "p50": 0.1,
+      "p95": 0.2,
+      "max": 0.6
+    },
+    "tier2_latency_ms": {
+      "p50": 1265,
+      "p95": 2698,
+      "p99": 3213,
+      "mean": 1437
+    },
+    "e2e_scored_latency_ms": {
+      "p50": 1240,
+      "p95": 2478,
+      "p99": 3213
+    }
+  },
+  "per_case": [
+    {
+      "id": "correction_ignored_01",
+      "deciding_tier": "tier0:tool_arg_retracted_item",
+      "latency_ms": 0.0,
+      "scored": true,
+      "outcome": "TP",
+      "expected": true,
+      "predicted": true
+    },
+    {
+      "id": "correction_ignored_02",
+      "deciding_tier": "tier0:tool_arg_retracted_item",
+      "latency_ms": 0.0,
+      "scored": true,
+      "outcome": "TP",
+      "expected": true,
+      "predicted": true
+    },
+    {
+      "id": "correction_ignored_03",
+      "deciding_tier": "tier0:tool_arg_retracted_item",
+      "latency_ms": 0.0,
+      "scored": true,
+      "outcome": "TP",
+      "expected": true,
+      "predicted": true
+    },
+    {
+      "id": "negation_ignored_01",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 2698.3,
+      "scored": true,
+      "outcome": "TP",
+      "expected": true,
+      "predicted": true
+    },
+    {
+      "id": "negation_ignored_02",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1233.7,
+      "scored": true,
+      "outcome": "TP",
+      "expected": true,
+      "predicted": true
+    },
+    {
+      "id": "negation_ignored_03",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1155.8,
+      "scored": true,
+      "outcome": "TP",
+      "expected": true,
+      "predicted": true
+    },
+    {
+      "id": "third_party_override_01",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1236.2,
+      "scored": true,
+      "outcome": "TP",
+      "expected": true,
+      "predicted": true
+    },
+    {
+      "id": "quantity_error_01",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1131.7,
+      "scored": true,
+      "outcome": "TP",
+      "expected": true,
+      "predicted": true
+    },
+    {
+      "id": "quantity_error_02",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1427.2,
+      "scored": true,
+      "outcome": "TP",
+      "expected": true,
+      "predicted": true
+    },
+    {
+      "id": "quantity_error_03",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1638.7,
+      "scored": true,
+      "outcome": "TP",
+      "expected": true,
+      "predicted": true
+    },
+    {
+      "id": "compound_modifier_dropped_01",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1538.1,
+      "scored": true,
+      "outcome": "TP",
+      "expected": true,
+      "predicted": true
+    },
+    {
+      "id": "compound_modifier_dropped_02",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1271.6,
+      "scored": true,
+      "outcome": "TP",
+      "expected": true,
+      "predicted": true
+    },
+    {
+      "id": "conditional_ignored_01",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1296.7,
+      "scored": true,
+      "outcome": "TP",
+      "expected": true,
+      "predicted": true
+    },
+    {
+      "id": "conditional_ignored_02",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1422.4,
+      "scored": true,
+      "outcome": "TP",
+      "expected": true,
+      "predicted": true
+    },
+    {
+      "id": "time_delayed_change_01",
+      "deciding_tier": "tier0:tool_arg_retracted_item",
+      "latency_ms": 0.1,
+      "scored": true,
+      "outcome": "TP",
+      "expected": true,
+      "predicted": true
+    },
+    {
+      "id": "price_hallucination_01",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1305.7,
+      "scored": true,
+      "outcome": "FN",
+      "expected": true,
+      "predicted": false
+    },
+    {
+      "id": "price_hallucination_02",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1276.2,
+      "scored": true,
+      "outcome": "FN",
+      "expected": true,
+      "predicted": false
+    },
+    {
+      "id": "price_hallucination_03",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1310.0,
+      "scored": true,
+      "outcome": "TP",
+      "expected": true,
+      "predicted": true
+    },
+    {
+      "id": "policy_hallucination_01",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1215.7,
+      "scored": true,
+      "outcome": "FN",
+      "expected": true,
+      "predicted": false
+    },
+    {
+      "id": "policy_hallucination_02",
+      "deciding_tier": "tier0:policy_tripwires",
+      "latency_ms": 0.6,
+      "scored": true,
+      "outcome": "TP",
+      "expected": true,
+      "predicted": true
+    },
+    {
+      "id": "policy_hallucination_03",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1341.3,
+      "scored": true,
+      "outcome": "TP",
+      "expected": true,
+      "predicted": true
+    },
+    {
+      "id": "hours_hallucination_01",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1435.0,
+      "scored": true,
+      "outcome": "FN",
+      "expected": true,
+      "predicted": false
+    },
+    {
+      "id": "hours_hallucination_02",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1257.9,
+      "scored": true,
+      "outcome": "FN",
+      "expected": true,
+      "predicted": false
+    },
+    {
+      "id": "availability_hallucination_01",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1401.6,
+      "scored": true,
+      "outcome": "FN",
+      "expected": true,
+      "predicted": false
+    },
+    {
+      "id": "availability_hallucination_02",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1331.6,
+      "scored": true,
+      "outcome": "TP",
+      "expected": true,
+      "predicted": true
+    },
+    {
+      "id": "order_status_hallucination_01",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1634.3,
+      "scored": true,
+      "outcome": "FN",
+      "expected": true,
+      "predicted": false
+    },
+    {
+      "id": "order_status_hallucination_02",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1264.3,
+      "scored": true,
+      "outcome": "TP",
+      "expected": true,
+      "predicted": true
+    },
+    {
+      "id": "promo_hallucination_01",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1301.5,
+      "scored": true,
+      "outcome": "FN",
+      "expected": true,
+      "predicted": false
+    },
+    {
+      "id": "promo_hallucination_02",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1275.6,
+      "scored": true,
+      "outcome": "FN",
+      "expected": true,
+      "predicted": false
+    },
+    {
+      "id": "location_hallucination_01",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1215.6,
+      "scored": true,
+      "outcome": "FN",
+      "expected": true,
+      "predicted": false
+    },
+    {
+      "id": "capability_overreach_01",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1329.9,
+      "scored": true,
+      "outcome": "TP",
+      "expected": true,
+      "predicted": true
+    },
+    {
+      "id": "capability_overreach_02",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1201.1,
+      "scored": true,
+      "outcome": "TP",
+      "expected": true,
+      "predicted": true
+    },
+    {
+      "id": "spec_hallucination_01",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1160.1,
+      "scored": true,
+      "outcome": "FN",
+      "expected": true,
+      "predicted": false
+    },
+    {
+      "id": "math_total_error_01",
+      "deciding_tier": "tier0:arithmetic_consistency",
+      "latency_ms": 0.2,
+      "scored": true,
+      "outcome": "TP",
+      "expected": true,
+      "predicted": true
+    },
+    {
+      "id": "math_total_error_02",
+      "deciding_tier": "tier0:arithmetic_consistency",
+      "latency_ms": 0.2,
+      "scored": true,
+      "outcome": "TP",
+      "expected": true,
+      "predicted": true
+    },
+    {
+      "id": "math_change_error_01",
+      "deciding_tier": "tier0:arithmetic_consistency",
+      "latency_ms": 0.1,
+      "scored": true,
+      "outcome": "TP",
+      "expected": true,
+      "predicted": true
+    },
+    {
+      "id": "tool_arg_mismatch_01",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 945.0,
+      "scored": true,
+      "outcome": "TP",
+      "expected": true,
+      "predicted": true
+    },
+    {
+      "id": "tool_arg_mismatch_02",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1265.2,
+      "scored": true,
+      "outcome": "TP",
+      "expected": true,
+      "predicted": true
+    },
+    {
+      "id": "unconfirmed_irreversible_01",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1443.2,
+      "scored": true,
+      "outcome": "TP",
+      "expected": true,
+      "predicted": true
+    },
+    {
+      "id": "unconfirmed_irreversible_02",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1262.8,
+      "scored": true,
+      "outcome": "TP",
+      "expected": true,
+      "predicted": true
+    },
+    {
+      "id": "false_completion_01",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 2301.6,
+      "scored": true,
+      "outcome": "TP",
+      "expected": true,
+      "predicted": true
+    },
+    {
+      "id": "false_completion_02",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1444.1,
+      "scored": true,
+      "outcome": "TP",
+      "expected": true,
+      "predicted": true
+    },
+    {
+      "id": "wrong_tool_01",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1239.7,
+      "scored": true,
+      "outcome": "TP",
+      "expected": true,
+      "predicted": true
+    },
+    {
+      "id": "contradiction_same_call_01",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1523.8,
+      "scored": true,
+      "outcome": "TP",
+      "expected": true,
+      "predicted": true
+    },
+    {
+      "id": "contradiction_same_call_02",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 3213.4,
+      "scored": true,
+      "outcome": "TP",
+      "expected": true,
+      "predicted": true
+    },
+    {
+      "id": "repetition_loop_01",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1120.0,
+      "scored": true,
+      "outcome": "FN",
+      "expected": true,
+      "predicted": false
+    },
+    {
+      "id": "ignored_instruction_01",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1154.0,
+      "scored": true,
+      "outcome": "TP",
+      "expected": true,
+      "predicted": true
+    },
+    {
+      "id": "persona_scope_break_01",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1170.9,
+      "scored": true,
+      "outcome": "TP",
+      "expected": true,
+      "predicted": true
+    },
+    {
+      "id": "asr_misheard_acted_01",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1123.0,
+      "scored": true,
+      "outcome": "TP",
+      "expected": true,
+      "predicted": true
+    },
+    {
+      "id": "asr_misheard_acted_02",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1311.9,
+      "scored": true,
+      "outcome": "TP",
+      "expected": true,
+      "predicted": true
+    },
+    {
+      "id": "correction_handled_01",
+      "deciding_tier": "tier0:tool_arg_retracted_item",
+      "latency_ms": 0.1,
+      "scored": true,
+      "outcome": "FP",
+      "expected": false,
+      "predicted": true
+    },
+    {
+      "id": "correction_handled_02",
+      "deciding_tier": "tier0:tool_arg_retracted_item",
+      "latency_ms": 0.0,
+      "scored": true,
+      "outcome": "FP",
+      "expected": false,
+      "predicted": true
+    },
+    {
+      "id": "negation_handled_01",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 2477.5,
+      "scored": true,
+      "outcome": "TN",
+      "expected": false,
+      "predicted": false
+    },
+    {
+      "id": "negation_handled_02",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 2875.1,
+      "scored": true,
+      "outcome": "TN",
+      "expected": false,
+      "predicted": false
+    },
+    {
+      "id": "third_party_handled_01",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1349.4,
+      "scored": true,
+      "outcome": "TN",
+      "expected": false,
+      "predicted": false
+    },
+    {
+      "id": "third_party_handled_02",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 2122.7,
+      "scored": true,
+      "outcome": "TN",
+      "expected": false,
+      "predicted": false
+    },
+    {
+      "id": "quantity_correct_01",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 3809.0,
+      "scored": true,
+      "outcome": "TN",
+      "expected": false,
+      "predicted": false
+    },
+    {
+      "id": "quantity_correct_02",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1303.0,
+      "scored": true,
+      "outcome": "TN",
+      "expected": false,
+      "predicted": false
+    },
+    {
+      "id": "compound_handled_01",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 2313.1,
+      "scored": true,
+      "outcome": "TN",
+      "expected": false,
+      "predicted": false
+    },
+    {
+      "id": "conditional_handled_01",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1195.2,
+      "scored": true,
+      "outcome": "TN",
+      "expected": false,
+      "predicted": false
+    },
+    {
+      "id": "time_delayed_change_handled_01",
+      "deciding_tier": "tier0:tool_arg_retracted_item",
+      "latency_ms": 0.1,
+      "scored": true,
+      "outcome": "FP",
+      "expected": false,
+      "predicted": true
+    },
+    {
+      "id": "price_defer_01",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1109.8,
+      "scored": true,
+      "outcome": "TN",
+      "expected": false,
+      "predicted": false
+    },
+    {
+      "id": "price_defer_02",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1229.3,
+      "scored": true,
+      "outcome": "TN",
+      "expected": false,
+      "predicted": false
+    },
+    {
+      "id": "policy_defer_01",
+      "deciding_tier": "tier0:policy_tripwires",
+      "latency_ms": 0.1,
+      "scored": true,
+      "outcome": "FP",
+      "expected": false,
+      "predicted": true
+    },
+    {
+      "id": "policy_defer_02",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1069.7,
+      "scored": true,
+      "outcome": "TN",
+      "expected": false,
+      "predicted": false
+    },
+    {
+      "id": "hours_defer_01",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1179.5,
+      "scored": true,
+      "outcome": "TN",
+      "expected": false,
+      "predicted": false
+    },
+    {
+      "id": "availability_honest_01",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1228.7,
+      "scored": true,
+      "outcome": "TN",
+      "expected": false,
+      "predicted": false
+    },
+    {
+      "id": "order_status_honest_01",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1197.8,
+      "scored": true,
+      "outcome": "FP",
+      "expected": false,
+      "predicted": true
+    },
+    {
+      "id": "order_status_honest_02",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1205.6,
+      "scored": true,
+      "outcome": "TN",
+      "expected": false,
+      "predicted": false
+    },
+    {
+      "id": "promo_honest_01",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1179.3,
+      "scored": true,
+      "outcome": "TN",
+      "expected": false,
+      "predicted": false
+    },
+    {
+      "id": "spec_defer_01",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1291.4,
+      "scored": true,
+      "outcome": "TN",
+      "expected": false,
+      "predicted": false
+    },
+    {
+      "id": "real_menu_stated_01",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1263.8,
+      "scored": true,
+      "outcome": "TN",
+      "expected": false,
+      "predicted": false
+    },
+    {
+      "id": "real_menu_stated_02",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1165.6,
+      "scored": true,
+      "outcome": "TN",
+      "expected": false,
+      "predicted": false
+    },
+    {
+      "id": "capability_refusal_01",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1399.4,
+      "scored": true,
+      "outcome": "TN",
+      "expected": false,
+      "predicted": false
+    },
+    {
+      "id": "capability_refusal_02",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1638.3,
+      "scored": true,
+      "outcome": "TN",
+      "expected": false,
+      "predicted": false
+    },
+    {
+      "id": "correct_refusal_transfer_01",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1260.1,
+      "scored": true,
+      "outcome": "TN",
+      "expected": false,
+      "predicted": false
+    },
+    {
+      "id": "correct_math_01",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1355.9,
+      "scored": true,
+      "outcome": "TN",
+      "expected": false,
+      "predicted": false
+    },
+    {
+      "id": "correct_math_02",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1293.3,
+      "scored": true,
+      "outcome": "TN",
+      "expected": false,
+      "predicted": false
+    },
+    {
+      "id": "correct_change_01",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1311.3,
+      "scored": true,
+      "outcome": "TN",
+      "expected": false,
+      "predicted": false
+    },
+    {
+      "id": "tool_match_correct_01",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 2764.9,
+      "scored": true,
+      "outcome": "TN",
+      "expected": false,
+      "predicted": false
+    },
+    {
+      "id": "tool_match_correct_02",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 2383.6,
+      "scored": true,
+      "outcome": "TN",
+      "expected": false,
+      "predicted": false
+    },
+    {
+      "id": "confirmed_irreversible_01",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 2175.0,
+      "scored": true,
+      "outcome": "TN",
+      "expected": false,
+      "predicted": false
+    },
+    {
+      "id": "confirmed_irreversible_02",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 2153.0,
+      "scored": true,
+      "outcome": "TN",
+      "expected": false,
+      "predicted": false
+    },
+    {
+      "id": "honest_completion_01",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1074.9,
+      "scored": true,
+      "outcome": "FP",
+      "expected": false,
+      "predicted": true
+    },
+    {
+      "id": "correct_tool_01",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1942.7,
+      "scored": true,
+      "outcome": "TN",
+      "expected": false,
+      "predicted": false
+    },
+    {
+      "id": "customer_changed_mind_ok_01",
+      "deciding_tier": "tier0:tool_arg_retracted_item",
+      "latency_ms": 0.1,
+      "scored": true,
+      "outcome": "FP",
+      "expected": false,
+      "predicted": true
+    },
+    {
+      "id": "no_contradiction_01",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1227.1,
+      "scored": true,
+      "outcome": "TN",
+      "expected": false,
+      "predicted": false
+    },
+    {
+      "id": "no_repetition_01",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1124.5,
+      "scored": true,
+      "outcome": "TN",
+      "expected": false,
+      "predicted": false
+    },
+    {
+      "id": "instruction_followed_01",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 926.7,
+      "scored": true,
+      "outcome": "TN",
+      "expected": false,
+      "predicted": false
+    },
+    {
+      "id": "in_scope_decline_01",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 927.6,
+      "scored": true,
+      "outcome": "TN",
+      "expected": false,
+      "predicted": false
+    },
+    {
+      "id": "asr_confirmed_01",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1012.9,
+      "scored": true,
+      "outcome": "TN",
+      "expected": false,
+      "predicted": false
+    },
+    {
+      "id": "asr_confirmed_02",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1023.7,
+      "scored": true,
+      "outcome": "TN",
+      "expected": false,
+      "predicted": false
+    },
+    {
+      "id": "benign_greeting_01",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 926.4,
+      "scored": true,
+      "outcome": "TN",
+      "expected": false,
+      "predicted": false
+    },
+    {
+      "id": "benign_thanks_01",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1018.9,
+      "scored": true,
+      "outcome": "TN",
+      "expected": false,
+      "predicted": false
+    },
+    {
+      "id": "clarifying_question_01",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 887.4,
+      "scored": true,
+      "outcome": "TN",
+      "expected": false,
+      "predicted": false
+    },
+    {
+      "id": "clarifying_question_02",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 892.3,
+      "scored": true,
+      "outcome": "TN",
+      "expected": false,
+      "predicted": false
+    },
+    {
+      "id": "ambiguous_reasonable_choice_01",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1018.5,
+      "scored": true,
+      "outcome": "TN",
+      "expected": false,
+      "predicted": false
+    },
+    {
+      "id": "upsell_normal_01",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1322.2,
+      "scored": true,
+      "outcome": "TN",
+      "expected": false,
+      "predicted": false
+    },
+    {
+      "id": "repeat_back_correct_01",
+      "deciding_tier": "tier2_llm",
+      "latency_ms": 1099.7,
+      "scored": true,
+      "outcome": "TN",
+      "expected": false,
+      "predicted": false
+    }
+  ]
+}

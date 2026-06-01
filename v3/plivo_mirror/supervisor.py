@@ -33,6 +33,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import os
 import time
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
@@ -105,6 +106,174 @@ class Supervisor:
         if report_sink is not None:
             from plivo_mirror.reports.generator import ReportGenerator
             self._report_generator = ReportGenerator(config)
+
+    # ─────────────────── v0.3.0: from_env() ergonomics ──────────────────
+
+    @classmethod
+    def from_env(
+        cls,
+        *,
+        policies: list[str],
+        intervention_threshold: float = 0.7,
+        report_sink: Any | None = None,
+        state: StateStore | None = None,
+    ) -> "Supervisor":
+        """Construct a Supervisor with sensible defaults from the
+        environment. Auto-detects the best available Tier 2 brain.
+
+        Tier 1 (NLI classifier): enabled when ``HF_API_KEY`` is set
+            and ``MIRROR_DISABLE_TIER1`` is unset (or 0/false).
+
+        Tier 2 (judge LLM): the first of these whose creds are
+            present (unless ``MIRROR_TIER2`` forces a choice):
+
+              1. ``ATLA_API_KEY``           → AtlaSeleneJudge
+              2. ``AZURE_OPENAI_API_KEY``   → AzureOpenAIJudge
+                 + ``AZURE_OPENAI_ENDPOINT``
+                 + ``AZURE_OPENAI_DEPLOYMENT``
+              3. ``OPENAI_API_KEY``          → OpenAICompatibleJudge
+                 (with optional ``OPENAI_BASE_URL``, ``OPENAI_MODEL``)
+              4. ``HF_API_KEY``              → HuggingFaceLLMJudge
+              5. (nothing) → no Tier 2
+
+        Override with ``MIRROR_TIER2=atla|azure|openai|hf|none``.
+
+        The primary-agent LLM (``MirrorConfig.llm``) defaults to a
+        stub since v0.2.0 callers using ``MirrorJudge`` don't need it
+        for scoring. Callers that need the v0.1.x LLMScorer path
+        should construct the Supervisor explicitly.
+        """
+        from plivo_mirror.scorer.mirror_judge import MirrorJudge
+        from plivo_mirror.scorer.tier1 import HuggingFaceClassifier
+        from plivo_mirror.scorer.tier2 import (
+            AtlaSeleneJudge,
+            AzureOpenAIJudge,
+            HuggingFaceLLMJudge,
+            OpenAICompatibleJudge,
+        )
+
+        # Inert LLM for MirrorConfig — MirrorJudge handles its own LLM
+        # calls via the Tier 2 instance; LLMScorer fallback is gated
+        # behind the no-tier2 case below.
+        class _NoOpLLM:
+            async def structured_output(self, *a, **kw): return {}
+            async def chat(self, *a, **kw): return ""
+
+        config = MirrorConfig(
+            llm=_NoOpLLM(),
+            policies=policies,
+            intervention_threshold=intervention_threshold,
+        )
+
+        def _envstr(name: str) -> str:
+            return (os.environ.get(name) or "").strip()
+
+        def _envflag(name: str, default: bool = False) -> bool:
+            v = _envstr(name).lower()
+            if v in ("1", "true", "yes", "on"):
+                return True
+            if v in ("0", "false", "no", "off"):
+                return False
+            return default
+
+        hf_key = _envstr("HF_API_KEY")
+        atla_key = _envstr("ATLA_API_KEY")
+        openai_key = _envstr("OPENAI_API_KEY")
+        azure_key = _envstr("AZURE_OPENAI_API_KEY")
+        azure_endpoint = _envstr("AZURE_OPENAI_ENDPOINT")
+        azure_deployment = _envstr("AZURE_OPENAI_DEPLOYMENT")
+        azure_api_version = (
+            _envstr("AZURE_OPENAI_API_VERSION") or "2024-08-01-preview"
+        )
+        forced = _envstr("MIRROR_TIER2").lower()
+        disable_tier1 = _envflag("MIRROR_DISABLE_TIER1", default=False)
+
+        # Tier 1
+        tier1 = None
+        if hf_key and not disable_tier1:
+            tier1 = HuggingFaceClassifier(api_key=hf_key)
+
+        # Tier 2 — priority order: explicit forced choice → Atla →
+        # Azure → OpenAI (or OpenAI-compatible) → HF Llama
+        tier2: Any = None
+        tier2_label = "none"
+        azure_ready = bool(azure_key and azure_endpoint and azure_deployment)
+
+        def _make_atla():
+            nonlocal tier2_label
+            tier2_label = "atla_selene"
+            return AtlaSeleneJudge(
+                api_key=atla_key,
+                policies=policies,
+                intervention_threshold=intervention_threshold,
+            )
+
+        def _make_azure():
+            nonlocal tier2_label
+            tier2_label = f"azure:{azure_deployment}"
+            return AzureOpenAIJudge(
+                api_key=azure_key,
+                azure_endpoint=azure_endpoint,
+                azure_deployment=azure_deployment,
+                api_version=azure_api_version,
+                policies=policies,
+                intervention_threshold=intervention_threshold,
+            )
+
+        def _make_openai():
+            nonlocal tier2_label
+            base = _envstr("OPENAI_BASE_URL") or "https://api.openai.com/v1"
+            model = _envstr("OPENAI_MODEL") or "gpt-4o-mini"
+            tier2_label = f"openai:{model}"
+            return OpenAICompatibleJudge(
+                api_key=openai_key,
+                model=model,
+                base_url=base,
+                policies=policies,
+                intervention_threshold=intervention_threshold,
+            )
+
+        def _make_hf():
+            nonlocal tier2_label
+            tier2_label = "hf_llama"
+            return HuggingFaceLLMJudge(
+                api_key=hf_key,
+                policies=policies,
+                intervention_threshold=intervention_threshold,
+            )
+
+        if forced == "atla" and atla_key:
+            tier2 = _make_atla()
+        elif forced == "azure" and azure_ready:
+            tier2 = _make_azure()
+        elif forced == "openai" and openai_key:
+            tier2 = _make_openai()
+        elif forced == "hf" and hf_key:
+            tier2 = _make_hf()
+        elif forced == "none":
+            tier2 = None
+        elif atla_key:
+            tier2 = _make_atla()
+        elif azure_ready:
+            tier2 = _make_azure()
+        elif openai_key:
+            tier2 = _make_openai()
+        elif hf_key:
+            tier2 = _make_hf()
+
+        scorer = MirrorJudge(config=config, tier1=tier1, tier2=tier2)
+
+        log.info(
+            "Mirror Supervisor.from_env wired — Tier 0: ON, Tier 1: %s, Tier 2: %s",
+            "HF DeBERTa" if tier1 else ("DISABLED" if disable_tier1 else "OFF (no HF_API_KEY)"),
+            tier2_label,
+        )
+        return cls(
+            config,
+            state=state,
+            report_sink=report_sink,
+            scorer=scorer,
+        )
 
     # ─────────────────────────── public surface ──────────────────────────
 
@@ -263,6 +432,13 @@ class CallSupervisor:
         # cached result instead of re-executing — preventing duplicate
         # place_orders / charges when the LLM gets confused.
         self._committed_tools: dict[str, dict[str, Any]] = {}
+        # v0.3.0: sticky intent note. When Mirror intervenes, the LLM
+        # loses the original tool intent (we substitute the response).
+        # We persist a one-shot system note here so the NEXT few turns
+        # know the customer's real intent and don't ask them to repeat.
+        # Cleared on: tool fire / turn-count decay / explicit clear.
+        self._pending_intent_note: str | None = None
+        self._intent_note_turns_remaining: int = 0
 
     # ── tool dedupe (v0.1.0a4) ────────────────────────────────────────────
 
@@ -276,8 +452,59 @@ class CallSupervisor:
 
     def note_committed(self, tool_name: str, args_json: str, result: dict) -> None:
         """Memoize a successful irreversible tool call so future
-        invocations with the same args return the cached result."""
+        invocations with the same args return the cached result.
+
+        v0.3.0: also auto-clears the pending intent note since the
+        order has just been placed (no further "remind LLM what the
+        customer wanted" is needed)."""
         self._committed_tools[f"{tool_name}::{args_json}"] = result
+        if self._pending_intent_note:
+            log.debug(
+                "auto-clearing intent note (call=%s) after tool %r",
+                self._ctx.call_uuid[:8], tool_name,
+            )
+            self._pending_intent_note = None
+            self._intent_note_turns_remaining = 0
+
+    # ── sticky intent note (v0.3.0) ───────────────────────────────────────
+
+    def set_intent_note(self, note: str, *, turns: int = 3) -> None:
+        """Persist a system-level note that should be injected into the
+        next few LLM calls. Used after an intervention to remind the
+        primary LLM of the customer's actual intent.
+
+        Adapters (LiveKit, OpenAI loop, etc.) call ``consume_intent_note()``
+        on each turn to fetch + decay the note.
+        """
+        self._pending_intent_note = note
+        self._intent_note_turns_remaining = max(0, int(turns))
+
+    def consume_intent_note(self) -> str | None:
+        """Return the pending intent note and decrement its TTL.
+
+        Returns ``None`` when no note is active. Each call decrements
+        the remaining-turn counter; when it hits zero the note auto-
+        clears. Adapters should call this once per LLM turn.
+        """
+        if not self._pending_intent_note:
+            return None
+        note = self._pending_intent_note
+        self._intent_note_turns_remaining -= 1
+        if self._intent_note_turns_remaining <= 0:
+            self._pending_intent_note = None
+        return note
+
+    def clear_intent_note(self) -> None:
+        """Force-clear the pending intent note. Called automatically
+        by ``note_committed`` and on customer-initiated topic change."""
+        self._pending_intent_note = None
+        self._intent_note_turns_remaining = 0
+
+    @property
+    def pending_intent_note(self) -> str | None:
+        """Read-only peek at the current intent note without consuming
+        it. Returns ``None`` when no note is active."""
+        return self._pending_intent_note
 
     # ── lifecycle ─────────────────────────────────────────────────────────
 
@@ -453,12 +680,35 @@ class CallSupervisor:
 
     async def intervene(self, verdict: Verdict) -> InterventionResult:
         """Run the buffer + correction sequence. Records the correction
-        text into history."""
+        text into history.
+
+        v0.3.0: also auto-sets a sticky intent note so the next ~3
+        LLM turns know the customer's actual intent. Adapters call
+        ``consume_intent_note()`` to fetch + decay it.
+        """
         result = await self._orchestrator.handle(
             verdict, list(self._history), self._tts, self._ctx
         )
         self.note_agent_turn(result.correction_text)
         self._prev_intervention = True
+
+        # Capture the customer's most recent utterance for the note
+        # synthesis. ``verdict.evidence.customer_intent`` is the
+        # judge's read; fall back to history.
+        latest_customer = ""
+        for h in reversed(self._history):
+            if h.role == "customer" and (h.text or "").strip():
+                latest_customer = h.text
+                break
+        try:
+            note = verdict.post_correction_context(customer_text=latest_customer)
+            self.set_intent_note(note, turns=3)
+            log.debug(
+                "set sticky intent note (call=%s, 3 turns)",
+                self._ctx.call_uuid[:8],
+            )
+        except Exception:
+            log.exception("could not build post-correction context")
         return result
 
     async def speak(self, text: str) -> None:

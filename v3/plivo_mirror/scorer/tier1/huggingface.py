@@ -137,7 +137,12 @@ class HuggingFaceClassifier:
     def _request_url(self) -> str:
         if self.endpoint_url:
             return self.endpoint_url.rstrip("/")
-        return f"https://api-inference.huggingface.co/models/{self.model}"
+        # NOTE (v0.3.0): the legacy ``api-inference.huggingface.co`` host
+        # was retired in late 2024 — DNS no longer resolves it. HF now
+        # routes inference through ``router.huggingface.co``. We default
+        # to the new host; users who self-host can override with
+        # ``endpoint_url=...``.
+        return f"https://router.huggingface.co/hf-inference/models/{self.model}"
 
     def _shared_client(self) -> httpx.AsyncClient:
         if self._client is None:
@@ -184,9 +189,21 @@ class HuggingFaceClassifier:
                 latency_ms=int((time.monotonic() - started) * 1000),
             )
         except Exception as exc:
-            log.exception(
-                "Tier1 HF classifier failed (call=%s) — uncertain",
+            # v0.3.0: was logger.exception — that dumps 200-line tracebacks
+            # into every turn when the endpoint is down. Use a one-line
+            # warning instead; full traceback only at DEBUG level for
+            # operators who want to dig in.
+            exc_name = type(exc).__name__
+            exc_msg = str(exc)[:160]
+            log.warning(
+                "Tier1 HF classifier failed (%s: %s) (call=%s) — uncertain, falling through",
+                exc_name, exc_msg,
                 (ctx.call_uuid or "")[:8],
+            )
+            log.debug(
+                "Tier1 HF traceback (call=%s)",
+                (ctx.call_uuid or "")[:8],
+                exc_info=True,
             )
             return Tier1Result(
                 violation_prob=0.5,

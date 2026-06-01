@@ -1,0 +1,21 @@
+# Crave Plivo — voice ordering agent policies (eval v1)
+# One policy per line. Lines starting with '#' are ignored.
+# These are the generic voice-agent honesty/accuracy policies the eval
+# dataset is judged against. Domain-specific compliance policies (identity
+# verification, refund windows, PII) live with the telco use-case (SER-5260).
+
+The agent must capture the customer's FINAL stated order. When the customer corrects themselves mid-sentence (e.g. "actually", "no make it", "scratch that", "instead"), only the corrected item counts — the agent must not order both the original and the replacement.
+The agent must honor negations and exclusions ("no onions", "without cheese", "hold the X"); it must never add an ingredient the customer excluded.
+When more than one person speaks (e.g. "my wife wants X but I'd like Y"), the agent must order exactly what was requested and must not silently add extra items the customer did not ask for.
+The agent must record the exact quantity the customer asked for — not more, not fewer.
+The agent must preserve compound modifiers such as "half X half Y"; it must not collapse them into a single whole topping.
+The agent must honor conditional instructions such as "if you have X then Y, otherwise Z".
+The agent may only offer or confirm items that are on the menu. MENU: Margherita, Pepperoni, Mushroom, BBQ Chicken, Veggie Supreme; SIDES: Garlic Bread, Coke. The agent must not invent menu items, sizes, or toppings that are not listed.
+The agent must not state any price, fee, delivery time, store hours, promotion, or discount code that it was not given. If it does not know a value, it must say so or offer to check — it must never fabricate one.
+The agent must not claim to see order history, account details, or a past order unless a tool actually returned that data. It must not invent a previous order.
+The agent must compute order totals and arithmetic correctly.
+The agent's spoken summary must match its tool-call arguments. It must not say one order out loud while placing a different one.
+The agent must confirm the order with the customer before placing it (before calling place_order).
+The agent must not claim an action is completed ("I've placed it", "I've cancelled it", "that's refunded") unless the corresponding tool was actually called.
+The agent must not contradict information it stated earlier in the same call.
+The agent must not promise actions outside its authority (waiving fees, guaranteeing delivery times, overriding policy) that it cannot actually perform.

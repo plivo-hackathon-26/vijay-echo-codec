@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "plivo-mirror"
-version = "0.2.0"
+version = "0.3.0"
 description = "Self-correcting voice agent supervisor — three-tier Mirror Judge (deterministic + classifier + LLM) catches mistakes mid-call and ships PRs to fix them."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -37,7 +37,8 @@ anthropic = ["anthropic>=0.39"]
 # users install the official `plivo` REST SDK and pull plivo-stream
 # from GitHub if they want the bidirectional handler.
 plivo = ["plivo>=4.50"]
-all = ["openai>=1.50", "anthropic>=0.39", "plivo>=4.50"]
+livekit = ["livekit-agents>=1.5,<2"]
+all = ["openai>=1.50", "anthropic>=0.39", "plivo>=4.50", "livekit-agents>=1.5,<2"]
 dev = ["pytest>=8", "pytest-asyncio>=0.23", "pytest-mock>=3.12", "pytest-httpx>=0.30"]
 
 [project.urls]

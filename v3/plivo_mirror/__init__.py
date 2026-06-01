@@ -33,6 +33,7 @@ This module has **zero import-time side effects**. Importing
 background tasks, never reads env vars. All wiring is explicit.
 """
 
+from plivo_mirror import text
 from plivo_mirror.config import MirrorConfig
 from plivo_mirror.context import (
     HistoryTurn,
@@ -45,7 +46,7 @@ from plivo_mirror.context import (
 from plivo_mirror.scorer.mirror_judge import MirrorJudge
 from plivo_mirror.supervisor import CallSupervisor, Supervisor
 
-__version__ = "0.2.0"
+__version__ = "0.3.0"
 
 __all__ = [
     "Supervisor",

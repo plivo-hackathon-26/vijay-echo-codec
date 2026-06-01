@@ -1,0 +1,211 @@
+{
+  "model": "gpt-5.4-mini",
+  "threshold": 0.7,
+  "n": 99,
+  "counts": {
+    "TP": 33,
+    "FP": 1,
+    "TN": 48,
+    "FN": 17
+  },
+  "precision": 0.9705882352941176,
+  "recall": 0.66,
+  "f1": 0.7857142857142857,
+  "false_intervention_rate": 0.02040816326530612,
+  "accuracy": 0.8181818181818182,
+  "latency_ms": {
+    "p50": 1229.4761249995645,
+    "p95": 2459.014541000215,
+    "p99": 3717.8875419995165,
+    "mean": 1425.1047773334842
+  },
+  "est_cost_usd": 0.025719299999999997,
+  "by_category": {
+    "correction_ignored": {
+      "TP": 3
+    },
+    "negation_ignored": {
+      "TP": 3
+    },
+    "third_party_override": {
+      "TP": 1
+    },
+    "quantity_error": {
+      "TP": 3
+    },
+    "compound_modifier_dropped": {
+      "TP": 2
+    },
+    "conditional_ignored": {
+      "TP": 2
+    },
+    "time_delayed_change": {
+      "TP": 1
+    },
+    "price_hallucination": {
+      "FN": 2,
+      "TP": 1
+    },
+    "policy_hallucination": {
+      "FN": 1,
+      "TP": 1
+    },
+    "spec_hallucination": {
+      "TP": 1,
+      "FN": 1
+    },
+    "hours_hallucination": {
+      "FN": 2
+    },
+    "availability_hallucination": {
+      "FN": 1,
+      "TP": 1
+    },
+    "order_status_hallucination": {
+      "FN": 1,
+      "TP": 1
+    },
+    "promo_hallucination": {
+      "FN": 2
+    },
+    "location_hallucination": {
+      "FN": 1
+    },
+    "capability_overreach": {
+      "TP": 2
+    },
+    "math_total_error": {
+      "FN": 3
+    },
+    "tool_arg_mismatch": {
+      "TP": 2
+    },
+    "unconfirmed_irreversible": {
+      "TP": 2
+    },
+    "false_completion": {
+      "TP": 1,
+      "FN": 1
+    },
+    "wrong_tool": {
+      "TP": 1
+    },
+    "contradiction_same_call": {
+      "FN": 1,
+      "TP": 1
+    },
+    "repetition_loop": {
+      "FN": 1
+    },
+    "ignored_instruction": {
+      "TP": 1
+    },
+    "persona_scope_break": {
+      "TP": 1
+    },
+    "asr_misheard_acted": {
+      "TP": 2
+    },
+    "correction_handled": {
+      "FP": 1,
+      "TN": 1
+    },
+    "negation_handled": {
+      "TN": 2
+    },
+    "third_party_handled": {
+      "TN": 2
+    },
+    "quantity_correct": {
+      "TN": 2
+    },
+    "compound_handled": {
+      "TN": 1
+    },
+    "conditional_handled": {
+      "TN": 1
+    },
+    "time_delayed_change_handled": {
+      "TN": 1
+    },
+    "honest_unknown": {
+      "TN": 10
+    },
+    "real_menu_stated": {
+      "TN": 2
+    },
+    "correct_refusal": {
+      "TN": 3
+    },
+    "correct_math": {
+      "TN": 3
+    },
+    "tool_match_correct": {
+      "TN": 2
+    },
+    "confirmed_irreversible": {
+      "TN": 2
+    },
+    "honest_completion": {
+      "TN": 1
+    },
+    "correct_tool": {
+      "TN": 1
+    },
+    "customer_changed_mind_ok": {
+      "TN": 1
+    },
+    "no_contradiction": {
+      "TN": 1
+    },
+    "no_repetition": {
+      "TN": 1
+    },
+    "instruction_followed": {
+      "TN": 1
+    },
+    "in_scope_decline": {
+      "TN": 1
+    },
+    "asr_confirmed": {
+      "TN": 2
+    },
+    "benign_smalltalk": {
+      "TN": 2
+    },
+    "clarifying_question": {
+      "TN": 2
+    },
+    "ambiguous_reasonable_choice": {
+      "TN": 1
+    },
+    "upsell_normal": {
+      "TN": 1
+    },
+    "repeat_back_correct": {
+      "TN": 1
+    }
+  },
+  "false_positives": [
+    "correction_handled_01"
+  ],
+  "false_negatives": [
+    "price_hallucination_01",
+    "price_hallucination_02",
+    "policy_hallucination_01",
+    "hours_hallucination_01",
+    "hours_hallucination_02",
+    "availability_hallucination_01",
+    "order_status_hallucination_01",
+    "promo_hallucination_01",
+    "promo_hallucination_02",
+    "location_hallucination_01",
+    "spec_hallucination_01",
+    "math_total_error_01",
+    "math_total_error_02",
+    "math_change_error_01",
+    "false_completion_02",
+    "contradiction_same_call_01",
+    "repetition_loop_01"
+  ]
+}

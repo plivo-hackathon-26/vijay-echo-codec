@@ -6,6 +6,16 @@ intervention orchestrator can speak the correction immediately.
 """
 
 from plivo_mirror.scorer.tier2.atla import AtlaSeleneJudge
+from plivo_mirror.scorer.tier2.azure_openai import AzureOpenAIJudge
 from plivo_mirror.scorer.tier2.base import Tier2Judge, Tier2Result
+from plivo_mirror.scorer.tier2.huggingface_llm import HuggingFaceLLMJudge
+from plivo_mirror.scorer.tier2.openai_compatible import OpenAICompatibleJudge
 
-__all__ = ["Tier2Judge", "Tier2Result", "AtlaSeleneJudge"]
+__all__ = [
+    "Tier2Judge",
+    "Tier2Result",
+    "AtlaSeleneJudge",
+    "AzureOpenAIJudge",
+    "HuggingFaceLLMJudge",
+    "OpenAICompatibleJudge",
+]

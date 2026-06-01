@@ -185,7 +185,7 @@ class AtlaSeleneJudge:
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json",
-            "User-Agent": "plivo-mirror/0.2.0",
+            "User-Agent": "plivo-mirror/0.3.0",
         }
         client = self._shared_client()
         resp = await client.post(

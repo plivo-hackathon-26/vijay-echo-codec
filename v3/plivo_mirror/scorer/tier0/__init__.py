@@ -19,6 +19,7 @@ This tier returns either:
   • None → escalate to Tier 1
 """
 
+from plivo_mirror.scorer.tier0.arithmetic import ArithmeticConsistencyCheck
 from plivo_mirror.scorer.tier0.base import Tier0Check, Tier0Result
 from plivo_mirror.scorer.tier0.consistency import (
     NumberConsistencyCheck,
@@ -34,6 +35,7 @@ __all__ = [
     "ToolArgConsistencyCheck",
     "NumberConsistencyCheck",
     "QuantityConsistencyCheck",
+    "ArithmeticConsistencyCheck",
     "PolicyTripwireCheck",
     "ContradictionMarkerCheck",
 ]
