@@ -29,7 +29,7 @@ def _turn(*, customer_text: str = "", primary_text: str = "") -> TurnPayload:
 
 
 def test_refund_without_handoff_fires():
-    check = PolicyTripwireCheck()
+    check = PolicyTripwireCheck(tripwires=DEFAULT_TRIPWIRES)
     result = check.evaluate(
         _turn(
             customer_text="I want a refund for my last order",
@@ -43,7 +43,7 @@ def test_refund_without_handoff_fires():
 
 
 def test_refund_with_transfer_passes():
-    check = PolicyTripwireCheck()
+    check = PolicyTripwireCheck(tripwires=DEFAULT_TRIPWIRES)
     result = check.evaluate(
         _turn(
             customer_text="I want a refund please",
@@ -55,7 +55,7 @@ def test_refund_with_transfer_passes():
 
 
 def test_cancel_subscription_without_confirm_fires():
-    check = PolicyTripwireCheck()
+    check = PolicyTripwireCheck(tripwires=DEFAULT_TRIPWIRES)
     result = check.evaluate(
         _turn(
             customer_text="Cancel my subscription please",
@@ -68,7 +68,7 @@ def test_cancel_subscription_without_confirm_fires():
 
 
 def test_cancel_subscription_with_confirm_passes():
-    check = PolicyTripwireCheck()
+    check = PolicyTripwireCheck(tripwires=DEFAULT_TRIPWIRES)
     result = check.evaluate(
         _turn(
             customer_text="Cancel my subscription",
@@ -80,7 +80,7 @@ def test_cancel_subscription_with_confirm_passes():
 
 
 def test_dispute_charge_without_handoff_fires():
-    check = PolicyTripwireCheck()
+    check = PolicyTripwireCheck(tripwires=DEFAULT_TRIPWIRES)
     result = check.evaluate(
         _turn(
             customer_text="I want to dispute the charge from last week",
@@ -129,6 +129,21 @@ def test_default_tripwires_includes_three_canonical():
     assert "refund_must_transfer" in names
     assert "cancel_subscription_must_confirm_or_transfer" in names
     assert "dispute_charge_must_transfer" in names
+
+
+def test_tripwires_off_by_default():
+    """A generic safety net must not assume a customer's business rules.
+    With no tripwires supplied the check never fires, even on 'refund'."""
+    check = PolicyTripwireCheck()
+    result = check.evaluate(
+        _turn(
+            customer_text="I want a refund for my last order",
+            primary_text="Sure, the refund will arrive in 5-7 days",
+        ),
+        CTX,
+    )
+    assert result.verdict is None
+    assert check.tripwires == []
 
 
 # ─── ContradictionMarkerCheck ───────────────────────────────────────────

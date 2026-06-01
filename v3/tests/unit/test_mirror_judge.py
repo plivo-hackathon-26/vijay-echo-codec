@@ -97,7 +97,7 @@ async def test_tier0_short_circuit_on_tool_arg_violation():
 
     verdict = await judge.score(
         _turn(
-            customer_text="A club sandwich, actually just a BLT",
+            customer_text="A club sandwich — no club, just a BLT",
             tool_calls=[
                 ToolCallIntent(name="place_order", args={"items": ["club", "BLT"]})
             ],

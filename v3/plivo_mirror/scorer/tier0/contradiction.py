@@ -17,10 +17,52 @@ from dataclasses import dataclass
 
 from plivo_mirror.context import SupervisorContext, TurnPayload, Verdict
 from plivo_mirror.scorer.tier0.base import Tier0Result
-from plivo_mirror.scorer.tier0.tool_arg_check import (
-    _content_tokens,
-    _split_on_retraction,
+from plivo_mirror.scorer.tier0.tool_arg_check import _content_tokens
+
+
+# This verbal check works off a coarse before/after split of the
+# customer's utterance. It tolerates the imprecision because it ALSO
+# requires the agent to have echoed the post-retraction tokens (the
+# "captured both" guard below), which keeps its false-positive rate low.
+# (The tool-arg check, which fires at 0.98 with no such guard, uses the
+# stricter ``_retracted_items`` signal instead.)
+_RETRACTION_MARKERS = (
+    "actually",
+    "wait",
+    "no, ",
+    "no. ",
+    "scratch that",
+    "change that",
+    "cancel that",
+    "instead",
+    "make it",
+    "just ",
+    "only ",
+    "never mind",
+    "forget that",
+    "skip that",
 )
+
+
+def _split_on_retraction(text: str) -> tuple[str, str] | None:
+    """Split the utterance on its LATEST retraction marker.
+
+    Returns (before, after) text, or None if there's no marker.
+    """
+    if not text:
+        return None
+    lower = text.lower()
+    best_end = -1
+    for marker in _RETRACTION_MARKERS:
+        idx = lower.rfind(marker)
+        if idx == -1:
+            continue
+        end = idx + len(marker)
+        if end > best_end:
+            best_end = end
+    if best_end == -1:
+        return None
+    return text[:best_end], text[best_end:]
 
 
 @dataclass

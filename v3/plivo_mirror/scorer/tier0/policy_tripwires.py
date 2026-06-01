@@ -8,8 +8,12 @@ Tripwires are deterministic, run in microseconds, and produce
 near-zero false positives because they only fire when *both* sides
 of the rule fail.
 
-This check ships with a default set of common policy patterns. Users
-can add their own via MirrorJudge(tier0_tripwires=[...]).
+Tripwires are OFF by default: a generic safety net cannot assume a
+customer's business rules (a billing agent may be fully authorised to
+process refunds without a human, so a "refund must transfer" rule would
+fire false alarms on correct behaviour). ``DEFAULT_TRIPWIRES`` below is a
+ready-made example set — opt in explicitly with
+``PolicyTripwireCheck(tripwires=DEFAULT_TRIPWIRES)`` or supply your own.
 """
 
 from __future__ import annotations
@@ -46,8 +50,9 @@ class Tripwire:
         return True
 
 
-# Common policy tripwires every voice agent should honour. Customers can
-# extend or replace this list via MirrorJudge.
+# Ready-made example tripwires for support/billing-style agents. NOT
+# applied by default (see module docstring) — opt in by passing this to
+# PolicyTripwireCheck(tripwires=DEFAULT_TRIPWIRES).
 DEFAULT_TRIPWIRES: list[Tripwire] = [
     Tripwire(
         name="refund_must_transfer",
@@ -91,7 +96,7 @@ DEFAULT_TRIPWIRES: list[Tripwire] = [
 class PolicyTripwireCheck:
     """Tier 0 check that runs a list of conditional tripwires."""
 
-    tripwires: list[Tripwire] = field(default_factory=lambda: list(DEFAULT_TRIPWIRES))
+    tripwires: list[Tripwire] = field(default_factory=list)
     name: str = "policy_tripwires"
 
     def evaluate(
