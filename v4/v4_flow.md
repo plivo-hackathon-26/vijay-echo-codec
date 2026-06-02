@@ -103,6 +103,14 @@ flowchart TD
 
 **Cross-cutting:** a **persona guard** tracks length + tone, re-injects a system-prompt summary at intervals, and escalates past a threshold; **intent memory** holds the caller's real intent across turns and auto-clears on commit.
 
+## Timing modes — when the speech guard runs vs TTS
+The expensive tier is the NLI model (~0.9 s on clean *committal* turns with the precise large model). Two modes decide *when* it runs relative to first audio:
+
+- **Synchronous (default).** Review *then* voice — the reply is held until the guard clears it, so a violation is **prevented before it's voiced**. The ~0.9 s NLI sits on the first-audio path for clean committal turns.
+- **Speculative (opt-in: `SupervisedAgent(speculative=True)`).** On a **no-tool, lexically-clean, non-deterministic-hit** turn, voice the reply **immediately** and run NLI + verifier **off the first-audio path**, emitting a correction only if it fires. ~0 ms perceived latency. **Tradeoff:** a semantic/fact slip on such a turn is **corrected-after, not prevented**. Tool calls, lexical risk spans (numbers/commitments), and `FORBID/REQUIRE` hits **always stay synchronous** (prevented).
+
+(We chose the large NLI model for precision — a threshold sweep showed the small model can't be tuned to acceptable precision; speculative mode is how you reclaim its latency without losing that precision.)
+
 ## The six failures this flow defends (and where)
 | failure | defended at |
 |---|---|
