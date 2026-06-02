@@ -59,12 +59,18 @@ class Firewall:
         persona_reinject_every: int = 6,
         persona_escalate_after: int = 20,
         max_correction_retries: int = 2,
+        escalate_on_nonconvergence: bool = False,
         extractor: "EntityExtractor | None" = None,
         known_facts: dict[str, str] | None = None,
     ) -> None:
         self._compiled = compile_policies(list(policies))
         self.verifier = verifier
         self.generator = generator  # reply regenerator (single-LLM by default)
+        # On non-convergence, DEFLECT (safe filler) by default rather than
+        # hand off to a human — a human handoff on every stuck/garbled turn is
+        # too aggressive (live-call finding). Persona-guard escalation (tone/
+        # length) is independent and still active.
+        self._escalate_on_nonconvergence = escalate_on_nonconvergence
         # Deterministic entity extractor (the adapter's extract_state default
         # delegates here) + code-owned reference facts seeded into every new
         # session so the verifier can ground legitimate numbers/commitments.
@@ -135,6 +141,7 @@ class Firewall:
             speech_guard=self._speech,
             generator=self.generator,
             max_retries=self._max_correction_retries,
+            escalate_on_nonconvergence=self._escalate_on_nonconvergence,
         )
 
     def intervene_stream(self, verdict: Verdict, context: TurnContext, *, on_escalate=None):
@@ -151,6 +158,7 @@ class Firewall:
             generator=self.generator,
             max_retries=self._max_correction_retries,
             on_escalate=on_escalate,
+            escalate_on_nonconvergence=self._escalate_on_nonconvergence,
         )
 
     # ── ergonomic construction ────────────────────────────────────────

@@ -20,6 +20,7 @@ break a live call.
 from __future__ import annotations
 
 import logging
+import re
 from typing import Callable
 
 from plivo_mirror.contracts import TurnContext, Verdict
@@ -34,6 +35,35 @@ from plivo_mirror.intervention.correction import (
 from plivo_mirror.verifier.base import GroundingEvidence, Verifier
 
 log = logging.getLogger("plivo_mirror.guards.speech")
+
+# A reply is only worth the semantic (NLI) check if it AFFIRMATIVELY commits
+# or confirms something the customer could be contradicted by. Refusals,
+# deferrals, and pure questions commit nothing — running NLI on them only
+# turns off-topic/garbled customer turns into spurious "contradictions"
+# (NLI scores unrelated sentence pairs as contradictory). This routing gate
+# is domain-agnostic (no menu/vertical vocabulary).
+_NONCOMMITTAL_RE = re.compile(
+    r"\b(i\s*can'?t|i\s*cannot|i'?m\s+not\s+able|i\s+am\s+not\s+able|i\s+do\s*n'?t|"
+    r"i'?m\s+sorry|i'?m\s+unable|not\s+able\s+to|let\s+me\s+(?:check|confirm|"
+    r"double-?check|make\s+sure))\b",
+    re.I,
+)
+
+
+def _reply_is_committal(reply: str) -> bool:
+    """True if ``reply`` makes an affirmative assertion (worth a contradiction
+    check). False for refusals/deferrals and replies that are only a
+    question."""
+    r = (reply or "").strip()
+    if not r:
+        return False
+    if _NONCOMMITTAL_RE.search(r):
+        return False
+    # keep only declarative sentences (drop trailing questions like
+    # "Anything else?"); if nothing declarative remains, it's not committal
+    sentences = [s.strip() for s in re.split(r"(?<=[.!?])\s+", r) if s.strip()]
+    declarative = [s for s in sentences if not s.endswith("?")]
+    return bool(declarative)
 
 
 class SpeechGuard:
@@ -75,7 +105,10 @@ class SpeechGuard:
         #    which still has the final say (recall here, precision there).
         spans = self._tag(reply)
         if not spans:
-            if self._semantic is not None:
+            # Semantic tier only on AFFIRMATIVE/committal replies — skip
+            # questions, refusals, and deferrals (they commit nothing, so a
+            # "contradiction" with an off-topic/garbled turn is just noise).
+            if self._semantic is not None and _reply_is_committal(reply):
                 sem = self._semantic.contradicts(
                     context.customer_text, reply, state=context.state
                 )

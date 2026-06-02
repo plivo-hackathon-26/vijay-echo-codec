@@ -120,7 +120,8 @@ async def test_non_converging_escalates_after_cap():
     gen = ScriptedGenerator(["It's $5 off.", "Actually $6 off.", "$7 off!"])
     verdict = Verdict.correct(reason="x", span="$19.99", spoken_correction="One sec.")
     result = await run_intervention(
-        verdict=verdict, context=_ctx(st, "?"), speech_guard=guard, generator=gen, max_retries=2
+        verdict=verdict, context=_ctx(st, "?"), speech_guard=guard, generator=gen,
+        max_retries=2, escalate_on_nonconvergence=True,
     )
     assert result.escalated is True
     assert result.handoff is not None
@@ -128,12 +129,29 @@ async def test_non_converging_escalates_after_cap():
     assert result.attempts == 2
 
 
-async def test_open_violation_no_generator_escalates():
+async def test_non_convergence_deflects_by_default():
+    # DEFAULT (live-call finding): non-convergence DEFLECTS with the safe
+    # filler — no human handoff — rather than escalating on every stuck turn.
+    st = SessionState(call_id="c9")
+    guard = SpeechGuard(FakeVerifier(VerifierResult(supported=False)))
+    gen = ScriptedGenerator(["It's $5 off.", "Actually $6 off.", "$7 off!"])
+    verdict = Verdict.correct(reason="x", span="$19.99", spoken_correction="One sec.")
+    result = await run_intervention(
+        verdict=verdict, context=_ctx(st, "?"), speech_guard=guard, generator=gen, max_retries=2
+    )
+    assert result.escalated is False
+    assert result.handoff is None
+    assert result.answer == ""          # no ungrounded answer voiced
+    assert result.filler == "One sec."  # safe deflection still spoken
+
+
+async def test_open_violation_no_generator_escalates_when_opted_in():
     st = SessionState()
     guard = SpeechGuard(FakeVerifier(VerifierResult(supported=True)))
     verdict = Verdict.correct(reason="x", span="$19.99", spoken_correction="One sec.")
     result = await run_intervention(
-        verdict=verdict, context=_ctx(st, "?"), speech_guard=guard, generator=None
+        verdict=verdict, context=_ctx(st, "?"), speech_guard=guard, generator=None,
+        escalate_on_nonconvergence=True,
     )
     assert result.escalated is True
 
@@ -259,6 +277,7 @@ async def test_stream_escalation_yields_filler_then_escalation_line_and_handoff(
             speech_guard=guard,
             generator=gen,
             on_escalate=captured.append,
+            escalate_on_nonconvergence=True,
         )
     ]
     assert chunks[0] == "One sec."  # filler first

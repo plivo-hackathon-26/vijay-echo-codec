@@ -90,6 +90,35 @@ async def test_null_signal_never_fires():
     assert v.decision == "pass"
 
 
+async def test_noncommittal_replies_skip_the_semantic_tier():
+    # live-call finding: NLI must NOT run on refusals/deferrals/questions —
+    # they commit nothing, so an off-topic customer turn shouldn't trip a
+    # spurious contradiction. A flagging signal + these replies => still pass,
+    # and the verifier is never consulted.
+    flag = _FlagSemantic()
+    for reply in (
+        "I can't quote prices here.",          # refusal
+        "I don't have the full menu list.",    # refusal/deferral
+        "Let me check on that for you.",        # deferral
+        "What would you like to order?",        # pure question
+    ):
+        verifier = _FakeVerifier(VerifierResult(supported=False))
+        guard = SpeechGuard(verifier, semantic_signal=flag)
+        ctx = TurnContext(state=SessionState(), planned_reply=reply, customer_text="are you good at jogging?")
+        v = await guard.inspect(ctx)
+        assert v.decision == "pass", f"should pass: {reply!r}"
+        assert verifier.calls == 0, f"verifier should not be consulted for: {reply!r}"
+
+
+async def test_committal_reply_still_routes_to_semantic_tier():
+    # a genuine affirmative confirmation must still be checked
+    verifier = _FakeVerifier(VerifierResult(supported=False, reason="ignored negation"))
+    guard = SpeechGuard(verifier, semantic_signal=_FlagSemantic())
+    ctx = TurnContext(state=SessionState(), planned_reply="Sure, one pizza with extra onions.", customer_text="no onions")
+    v = await guard.inspect(ctx)
+    assert verifier.calls == 1 and v.decision == "correct"
+
+
 async def test_customer_text_reaches_grounding_evidence():
     sink: dict = {}
     verifier = _FakeVerifier(VerifierResult(supported=True), sink=sink)

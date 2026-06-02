@@ -62,6 +62,20 @@ def _escalate(filler: str, context: TurnContext, attempts: int) -> InterventionR
     )
 
 
+def _give_up(
+    filler: str, context: TurnContext, attempts: int, escalate: bool
+) -> InterventionResult:
+    """Terminal step when no grounded answer can be produced. By default
+    DEFLECT: speak the safe agent-voice filler, commit nothing, and move on —
+    a human handoff for every non-convergence is too aggressive on noisy/
+    off-topic turns (a live-call finding). Set ``escalate=True`` to restore a
+    warm handoff on non-convergence (genuine escalation also still triggers
+    independently via the persona guard's length/tone thresholds)."""
+    if escalate:
+        return _escalate(filler, context, attempts)
+    return InterventionResult(filler=filler, answer="", escalated=False, attempts=attempts)
+
+
 async def _reverify(
     speech_guard: Guard, context: TurnContext, answer: str, flagged_span: str
 ) -> Verdict | None:
@@ -89,6 +103,7 @@ async def run_intervention(
     speech_guard: Guard,
     generator: ReplyGenerator | None = None,
     max_retries: int = 2,
+    escalate_on_nonconvergence: bool = False,
 ) -> InterventionResult:
     filler = deflection_filler(verdict)
 
@@ -99,11 +114,11 @@ async def run_intervention(
         if rej is None:
             return InterventionResult(filler=filler, answer=structured, attempts=1)
         # A state read-back that still fails can't be fixed by re-templating.
-        return _escalate(filler, context, attempts=1)
+        return _give_up(filler, context, 1, escalate_on_nonconvergence)
 
     # Open path: regenerate via the main LLM, re-verify, cap retries.
     if generator is None:
-        return _escalate(filler, context, attempts=0)
+        return _give_up(filler, context, 0, escalate_on_nonconvergence)
 
     packet = build_packet(verdict, context.state)
     answer = await generator.regenerate(packet=packet, customer_text=context.customer_text)
@@ -117,7 +132,7 @@ async def run_intervention(
         answer = await generator.regenerate(
             packet=packet, customer_text=context.customer_text
         )
-    return _escalate(filler, context, attempts=max_retries)
+    return _give_up(filler, context, max_retries, escalate_on_nonconvergence)
 
 
 async def stream_intervention(
@@ -128,6 +143,7 @@ async def stream_intervention(
     generator: ReplyGenerator | None = None,
     max_retries: int = 2,
     on_escalate: Callable[[HandoffContext], None] | None = None,
+    escalate_on_nonconvergence: bool = False,
 ) -> AsyncIterator[str]:
     """Stream the intervention as spoken chunks IN SPOKEN ORDER.
 
@@ -145,6 +161,7 @@ async def stream_intervention(
         speech_guard=speech_guard,
         generator=generator,
         max_retries=max_retries,
+        escalate_on_nonconvergence=escalate_on_nonconvergence,
     )
 
     if result.escalated:
