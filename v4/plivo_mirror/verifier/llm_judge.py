@@ -35,6 +35,13 @@ _SYSTEM = (
     "veggie half' but the reply applies it to everything), or acts on the wrong "
     "branch of a stated condition. When CUSTOMER REQUEST is '(none)', judge on "
     "FACTS and POLICIES only.\n"
+    "A claim is SUPPORTED (do NOT flag it) when: the agent DECLINES or DEFERS — "
+    "refuses to do something, says it cannot, or says it will CHECK/confirm "
+    "first (a refusal is the opposite of an unauthorized commitment, even if it "
+    "mentions refund/waive/guarantee); a number or total is present in FACTS or "
+    "is the CORRECT arithmetic result of values in FACTS (do not flag a figure "
+    "merely for being specific); or the reply faithfully restates or confirms "
+    "the CUSTOMER REQUEST. Judge faithfulness, not specificity.\n"
     'Respond ONLY as JSON: {"supported": true|false, "policy_id": string|null, '
     '"reason": "<short>"}. Set policy_id to the id of the POLICY most relevant to '
     "your decision, or null."

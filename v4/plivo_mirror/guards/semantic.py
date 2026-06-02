@@ -17,11 +17,14 @@ can overrule a semantic false positive). The signal is a swappable
 ``Protocol`` exactly like ``Verifier`` and ``ConfidenceSignal``.
 
 HONEST LATENCY NOTE: unlike the ~0 ms deterministic layer, this signal runs on
-turns the lexicon passed — i.e. most clean turns — at the cost of one local
-NLI forward pass (~10–50 ms CPU for a small cross-encoder). It is therefore
-NOT zero-compute on clean turns; it trades a bounded, local, no-network cost
-for recall. It is OFF by default (``semantic_signal=None``) so the core stays
-light and the heavy ML dependency is opt-in.
+turns the lexicon passed — i.e. most clean turns — at the cost of one local NLI
+forward pass. The default model is a DeBERTa-v3-LARGE cross-encoder, chosen for
+precision (it does not false-fire on clean "handled correctly" near-misses the
+way smaller models do); that costs ~100–300 ms CPU per turn (less on GPU, or
+swap in ``cross-encoder/nli-deberta-v3-small`` for ~10–50 ms at lower
+precision). It is therefore NOT zero-compute on clean turns; it trades a
+bounded, local, no-network cost for recall. OFF by default
+(``semantic_signal=None``) so the core stays light and the dependency is opt-in.
 """
 
 from __future__ import annotations
@@ -66,9 +69,9 @@ class NoSemanticSignal:
 
 
 class NLICrossEncoderSignal:
-    """Default real impl: a local cross-encoder NLI model (e.g. a small
-    DeBERTa-MNLI) scoring ``contradiction(premise=customer_text,
-    hypothesis=reply)``.
+    """Default real impl: a local cross-encoder NLI model (default a
+    DeBERTa-v3-large MNLI/FEVER/ANLI model) scoring
+    ``contradiction(premise=customer_text, hypothesis=reply)``.
 
     The ``transformers``/``torch`` dependency is OPTIONAL and lazily imported
     on first use. If it is not installed (or the model can't load), the signal
@@ -82,9 +85,9 @@ class NLICrossEncoderSignal:
 
     def __init__(
         self,
-        model_name: str = "cross-encoder/nli-deberta-v3-small",
+        model_name: str = "MoritzLaurer/DeBERTa-v3-large-mnli-fever-anli-ling-wanli",
         *,
-        threshold: float = 0.9,
+        threshold: float = 0.55,
         max_length: int = 256,
     ) -> None:
         self.model_name = model_name

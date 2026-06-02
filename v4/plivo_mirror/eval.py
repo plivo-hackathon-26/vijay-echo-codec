@@ -275,8 +275,8 @@ async def evaluate(
     limit: int | None = None,
     facts_path: str | None = None,
     nli: bool = False,
-    nli_model: str = "cross-encoder/nli-deberta-v3-small",
-    nli_threshold: float = 0.9,
+    nli_model: str = "MoritzLaurer/DeBERTa-v3-large-mnli-fever-anli-ling-wanli",
+    nli_threshold: float = 0.55,
 ) -> dict[str, Any]:
     policies = load_policies(policies_path)
     facts = load_facts(facts_path)
@@ -500,8 +500,8 @@ def main() -> None:
     ap.add_argument("--policies", default="../v3/datasets/policies_v1.txt")
     ap.add_argument("--facts", default=None, help="JSON of code-owned reference facts (catalog/hours/prices) to ground the verifier")
     ap.add_argument("--nli", action="store_true", help="enable the semantic recall tier (local cross-encoder NLI; needs the optional nli dep)")
-    ap.add_argument("--nli-model", default="cross-encoder/nli-deberta-v3-small", help="HF cross-encoder NLI model for --nli")
-    ap.add_argument("--nli-threshold", type=float, default=0.9, help="contradiction probability above which --nli routes a turn to the verifier")
+    ap.add_argument("--nli-model", default="MoritzLaurer/DeBERTa-v3-large-mnli-fever-anli-ling-wanli", help="HF cross-encoder NLI model for --nli")
+    ap.add_argument("--nli-threshold", type=float, default=0.55, help="contradiction probability above which --nli routes a turn to the verifier")
     ap.add_argument("--mode", choices=["deterministic", "live"], default="deterministic")
     ap.add_argument("--model", default=None)
     ap.add_argument("--date", default=None)
