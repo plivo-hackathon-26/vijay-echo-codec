@@ -154,7 +154,8 @@
 
     <div class="row">
       <div class="node" id="n_verdict"><div class="t">Verdict</div><div class="s">pass · correct · block</div></div><div class="arr">→</div>
-      <div class="node" id="n_interv"><div class="t">Intervention <span style="font-size:10px;color:var(--violet)">· same LLM</span></div><div class="s">deflect → regenerate from CORRECT facts → re-verify</div></div><div class="arr">→</div>
+      <div class="node" id="n_filler"><div class="t">Deflection filler</div><div class="s">spoken FIRST · no LLM · covers latency</div></div><div class="arr">→</div>
+      <div class="node" id="n_interv"><div class="t">Intervention <span style="font-size:10px;color:var(--violet)">· same LLM</span></div><div class="s">regenerate from CORRECT facts → re-verify</div></div><div class="arr">→</div>
       <div class="node" id="n_tts"><div class="t">TTS</div><div class="s">ElevenLabs</div></div><div class="arr">→</div>
       <div class="node" id="n_safe"><div class="t">📞 Caller hears</div><div class="s">SAFE output</div></div>
     </div>
@@ -295,7 +296,8 @@ document.getElementById('playFlag').onclick=()=>seq([
  ['a_fc','', 'Speech passed → only now does the action guard check the tool call'],
  ['a_arg','bad', 'Arg ↔ state MISMATCH: pepperoni ≠ mushroom → BLOCK'],
  ['n_verdict','bad', 'VERDICT: block — the SAY was fine, the DO was wrong (that\'s why we need BOTH guards)', 1100],
- ['n_interv','warn', 'Intervention: deflect → re-confirm from state'],
+ ['n_filler','warn', 'Deflection filler spoken FIRST (no LLM) — "let me confirm that…" — buys time while the fix is generated', 1100],
+ ['n_interv','warn', 'Same LLM regenerates from the correct state → re-verify'],
  ['n_tts','pass', 'Speak the corrected confirmation'],
  ['n_safe','pass', '✓ Wrong order never placed — corrected from the truth'],
 ]);
