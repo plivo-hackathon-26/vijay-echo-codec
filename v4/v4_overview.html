@@ -154,9 +154,13 @@
 
     <div class="row">
       <div class="node" id="n_verdict"><div class="t">Verdict</div><div class="s">pass · correct · block</div></div><div class="arr">→</div>
-      <div class="node" id="n_interv"><div class="t">Intervention</div><div class="s">deflect → regenerate from facts → re-verify</div></div><div class="arr">→</div>
+      <div class="node" id="n_interv"><div class="t">Intervention <span style="font-size:10px;color:var(--violet)">· same LLM</span></div><div class="s">deflect → regenerate from CORRECT facts → re-verify</div></div><div class="arr">→</div>
       <div class="node" id="n_tts"><div class="t">TTS</div><div class="s">ElevenLabs</div></div><div class="arr">→</div>
       <div class="node" id="n_safe"><div class="t">📞 Caller hears</div><div class="s">SAFE output</div></div>
+    </div>
+    <div style="background:var(--violetb);border:1px solid #d9caf7;border-radius:12px;padding:12px 16px;margin-top:14px">
+      <b style="color:var(--violet)">How the fix is generated (same single LLM):</b>
+      <span style="font-size:13.5px;color:#33405a"> on a violation, v4 doesn't just refuse — the <b>same LLM</b> regenerates a correct reply, re-prompted with only the <b>correct facts</b> (the "correction packet"). It <b>never restates the wrong value</b>, which sidesteps the <b>"pink-elephant" problem</b> — telling a model <i>"don't say X"</i> actually raises the odds it says X. The new reply is then <b>re-verified</b> before it's voiced.</span>
     </div>
     <p class="note">Timing: clean turns release immediately (~0 ms guard compute). The expensive grounded verifier runs only on flagged spans; a deflection filler is spoken first to cover its latency. Tool calls are always checked before they fire.</p>
   </section>
