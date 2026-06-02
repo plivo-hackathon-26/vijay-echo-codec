@@ -64,8 +64,13 @@ class CorrectionPacket:
             f"{intent}\n"
             "Reply in the agent's normal voice, concise."
         )
-        # Defensive: the packet must never carry the wrong value forward.
-        assert_no_echo(msg, self.flagged_span)
+        # NOTE: the pink-elephant guarantee is enforced on the SPOKEN ANSWER
+        # (``engine._reverify`` rejects + regenerates if the answer echoes the
+        # span) — NOT on this internal developer message. We deliberately do
+        # NOT ``assert_no_echo`` here: the message is built only from the
+        # CORRECT facts/intent, but the flagged span can be a short token
+        # (a digit, "$24") that legitimately appears inside a correct fact
+        # value — asserting against it crashed regeneration on live turns.
         return msg
 
 

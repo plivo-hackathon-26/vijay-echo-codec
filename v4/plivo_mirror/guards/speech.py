@@ -84,9 +84,16 @@ class SpeechGuard:
         evidence = GroundingEvidence(
             reply=reply,
             flagged_spans=[s.text for s in spans],
+            # validated per-call entities the caller supplied (source of truth)
             facts={k: str(e.value) for k, e in context.state.entities.items()},
             policies=[
                 {"id": p.id, "text": p.text} for p in context.state.compiled_policies
+            ],
+            # code-owned reference facts (catalog/hours/prices/counts): without
+            # these the verifier has nothing to confirm a legitimate number
+            # against and false-flags it. Stringified as "key: value" lines.
+            retrieved_facts=[
+                f"{k}: {v}" for k, v in context.state.known_facts.items()
             ],
         )
         try:

@@ -106,10 +106,18 @@ class SupervisedAgent(Agent):
     # ── hook for writing validated entities into state ────────────────
 
     async def extract_state(self, customer_text: str) -> None:
-        """Override to validate committable values out of the caller's
-        utterance and write them to ``self.state`` OUTSIDE the model's
-        context (the structural backbone). Default: no-op. Production uses
-        real NLU; the example overrides this with simple validators."""
+        """Validate committable values out of the caller's utterance and
+        write them to ``self.state`` OUTSIDE the model's context (the
+        structural backbone). Default: delegate to the firewall's configured
+        ``EntityExtractor`` (deterministic, ~0 ms) when one is wired; no-op
+        otherwise. Override for richer, domain-specific NLU."""
+        extractor = getattr(self._firewall, "extractor", None)
+        if extractor is None:
+            return None
+        try:
+            extractor.extract(customer_text, self._state)
+        except Exception:
+            log.debug("entity extractor raised", exc_info=True)
         return None
 
     @property

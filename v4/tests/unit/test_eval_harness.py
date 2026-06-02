@@ -8,10 +8,12 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from plivo_mirror.eval import evaluate, load_cases
+from plivo_mirror.eval import evaluate, load_cases, load_facts
 
 _V3 = Path(__file__).resolve().parents[3] / "v3" / "datasets"
-_GOLD = Path(__file__).resolve().parents[2] / "datasets" / "golden_v1.jsonl"
+_DATASETS = Path(__file__).resolve().parents[2] / "datasets"
+_GOLD = _DATASETS / "golden_v1.jsonl"
+_FACTS = _DATASETS / "facts_v1.json"
 _POLICIES = _V3 / "policies_v1.txt"
 _INDUCED = _V3 / "eval_v1.jsonl"
 
@@ -53,6 +55,29 @@ async def test_deterministic_scorecard_invariants():
 
     # latency must be ABSENT in deterministic mode (not fabricated)
     assert "ABSENT" in sc["latency"]
+
+
+def test_facts_v1_loads_and_skips_comment_keys():
+    facts = load_facts(_FACTS)
+    assert facts  # non-empty
+    assert all(not k.startswith("_") for k in facts)  # _comment dropped
+    assert "wings_per_order" in facts and "menu_items" in facts
+
+
+async def test_deterministic_scorecard_records_facts_source():
+    sc = await evaluate(
+        induced_path=str(_INDUCED),
+        golden_path=str(_GOLD),
+        policies_path=str(_POLICIES),
+        mode="deterministic",
+        facts_path=str(_FACTS),
+    )
+    assert sc["facts_source"] == str(_FACTS)
+    assert sc["facts_loaded"] >= 1
+    # ORACLE short-circuits the verifier, so loading facts must NOT change the
+    # structural invariants (facts only move LIVE-mode FPs). Lock that here so
+    # the deterministic CI numbers stay honest about what facts do and don't do.
+    assert sc["induced"]["missed_at_verifier"] == 0
 
 
 async def test_clean_nospan_golden_cases_never_fire_deterministic():

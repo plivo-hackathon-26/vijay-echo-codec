@@ -44,6 +44,7 @@ from typing import Any
 from plivo_mirror.contracts import ToolCallIntent, TurnContext, Verdict
 from plivo_mirror.firewall import Firewall, _build_client_from_env
 from plivo_mirror.guards.risk_spans import tag_risk_spans
+from plivo_mirror.state.extract import RegexEntityExtractor
 from plivo_mirror.verifier.base import GroundingEvidence, VerifierResult
 
 
@@ -80,6 +81,16 @@ def load_cases(path: str | Path) -> list[Case]:
     return out
 
 
+def load_facts(path: str | Path | None) -> dict[str, str]:
+    """Load code-owned reference facts (catalog/hours/prices) from a JSON
+    object. Keys beginning with ``_`` (e.g. ``_comment``) are ignored. Values
+    are stringified. ``{}`` when no path is given."""
+    if not path:
+        return {}
+    data = json.loads(Path(path).read_text())
+    return {k: str(v) for k, v in data.items() if not k.startswith("_")}
+
+
 def load_policies(path: str | Path | None) -> list[str]:
     if not path:
         return []
@@ -105,12 +116,23 @@ def _build_context(case: Case, firewall: Firewall) -> TurnContext:
         if t.get("role") == "customer":
             customer_text = t.get("text", "")
             break
-    # NOTE: SessionState is intentionally NOT populated with validated
-    # entities — synthesizing them would require the NLU extractor that is
-    # the customer's job, and would measure an idealized extractor rather
-    # than v4. So action-boundary detection (arg-vs-state) is not exercised
-    # here; see the report caveat.
+    # The session is seeded with the firewall's code-owned ``known_facts``
+    # (via ``new_session``). We then run the firewall's configured
+    # ``EntityExtractor`` over EVERY customer turn in order, exactly as the
+    # runtime adapter's ``extract_state`` would, so validated per-call
+    # entities (amounts/dates) land in state and the action guard's
+    # arg-vs-state check is exercised. HONEST CAVEAT: this captures only what
+    # the deterministic extractor can parse from the transcript — dynamic
+    # values the runtime gets from tool RESULTS (a server-assigned order id, a
+    # computed cart total) are still absent, so golden FPs that hinge on those
+    # (legit_orderid_01, readback_total_01) can persist; that is reported, not
+    # hidden.
     state = firewall.new_session(case.id)
+    extractor = getattr(firewall, "extractor", None)
+    if extractor is not None:
+        for t in case.turns:
+            if t.get("role") == "customer":
+                extractor.extract(t.get("text", ""), state)
     return TurnContext(
         state=state,
         planned_reply=planned_reply,
@@ -251,8 +273,10 @@ async def evaluate(
     model: str | None = None,
     run_date: str | None = None,
     limit: int | None = None,
+    facts_path: str | None = None,
 ) -> dict[str, Any]:
     policies = load_policies(policies_path)
+    facts = load_facts(facts_path)
     induced = load_cases(induced_path)
     golden = load_cases(golden_path)
     if limit:
@@ -266,14 +290,23 @@ async def evaluate(
         "induced_source": induced_path,
         "golden_source": golden_path,
         "policies_source": policies_path,
+        "facts_source": facts_path,
+        "facts_loaded": len(facts),
     }
 
     # Build the firewall with the right verifier injected at construction
     # (the speech guard captures the verifier reference, so it must be set
     # at build time, not swapped after).
+    extractor = RegexEntityExtractor()
     if mode == "deterministic":
         verifier = OracleVerifier()
-        firewall = Firewall(policies=policies, verifier=verifier, generator=None)
+        firewall = Firewall(
+            policies=policies,
+            verifier=verifier,
+            generator=None,
+            known_facts=facts,
+            extractor=extractor,
+        )
         scorecard["model"] = "ORACLE (perfect verifier; deterministic)"
     elif mode == "live":
         client = _build_client_from_env()
@@ -287,7 +320,13 @@ async def evaluate(
         resolved_model = model or "gpt-4o-mini"
         verifier = _CountingVerifier(LLMJudgeVerifier(client, model=resolved_model))
         generator = LLMReplyGenerator(client, model=resolved_model)
-        firewall = Firewall(policies=policies, verifier=verifier, generator=generator)
+        firewall = Firewall(
+            policies=policies,
+            verifier=verifier,
+            generator=generator,
+            known_facts=facts,
+            extractor=extractor,
+        )
         scorecard["model"] = resolved_model
     else:
         raise ValueError(f"unknown mode {mode!r}")
@@ -423,11 +462,29 @@ def format_report(sc: dict[str, Any]) -> str:
     return "\n".join(L)
 
 
+def _load_env_best_effort() -> None:
+    """Load the repo-root ``.env`` so ``--mode live`` finds its creds without a
+    wrapper. Best-effort: no-op if python-dotenv isn't installed (deterministic
+    mode needs no creds)."""
+    try:
+        from dotenv import load_dotenv
+    except ImportError:
+        return
+    here = Path(__file__).resolve()
+    for parent in here.parents:
+        env = parent / ".env"
+        if env.exists():
+            load_dotenv(env)
+            return
+
+
 def main() -> None:
+    _load_env_best_effort()
     ap = argparse.ArgumentParser(description="plivo-mirror v4 measurement harness")
     ap.add_argument("--induced", default="../v3/datasets/eval_v1.jsonl")
     ap.add_argument("--golden", default="datasets/golden_v1.jsonl")
     ap.add_argument("--policies", default="../v3/datasets/policies_v1.txt")
+    ap.add_argument("--facts", default=None, help="JSON of code-owned reference facts (catalog/hours/prices) to ground the verifier")
     ap.add_argument("--mode", choices=["deterministic", "live"], default="deterministic")
     ap.add_argument("--model", default=None)
     ap.add_argument("--date", default=None)
@@ -444,6 +501,7 @@ def main() -> None:
             model=args.model,
             run_date=args.date,
             limit=args.limit,
+            facts_path=args.facts,
         )
     )
     if args.json:

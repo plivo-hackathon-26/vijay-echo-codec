@@ -34,7 +34,11 @@ class SessionState:
     """Per-call source of truth. One instance per call."""
 
     def __init__(
-        self, *, call_id: str = "", policies: list[Policy] | None = None
+        self,
+        *,
+        call_id: str = "",
+        policies: list[Policy] | None = None,
+        known_facts: dict[str, str] | None = None,
     ) -> None:
         self.call_id = call_id
         self.confirmed_intent: str | None = None
@@ -42,6 +46,13 @@ class SessionState:
         self._entities: dict[str, ValidatedEntity] = {}
         self._committed: list[CommittedAction] = []
         self._spoken: list[str] = []
+        # Code-owned REFERENCE facts (catalog, sizes, hours, prices): written
+        # OUTSIDE the model, never authored by it. Distinct from ``_entities``
+        # (per-call values the caller supplied + we validated). These ground
+        # the verifier so legitimate prices/hours/counts stop false-firing.
+        self._known_facts: dict[str, str] = {
+            k: str(v) for k, v in (known_facts or {}).items()
+        }
         # Hooks fired when an action commits (e.g. clear intent memory).
         self._commit_hooks: list[Callable[[CommittedAction], None]] = []
 
@@ -76,6 +87,18 @@ class SessionState:
         """A read-only snapshot. Mutating the returned dict does not
         affect state."""
         return dict(self._entities)
+
+    # ── reference facts (code-owned business config) ─────────────────
+
+    def add_known_fact(self, key: str, value: Any) -> None:
+        """Seed a code-owned reference fact (e.g. ``"wings_per_order" ->
+        "6"``). Written outside the model; used to ground the verifier."""
+        self._known_facts[key] = str(value)
+
+    @property
+    def known_facts(self) -> dict[str, str]:
+        """Read-only snapshot of the reference facts."""
+        return dict(self._known_facts)
 
     # ── confirmed intent ─────────────────────────────────────────────
 

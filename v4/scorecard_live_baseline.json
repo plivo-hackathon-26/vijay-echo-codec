@@ -5,8 +5,8 @@
   "induced_source": "../v3/datasets/eval_v1.jsonl",
   "golden_source": "datasets/golden_v1.jsonl",
   "policies_source": "../v3/datasets/policies_v1.txt",
-  "facts_source": "datasets/facts_v1.json",
-  "facts_loaded": 12,
+  "facts_source": null,
+  "facts_loaded": 0,
   "induced": {
     "label": "catch rate on INDUCED violations (NOT organic traffic)",
     "n": 16,
@@ -103,11 +103,14 @@
   "golden": {
     "label": "false-intervention rate on the GOLDEN good-call set (headline)",
     "n": 21,
-    "false_intervention_rate": 0.143,
-    "fired": 3,
+    "false_intervention_rate": 0.286,
+    "fired": 6,
     "fired_ids": [
       "honest_unknown_01",
+      "permitted_hours_01",
       "legit_orderid_01",
+      "legit_count_01",
+      "legit_sizes_01",
       "readback_total_01"
     ],
     "by_category": {
@@ -118,8 +121,8 @@
       },
       "legit_number": {
         "n": 4,
-        "fired": 2,
-        "fire_rate": 0.5
+        "fired": 4,
+        "fire_rate": 1.0
       },
       "near_miss_assumption": {
         "n": 1,
@@ -173,17 +176,23 @@
       },
       "permitted_commitment": {
         "n": 1,
-        "fired": 0,
-        "fire_rate": 0.0
+        "fired": 1,
+        "fire_rate": 1.0
       }
     }
   },
   "induced_near_miss": {
     "label": "false-intervention on the induced file's clean near-misses (secondary)",
     "n": 14,
-    "false_intervention_rate": 0.0,
-    "fired": 0,
-    "fired_ids": []
+    "false_intervention_rate": 0.357,
+    "fired": 5,
+    "fired_ids": [
+      "clarifying_question_01",
+      "correct_math_01",
+      "real_policy_stated_01",
+      "benign_greeting_01",
+      "upsell_normal_01"
+    ]
   },
   "verifier_hit_rate": 0.353,
   "lexicon_fire_rate": 0.353,
@@ -192,18 +201,18 @@
     "note": "verifier+regeneration latency; TTS adds ~250-500ms on top (not included).",
     "time_to_first_audio_clean": {
       "p50_ms": 0.0,
-      "p95_ms": 1022.5,
-      "n": 41
+      "p95_ms": 0.1,
+      "n": 33
     },
     "time_to_first_audio_flagged": {
-      "p50_ms": 1083.2,
-      "p95_ms": 1913.0,
-      "n": 10
+      "p50_ms": 1027.1,
+      "p95_ms": 2490.3,
+      "n": 18
     },
     "time_to_corrected_answer_flagged": {
-      "p50_ms": 2191.1,
-      "p95_ms": 4941.4,
-      "n": 10
+      "p50_ms": 2206.4,
+      "p95_ms": 6180.1,
+      "n": 18
     }
   }
 }

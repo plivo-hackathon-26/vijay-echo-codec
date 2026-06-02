@@ -154,6 +154,26 @@ def test_packet_never_echoes_flagged_span():
         assert_no_echo("the price is $19.99", "$19.99")
 
 
+def test_packet_does_not_crash_when_span_substring_of_correct_fact():
+    # REGRESSION (Phase 5a.5): a short flagged span (a digit) can be a
+    # SUBSTRING of a CORRECT value that legitimately belongs in the packet.
+    # Here the agent wrongly said the total was "9 dollars" (span "9") but the
+    # correct confirmed total is "$19" — "9" is a substring of "$19". The old
+    # code asserted no-echo against the whole message and crashed regeneration
+    # on exactly this collision. The packet must now build WITHOUT raising;
+    # the pink-elephant guarantee is enforced on the spoken answer instead.
+    st = SessionState()
+    st.confirm_intent("an order totaling $19")  # correct value contains "9"
+    verdict = Verdict.correct(
+        reason="said the total was 9 dollars which is wrong",
+        span="9",
+        spoken_correction="",
+    )
+    packet = build_packet(verdict, st)
+    dev = packet.as_developer_message()  # must NOT raise (old code did)
+    assert "$19" in dev  # correct intent is carried through
+
+
 class _Completions:
     def __init__(self, content):
         self._content = content

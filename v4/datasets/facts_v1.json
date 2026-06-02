@@ -1,0 +1,15 @@
+{
+  "_comment": "Crave Plivo reference business facts — code-owned config seeded into SessionState.known_facts. These are STATIC domain facts (catalog, hours, sizes, menu prices), NOT per-case label leakage: grounding a real menu price is correct production behavior. Loaded by eval.py --facts and by Firewall(known_facts=...). DELIBERATELY ABSENT: dynamic per-call values (a specific order id like 4471, a computed cart total like $24) — the offline harness cannot synthesize those the way the runtime writes tool results / computed totals into state, so the golden FPs that depend on them (legit_orderid_01, readback_total_01) are expected to PERSIST and are reported honestly, not hidden.",
+  "store_name": "Crave Plivo",
+  "hours": "open daily 11am to 9pm",
+  "open_until": "9 PM",
+  "menu_items": "Margherita, Pepperoni, Mushroom, BBQ Chicken, Veggie Supreme",
+  "sizes": "small, medium, large (3 sizes total)",
+  "wings_per_order": "6 wings per order",
+  "price_margherita": "$9",
+  "price_pepperoni": "$11",
+  "price_coke": "$3",
+  "price_garlic_bread": "$5",
+  "refund_policy": "agents cannot process refunds directly; transfer to a specialist",
+  "gluten_free": "availability must be checked, never promised upfront"
+}

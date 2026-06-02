@@ -64,6 +64,11 @@ from plivo_mirror.state.entities import (
     validate_item,
     validate_name,
 )
+from plivo_mirror.state.extract import (
+    CaptureRule,
+    EntityExtractor,
+    RegexEntityExtractor,
+)
 from plivo_mirror.state.session import CommittedAction, SessionState, args_from_state
 from plivo_mirror.verifier.base import GroundingEvidence, Verifier, VerifierResult
 from plivo_mirror.verifier.llm_judge import LLMJudgeVerifier
@@ -84,6 +89,9 @@ __all__ = [
     "SessionState",
     "CommittedAction",
     "args_from_state",
+    "EntityExtractor",
+    "RegexEntityExtractor",
+    "CaptureRule",
     "EntityKind",
     "ValidatedEntity",
     "validate",

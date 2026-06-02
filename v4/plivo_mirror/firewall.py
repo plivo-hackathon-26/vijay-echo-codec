@@ -22,7 +22,10 @@ from __future__ import annotations
 
 import logging
 import os
-from typing import Any
+from typing import TYPE_CHECKING, Any
+
+if TYPE_CHECKING:
+    from plivo_mirror.state.extract import EntityExtractor
 
 from plivo_mirror.authz.service import AuthorizationService
 from plivo_mirror.contracts import TurnContext, Verdict
@@ -54,10 +57,19 @@ class Firewall:
         persona_reinject_every: int = 6,
         persona_escalate_after: int = 20,
         max_correction_retries: int = 2,
+        extractor: "EntityExtractor | None" = None,
+        known_facts: dict[str, str] | None = None,
     ) -> None:
         self._compiled = compile_policies(list(policies))
         self.verifier = verifier
         self.generator = generator  # reply regenerator (single-LLM by default)
+        # Deterministic entity extractor (the adapter's extract_state default
+        # delegates here) + code-owned reference facts seeded into every new
+        # session so the verifier can ground legitimate numbers/commitments.
+        self.extractor = extractor
+        self._known_facts: dict[str, str] = {
+            k: str(v) for k, v in (known_facts or {}).items()
+        }
         self._max_correction_retries = max_correction_retries
         self._speech = SpeechGuard(
             verifier,
@@ -88,7 +100,11 @@ class Firewall:
     # ── per-call factories ────────────────────────────────────────────
 
     def new_session(self, call_id: str = "") -> SessionState:
-        return SessionState(call_id=call_id, policies=list(self._compiled))
+        return SessionState(
+            call_id=call_id,
+            policies=list(self._compiled),
+            known_facts=self._known_facts,
+        )
 
     def new_persona_guard(self) -> PersonaGuard:
         return PersonaGuard(**self._persona_cfg)
@@ -229,7 +245,14 @@ def _build_client_from_env() -> Any | None:
         if openai_key:
             from openai import AsyncOpenAI
 
-            return AsyncOpenAI(api_key=openai_key, base_url=_env("OPENAI_BASE_URL") or None)
+            # ``OPENAI_API_URL`` is accepted as a fallback for the base URL:
+            # the repo's .env uses that name, and without it an Azure key is
+            # sent to api.openai.com → 401. The verifier fails OPEN on error,
+            # so a missing base_url would silently report every claim as
+            # supported (0% catch AND 0% FP) — a misconfig must not masquerade
+            # as a perfect run.
+            base_url = _env("OPENAI_BASE_URL") or _env("OPENAI_API_URL")
+            return AsyncOpenAI(api_key=openai_key, base_url=base_url or None)
     except ImportError:
         log.warning("openai not installed; no LLM client built")
         return None
