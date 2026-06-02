@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "plivo-mirror"
-version = "0.4.0.dev0"
+version = "0.4.0rc1"
 description = "Real-time dual-boundary policy firewall for LLM voice agents."
 readme = "README.md"
 requires-python = ">=3.11"
