@@ -26,7 +26,7 @@ flowchart TD
         direction TB
         det["Deterministic<br/>FORBID / REQUIRE → block"] -->|pass| spans["Risk-span tagger<br/>price·number·commit·name"]
         spans -->|no span| committal["Committal gate<br/>skip question / refusal"]
-        committal -->|committal| nli["NLI semantic signal<br/>contradicts customer? → synth span"]
+        committal -->|committal| nli["NLI semantic signal<br/>(a) reply vs CUSTOMER  (b) reply vs KNOWN FACTS<br/>contradiction? → synth span"]
         spans -->|span| verifier
         nli -->|contradiction| verifier["Grounded verifier (stateless LLM judge)<br/>FACTS+POLICY+customer → supported?"]
       end
@@ -40,6 +40,7 @@ flowchart TD
       verifier -->|speech PASS| fc
     end
 
+    STATE -. facts .-> nli
     STATE -. facts .-> verifier
     STATE -. compare .-> argst
     STATE -. args .-> zero
@@ -82,7 +83,7 @@ flowchart TD
    **① Speech guard** (tokens → TTS):
    - **Deterministic** — compiled `FORBID:`/`REQUIRE:` policy checks. A hard hit → **block** immediately (verifier never runs).
    - **Risk-span tagger** — flags consequential spans (prices, numbers, commitment words, names). *No span* → the zero-latency pass path… unless:
-   - **Committal gate → NLI** — if the reply is *affirmative/committal* (not a question/refusal), the **semantic signal** (local cross-encoder NLI) asks "does this reply contradict the customer's stated request?" (ignored negation, dropped modifier). A contradiction synthesizes a flagged span. *(This gate is what stopped the over-firing on off-topic chatter found in live testing.)*
+   - **Committal gate → NLI** — if the reply is *affirmative/committal* (not a question/refusal), the **semantic signal** (local cross-encoder NLI) runs **two checks**: (a) does the reply contradict the **customer's stated request**? (ignored negation, dropped modifier), and (b) does it contradict a **known fact**? (e.g. facts say "open until 9 PM", reply says "until midnight" — fabricated hours/availability with no number). Either contradiction synthesizes a flagged span → verifier. *(The committal gate is what stopped over-firing on off-topic chatter; the fact-check (b) is the fact-hallucination lever that lifted F1 to 0.733.)*
    - **Grounded verifier** — the only expensive call, on flagged spans only. A **separate, stateless** LLM-judge entailment call: *FACTS + POLICIES + customer request → supported?* Supported → **pass**; unsupported → **correct**. *(Stateless + separate = it can't rationalize the agent's own output.)*
 
    **② Action guard** (tool call → execution) — runs only if speech passed; deterministic, ~0 ms:
