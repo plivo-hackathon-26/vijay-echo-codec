@@ -25,6 +25,7 @@ import os
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
+    from plivo_mirror.guards.semantic import SemanticSignal
     from plivo_mirror.state.extract import EntityExtractor
 
 from plivo_mirror.authz.service import AuthorizationService
@@ -53,6 +54,7 @@ class Firewall:
         validators: dict[str, list[Validator]] | None = None,
         confidence_signal: ConfidenceSignal | None = None,
         confidence_threshold: float = 0.6,
+        semantic_signal: "SemanticSignal | None" = None,
         persona_system_summary: str = "",
         persona_reinject_every: int = 6,
         persona_escalate_after: int = 20,
@@ -75,6 +77,7 @@ class Firewall:
             verifier,
             signal=confidence_signal,
             confidence_threshold=confidence_threshold,
+            semantic_signal=semantic_signal,
         )
         self._action = ActionGuard(authz=authz, validators=validators)
         self._persona_cfg = dict(

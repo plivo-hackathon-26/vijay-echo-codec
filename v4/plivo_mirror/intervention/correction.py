@@ -19,6 +19,10 @@ _BY_KIND = {
     "number": "Let me double-check that figure before I give you a number.",
     "percent": "Let me double-check that figure before I give you a number.",
     "name": "Let me just confirm those details before I continue.",
+    "semantic": (
+        "Let me make sure I've got your request exactly right before I "
+        "confirm that."
+    ),
 }
 
 _DEFAULT = "Let me make sure I have that right before I say more."
@@ -26,9 +30,9 @@ _DEFAULT = "Let me make sure I have that right before I say more."
 
 def correction_for_spans(spans: list[RiskSpan]) -> str:
     """Pick an agent-voice correction by the highest-liability flagged
-    span kind (commitment > price/number/percent > name)."""
+    span kind (commitment > price/number/percent > name > semantic)."""
     kinds = {s.kind for s in spans}
-    for kind in ("commitment", "price", "number", "percent", "name"):
+    for kind in ("commitment", "price", "number", "percent", "name", "semantic"):
         if kind in kinds:
             return _BY_KIND[kind]
     return _DEFAULT

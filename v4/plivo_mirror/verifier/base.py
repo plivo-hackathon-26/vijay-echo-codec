@@ -26,6 +26,10 @@ class GroundingEvidence:
     # can cite which policy a claim violates
     policies: list[dict[str, str]] = field(default_factory=list)
     retrieved_facts: list[str] = field(default_factory=list)
+    # the customer's stated request for THIS turn — lets the verifier judge
+    # whether the reply contradicts/ignores/drops a stated constraint (the
+    # precision check behind the semantic/NLI recall tier). Empty when unused.
+    customer_text: str = ""
 
 
 @dataclass

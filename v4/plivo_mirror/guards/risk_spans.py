@@ -15,7 +15,10 @@ import re
 from dataclasses import dataclass
 from typing import Literal
 
-SpanKind = Literal["price", "number", "percent", "commitment", "name"]
+# "semantic" is not produced by the lexical tagger — it is synthesized by the
+# speech guard when the semantic signal (NLI) flags a contradiction with no
+# lexical trigger, so the rest of the router treats it like any flagged span.
+SpanKind = Literal["price", "number", "percent", "commitment", "name", "semantic"]
 
 
 @dataclass(frozen=True)

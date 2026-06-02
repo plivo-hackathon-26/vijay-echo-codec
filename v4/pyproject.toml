@@ -17,6 +17,10 @@ dev = ["pytest>=8", "pytest-asyncio>=0.23"]
 openai = ["openai>=1.40"]
 # Reference transport. Only needed by the LiveKit adapter (Phase 4).
 livekit = ["livekit-agents>=1.0"]
+# Optional semantic recall tier (the NLI lever). A local cross-encoder NLI
+# model routes lexically-invisible contradictions to the verifier. Heavy;
+# off by default. sentencepiece is required by DeBERTa-v3 tokenizers.
+nli = ["torch>=2.0", "transformers>=4.40", "sentencepiece>=0.1.99"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["plivo_mirror"]

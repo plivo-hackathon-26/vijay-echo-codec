@@ -25,6 +25,7 @@ from typing import Callable
 from plivo_mirror.contracts import TurnContext, Verdict
 from plivo_mirror.guards.deterministic import run_deterministic
 from plivo_mirror.guards.risk_spans import RiskSpan, tag_risk_spans
+from plivo_mirror.guards.semantic import SemanticSignal
 from plivo_mirror.guards.signal import ConfidenceSignal, LogprobEntropySignal
 from plivo_mirror.intervention.correction import (
     correction_for_spans,
@@ -43,11 +44,17 @@ class SpeechGuard:
         signal: ConfidenceSignal | None = None,
         confidence_threshold: float = 0.6,
         tagger: Callable[[str], list[RiskSpan]] = tag_risk_spans,
+        semantic_signal: SemanticSignal | None = None,
     ) -> None:
         self._verifier = verifier
         self._signal = signal or LogprobEntropySignal()
         self._threshold = confidence_threshold
         self._tag = tagger
+        # Optional second recall tier: when the lexicon finds no risky span,
+        # this catches replies that contradict the customer's stated request
+        # (negation/compound/conditional). OFF by default (None) so the core
+        # stays ~0ms and the heavy NLI dependency is opt-in. See semantic.py.
+        self._semantic = semantic_signal
 
     async def inspect(self, context: TurnContext) -> Verdict:
         reply = context.planned_reply or ""
@@ -59,10 +66,23 @@ class SpeechGuard:
                 det.spoken_correction = default_block_correction()
             return det
 
-        # 2. No risky span ⇒ zero-latency pass (verifier never runs).
+        # 2. No lexical risky span ⇒ normally a zero-latency pass. But first
+        #    consult the optional semantic tier (NLI): a reply can be fluent
+        #    and lexically clean yet contradict a constraint the customer
+        #    stated (ignored negation / dropped modifier / wrong condition).
+        #    If it fires, synthesize a span so the rest of the router treats
+        #    the turn like any flagged span and routes it to the verifier,
+        #    which still has the final say (recall here, precision there).
         spans = self._tag(reply)
         if not spans:
-            return Verdict.pass_("no_risk_span")
+            if self._semantic is not None:
+                sem = self._semantic.contradicts(
+                    context.customer_text, reply, state=context.state
+                )
+                if sem.contradiction:
+                    spans = [RiskSpan(text=reply, kind="semantic", start=0, end=len(reply))]
+            if not spans:
+                return Verdict.pass_("no_risk_span")
 
         # 3. Confidence gate (only matters when a risky span is present).
         # HONEST NOTE: in the current LiveKit + Azure-gpt-5-mini setup,
@@ -95,6 +115,9 @@ class SpeechGuard:
             retrieved_facts=[
                 f"{k}: {v}" for k, v in context.state.known_facts.items()
             ],
+            # the customer's request — lets the verifier confirm/deny a
+            # contradiction (the precision check behind the semantic tier).
+            customer_text=context.customer_text,
         )
         try:
             result = await self._verifier.verify(reply, evidence)

@@ -23,12 +23,18 @@ log = logging.getLogger("plivo_mirror.verifier")
 
 _SYSTEM = (
     "You are a grounding verifier for a voice agent. Decide whether a CLAIM the "
-    "agent is about to say to a caller is SUPPORTED by the provided FACTS and "
-    "POLICIES. Judge only grounding and policy compliance — never tone or style.\n"
+    "agent is about to say to a caller is SUPPORTED by the provided FACTS, "
+    "POLICIES, and the CUSTOMER REQUEST. Judge only grounding, policy "
+    "compliance, and faithfulness to the request — never tone or style.\n"
     "A claim is UNSUPPORTED if it: states a number, price, date, or fact that is "
     "not present in FACTS; makes a commitment (refund, discount, eligibility, "
-    "guarantee, cancellation, credit) that FACTS/POLICIES do not authorize; or "
-    "contradicts any POLICY.\n"
+    "guarantee, cancellation, credit) that FACTS/POLICIES do not authorize; "
+    "contradicts any POLICY; or contradicts, ignores, or drops a constraint in "
+    "the CUSTOMER REQUEST — e.g. ignores a negation ('no onions' but the reply "
+    "adds onions), drops or globalizes a stated modifier ('extra cheese on the "
+    "veggie half' but the reply applies it to everything), or acts on the wrong "
+    "branch of a stated condition. When CUSTOMER REQUEST is '(none)', judge on "
+    "FACTS and POLICIES only.\n"
     'Respond ONLY as JSON: {"supported": true|false, "policy_id": string|null, '
     '"reason": "<short>"}. Set policy_id to the id of the POLICY most relevant to '
     "your decision, or null."
@@ -43,9 +49,11 @@ def _build_user_prompt(claim: str, ev: GroundingEvidence) -> str:
     )
     retrieved = "\n".join(f"  - {r}" for r in ev.retrieved_facts) or "  (none)"
     flagged = ", ".join(ev.flagged_spans) or "(whole reply)"
+    customer = (ev.customer_text or "").strip() or "(none)"
     return (
         f"CLAIM (the agent is about to say this):\n  {claim}\n\n"
         f"FLAGGED SPANS: {flagged}\n\n"
+        f"CUSTOMER REQUEST (what the caller just asked for):\n  {customer}\n\n"
         f"FACTS (validated session state — the only ground truth):\n{facts}\n\n"
         f"POLICIES:\n{pols}\n\n"
         f"RETRIEVED FACTS:\n{retrieved}\n\n"

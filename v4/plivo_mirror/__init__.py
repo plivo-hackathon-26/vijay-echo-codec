@@ -32,6 +32,12 @@ from plivo_mirror.guards.signal import (
     FixedConfidence,
     LogprobEntropySignal,
 )
+from plivo_mirror.guards.semantic import (
+    NLICrossEncoderSignal,
+    NoSemanticSignal,
+    SemanticResult,
+    SemanticSignal,
+)
 from plivo_mirror.guards.speech import SpeechGuard
 from plivo_mirror.intervention.correction import (
     correction_for_spans,
@@ -137,6 +143,10 @@ __all__ = [
     "ConfidenceSignal",
     "LogprobEntropySignal",
     "FixedConfidence",
+    "SemanticSignal",
+    "SemanticResult",
+    "NLICrossEncoderSignal",
+    "NoSemanticSignal",
     "correction_for_spans",
     "default_block_correction",
     # verifier (Phase 2)

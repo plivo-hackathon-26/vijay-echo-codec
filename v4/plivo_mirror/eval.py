@@ -274,9 +274,20 @@ async def evaluate(
     run_date: str | None = None,
     limit: int | None = None,
     facts_path: str | None = None,
+    nli: bool = False,
+    nli_model: str = "cross-encoder/nli-deberta-v3-small",
+    nli_threshold: float = 0.9,
 ) -> dict[str, Any]:
     policies = load_policies(policies_path)
     facts = load_facts(facts_path)
+    # Optional semantic recall tier. Under deterministic/oracle this isolates
+    # the PURE recall lift (perfect precision); under live it shows recall +
+    # any FP the real verifier doesn't rescue. Needs the optional NLI dep.
+    semantic_signal = None
+    if nli:
+        from plivo_mirror.guards.semantic import NLICrossEncoderSignal
+
+        semantic_signal = NLICrossEncoderSignal(nli_model, threshold=nli_threshold)
     induced = load_cases(induced_path)
     golden = load_cases(golden_path)
     if limit:
@@ -292,6 +303,7 @@ async def evaluate(
         "policies_source": policies_path,
         "facts_source": facts_path,
         "facts_loaded": len(facts),
+        "semantic_tier": (f"{nli_model} @ {nli_threshold}" if nli else None),
     }
 
     # Build the firewall with the right verifier injected at construction
@@ -306,6 +318,7 @@ async def evaluate(
             generator=None,
             known_facts=facts,
             extractor=extractor,
+            semantic_signal=semantic_signal,
         )
         scorecard["model"] = "ORACLE (perfect verifier; deterministic)"
     elif mode == "live":
@@ -326,6 +339,7 @@ async def evaluate(
             generator=generator,
             known_facts=facts,
             extractor=extractor,
+            semantic_signal=semantic_signal,
         )
         scorecard["model"] = resolved_model
     else:
@@ -485,6 +499,9 @@ def main() -> None:
     ap.add_argument("--golden", default="datasets/golden_v1.jsonl")
     ap.add_argument("--policies", default="../v3/datasets/policies_v1.txt")
     ap.add_argument("--facts", default=None, help="JSON of code-owned reference facts (catalog/hours/prices) to ground the verifier")
+    ap.add_argument("--nli", action="store_true", help="enable the semantic recall tier (local cross-encoder NLI; needs the optional nli dep)")
+    ap.add_argument("--nli-model", default="cross-encoder/nli-deberta-v3-small", help="HF cross-encoder NLI model for --nli")
+    ap.add_argument("--nli-threshold", type=float, default=0.9, help="contradiction probability above which --nli routes a turn to the verifier")
     ap.add_argument("--mode", choices=["deterministic", "live"], default="deterministic")
     ap.add_argument("--model", default=None)
     ap.add_argument("--date", default=None)
@@ -502,6 +519,9 @@ def main() -> None:
             run_date=args.date,
             limit=args.limit,
             facts_path=args.facts,
+            nli=args.nli,
+            nli_model=args.nli_model,
+            nli_threshold=args.nli_threshold,
         )
     )
     if args.json:
