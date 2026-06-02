@@ -66,6 +66,47 @@ def _reply_is_committal(reply: str) -> bool:
     return bool(declarative)
 
 
+# Fact-assertion routing: a reply can fabricate a checkable business fact
+# (hours, availability, policy) without any number/commitment word AND without
+# contradicting the customer's *question* — so neither the lexicon nor the
+# customer-vs-reply NLI catches it. We additionally run NLI of the reply
+# against the code-owned KNOWN FACTS: if it contradicts one we hold, route it
+# to the verifier. Cheap because we only check facts that share a content word
+# with the reply (so it's ~0-2 extra NLI calls, not one-per-fact).
+_STOP = {
+    "the","a","an","and","or","but","is","are","was","were","be","to","of","in",
+    "on","for","you","your","our","we","it","that","this","with","at","as","i",
+    "yes","no","not","do","does","did","have","has","will","can","get","got","one",
+}
+_MAX_FACT_CHECKS = 6
+
+
+def _content_tokens(s: str) -> set[str]:
+    return {
+        t for t in re.split(r"[^a-z0-9]+", (s or "").lower())
+        if len(t) >= 3 and t not in _STOP
+    }
+
+
+def _relevant_facts(reply: str, state, cap: int = _MAX_FACT_CHECKS) -> list[str]:
+    """Known-fact statements that share a content word with the reply, most
+    overlap first (so an unrelated reply triggers zero NLI calls)."""
+    known = getattr(state, "known_facts", {}) or {}
+    if not known:
+        return []
+    rtok = _content_tokens(reply)
+    if not rtok:
+        return []
+    scored: list[tuple[int, str]] = []
+    for k, v in known.items():
+        stmt = f"{k.replace('_', ' ')}: {v}"
+        overlap = len(_content_tokens(stmt) & rtok)
+        if overlap:
+            scored.append((overlap, stmt))
+    scored.sort(reverse=True)
+    return [s for _, s in scored[:cap]]
+
+
 class SpeechGuard:
     def __init__(
         self,
@@ -85,6 +126,22 @@ class SpeechGuard:
         # (negation/compound/conditional). OFF by default (None) so the core
         # stays ~0ms and the heavy NLI dependency is opt-in. See semantic.py.
         self._semantic = semantic_signal
+
+    def _semantic_contradiction(self, context: TurnContext, reply: str) -> bool:
+        """True if the reply contradicts (a) the customer's stated request, or
+        (b) a code-owned KNOWN FACT — either one routes the turn to the
+        verifier. (b) is the fact-hallucination lever: fabricated hours /
+        availability / policy with no number or commitment word."""
+        # (a) reply vs the customer's stated request
+        if self._semantic.contradicts(
+            context.customer_text, reply, state=context.state
+        ).contradiction:
+            return True
+        # (b) reply vs each relevant known fact (token-overlap pre-filtered)
+        for fact in _relevant_facts(reply, context.state):
+            if self._semantic.contradicts(fact, reply, state=context.state).contradiction:
+                return True
+        return False
 
     async def inspect(self, context: TurnContext) -> Verdict:
         reply = context.planned_reply or ""
@@ -109,10 +166,7 @@ class SpeechGuard:
             # questions, refusals, and deferrals (they commit nothing, so a
             # "contradiction" with an off-topic/garbled turn is just noise).
             if self._semantic is not None and _reply_is_committal(reply):
-                sem = self._semantic.contradicts(
-                    context.customer_text, reply, state=context.state
-                )
-                if sem.contradiction:
+                if self._semantic_contradiction(context, reply):
                     spans = [RiskSpan(text=reply, kind="semantic", start=0, end=len(reply))]
             if not spans:
                 return Verdict.pass_("no_risk_span")

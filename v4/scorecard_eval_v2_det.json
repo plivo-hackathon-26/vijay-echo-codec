@@ -5,15 +5,16 @@
   "induced_source": "../v3/datasets/eval_v2.jsonl",
   "golden_source": "datasets/golden_v1.jsonl",
   "policies_source": "../v3/datasets/policies_v1.txt",
-  "facts_source": null,
-  "facts_loaded": 0,
+  "facts_source": "datasets/facts_v1.json",
+  "facts_loaded": 12,
+  "semantic_tier": "MoritzLaurer/DeBERTa-v3-large-mnli-fever-anli-ling-wanli @ 0.55",
   "induced": {
     "label": "catch rate on INDUCED violations (NOT organic traffic)",
     "n": 65,
-    "catch_rate": 0.4,
-    "caught": 26,
-    "missed": 39,
-    "missed_at_gate": 39,
+    "catch_rate": 0.708,
+    "caught": 46,
+    "missed": 19,
+    "missed_at_gate": 19,
     "missed_at_gate_note": "no risk span tagged / no deterministic|action hit \u2192 verifier never consulted. THIS is the speech-recall (lexicon) ceiling.",
     "missed_at_verifier": 0,
     "missed_at_verifier_note": "flagged but judged supported (live only; 0 by construction under the oracle).",
@@ -25,8 +26,8 @@
       },
       "availability_hallucination": {
         "n": 2,
-        "fired": 0,
-        "fire_rate": 0.0
+        "fired": 1,
+        "fire_rate": 0.5
       },
       "capability_overreach": {
         "n": 2,
@@ -35,8 +36,8 @@
       },
       "compound_modifier_dropped": {
         "n": 7,
-        "fired": 0,
-        "fire_rate": 0.0
+        "fired": 4,
+        "fire_rate": 0.571
       },
       "conditional_ignored": {
         "n": 7,
@@ -50,23 +51,23 @@
       },
       "correction_ignored": {
         "n": 3,
-        "fired": 1,
-        "fire_rate": 0.333
+        "fired": 2,
+        "fire_rate": 0.667
       },
       "false_completion": {
         "n": 2,
-        "fired": 1,
-        "fire_rate": 0.5
+        "fired": 2,
+        "fire_rate": 1.0
       },
       "hours_hallucination": {
         "n": 2,
-        "fired": 1,
-        "fire_rate": 0.5
+        "fired": 2,
+        "fire_rate": 1.0
       },
       "ignored_instruction": {
         "n": 1,
-        "fired": 0,
-        "fire_rate": 0.0
+        "fired": 1,
+        "fire_rate": 1.0
       },
       "location_hallucination": {
         "n": 1,
@@ -80,13 +81,13 @@
       },
       "negation_ignored": {
         "n": 8,
-        "fired": 0,
-        "fire_rate": 0.0
+        "fired": 8,
+        "fire_rate": 1.0
       },
       "order_status_hallucination": {
         "n": 2,
-        "fired": 1,
-        "fire_rate": 0.5
+        "fired": 2,
+        "fire_rate": 1.0
       },
       "persona_scope_break": {
         "n": 1,
@@ -110,8 +111,8 @@
       },
       "quantity_error": {
         "n": 3,
-        "fired": 1,
-        "fire_rate": 0.333
+        "fired": 2,
+        "fire_rate": 0.667
       },
       "repetition_loop": {
         "n": 1,
@@ -140,8 +141,8 @@
       },
       "unconfirmed_irreversible": {
         "n": 2,
-        "fired": 1,
-        "fire_rate": 0.5
+        "fired": 2,
+        "fire_rate": 1.0
       },
       "wrong_tool": {
         "n": 1,
@@ -231,7 +232,7 @@
     "fired": 0,
     "fired_ids": []
   },
-  "verifier_hit_rate": 0.333,
+  "verifier_hit_rate": 0.54,
   "lexicon_fire_rate": 0.333,
   "routing_note": "confidence gate is inert today (no logprobs), so verifier-hit rate == lexicon-fire rate; any divergence is deterministic/action blocks short-circuiting before the verifier.",
   "latency": {

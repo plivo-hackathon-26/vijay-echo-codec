@@ -119,6 +119,45 @@ async def test_committal_reply_still_routes_to_semantic_tier():
     assert verifier.calls == 1 and v.decision == "correct"
 
 
+class _FactAwareSemantic:
+    """Mock: contradiction iff the premise mentions '9 pm' and the reply says
+    'midnight' — i.e. only when the reply contradicts the known HOURS fact."""
+
+    def contradicts(self, premise, reply, *, state=None) -> SemanticResult:
+        c = "9 pm" in (premise or "").lower() and "midnight" in (reply or "").lower()
+        return SemanticResult(contradiction=c, premise=premise, hypothesis=reply)
+
+
+async def test_reply_contradicting_known_fact_routes_to_verifier():
+    # fact-hallucination lever: the customer asked a QUESTION (no customer
+    # contradiction) and the reply has no number — but it contradicts a KNOWN
+    # FACT (hours), so it must still route to the verifier.
+    verifier = _FakeVerifier(VerifierResult(supported=False, reason="fabricated hours"))
+    guard = SpeechGuard(verifier, semantic_signal=_FactAwareSemantic())
+    st = SessionState(known_facts={"open_until": "9 PM"})
+    ctx = TurnContext(state=st, planned_reply="We're taking orders until midnight tonight.",
+                      customer_text="How late are you open tonight?")
+    v = await guard.inspect(ctx)
+    assert verifier.calls == 1 and v.decision == "correct"
+
+
+async def test_clean_fact_statement_not_routed():
+    # a legit, non-contradicting fact statement must NOT route (no false fire)
+    verifier = _FakeVerifier(VerifierResult(supported=False))
+    guard = SpeechGuard(verifier, semantic_signal=_FactAwareSemantic())
+    st = SessionState(known_facts={"open_until": "9 PM"})
+    ctx = TurnContext(state=st, planned_reply="We're open quite late tonight.",
+                      customer_text="How late are you open?")
+    v = await guard.inspect(ctx)
+    assert verifier.calls == 0 and v.decision == "pass"
+
+
+async def test_no_known_facts_means_no_fact_checks():
+    # with no known facts, the fact loop is a no-op (zero extra NLI calls)
+    from plivo_mirror.guards.speech import _relevant_facts
+    assert _relevant_facts("we're open until midnight", SessionState()) == []
+
+
 async def test_customer_text_reaches_grounding_evidence():
     sink: dict = {}
     verifier = _FakeVerifier(VerifierResult(supported=True), sink=sink)
