@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>plivo-mirror v4 — dual-boundary firewall explorer</title>
+<style>
+  :root{
+    --bg:#0c1018; --panel:#141b27; --panel2:#1b2433; --ink:#e6edf6; --dim:#8aa0b8;
+    --line:#2a3647; --accent:#5aa0ff; --pass:#2fbf71; --correct:#f4a93a;
+    --block:#ef5b6b; --skip:#3a4658; --semantic:#b98bff;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+  header{padding:18px 24px;border-bottom:1px solid var(--line);background:linear-gradient(180deg,#101725,#0c1018)}
+  header h1{margin:0;font-size:18px;letter-spacing:.2px}
+  header p{margin:4px 0 0;color:var(--dim);font-size:13px}
+  .wrap{display:grid;grid-template-columns:360px 1fr;gap:0;min-height:calc(100vh - 70px)}
+  .left{border-right:1px solid var(--line);padding:16px;overflow:auto;background:var(--panel)}
+  .right{padding:16px 20px;overflow:auto}
+  h2{font-size:12px;text-transform:uppercase;letter-spacing:1px;color:var(--dim);margin:18px 0 8px}
+  label{display:block;font-size:12px;color:var(--dim);margin:10px 0 3px}
+  input[type=text],textarea,select{width:100%;background:var(--panel2);border:1px solid var(--line);color:var(--ink);border-radius:7px;padding:8px 10px;font:13px/1.4 ui-monospace,SFMono-Regular,Menlo,monospace}
+  textarea{resize:vertical;min-height:46px}
+  .row{display:flex;gap:8px}
+  .row>*{flex:1}
+  .toggles{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+  .tog{display:flex;align-items:center;gap:8px;background:var(--panel2);border:1px solid var(--line);border-radius:7px;padding:7px 10px;cursor:pointer;font-size:12.5px}
+  .tog input{accent-color:var(--accent)}
+  button{cursor:pointer;border:none;border-radius:8px;padding:10px 14px;font-weight:600;font-size:13.5px}
+  .run{background:var(--accent);color:#06101f;width:100%;margin-top:14px}
+  .run:hover{filter:brightness(1.08)}
+  .hint{font-size:11.5px;color:var(--dim);margin-top:4px}
+  /* diagram */
+  .lane-title{font-size:11px;text-transform:uppercase;letter-spacing:1px;color:var(--dim);margin:6px 0}
+  .flow{display:flex;flex-direction:column;gap:0}
+  .stage{display:flex;align-items:stretch;gap:10px;flex-wrap:wrap;margin:4px 0}
+  .node{position:relative;background:var(--panel);border:1.5px solid var(--line);border-radius:10px;padding:9px 12px;min-width:120px;transition:.25s;opacity:.55}
+  .node .t{font-weight:600;font-size:12.5px}
+  .node .s{font-size:11px;color:var(--dim);margin-top:2px}
+  .node.on{opacity:1;box-shadow:0 0 0 1px var(--accent),0 6px 18px -8px var(--accent)}
+  .node.pass{border-color:var(--pass)} .node.pass.on{box-shadow:0 0 0 1px var(--pass),0 6px 18px -8px var(--pass)}
+  .node.correct{border-color:var(--correct)} .node.correct.on{box-shadow:0 0 0 1px var(--correct),0 6px 18px -8px var(--correct)}
+  .node.block{border-color:var(--block)} .node.block.on{box-shadow:0 0 0 1px var(--block),0 6px 18px -8px var(--block)}
+  .node.semantic{border-color:var(--semantic)} .node.semantic.on{box-shadow:0 0 0 1px var(--semantic)}
+  .node.skip{opacity:.3;border-style:dashed}
+  .node .badge{position:absolute;top:-9px;right:-9px;font-size:10px;padding:1px 6px;border-radius:10px;font-weight:700;display:none}
+  .node.pass .badge{display:block;background:var(--pass);color:#04140b}
+  .node.correct .badge{display:block;background:var(--correct);color:#1f1402}
+  .node.block .badge{display:block;background:var(--block);color:#1f0407}
+  .arrow{align-self:center;color:var(--line);font-size:18px;padding:0 2px}
+  .arrow.on{color:var(--accent)}
+  .group{border:1px dashed var(--line);border-radius:12px;padding:10px 12px;margin:10px 0;background:rgba(255,255,255,.012)}
+  .group>.lane-title{margin-top:0}
+  /* verdict + trace */
+  .verdict{border-radius:12px;padding:14px 16px;margin-bottom:14px;border:1.5px solid var(--line);background:var(--panel)}
+  .verdict.pass{border-color:var(--pass)} .verdict.correct{border-color:var(--correct)} .verdict.block{border-color:var(--block)}
+  .verdict .d{font-size:20px;font-weight:800;text-transform:uppercase;letter-spacing:1px}
+  .verdict.pass .d{color:var(--pass)} .verdict.correct .d{color:var(--correct)} .verdict.block .d{color:var(--block)}
+  .verdict .meta{color:var(--dim);font-size:12.5px;margin-top:2px}
+  .spoken{margin-top:10px;background:var(--panel2);border-left:3px solid var(--accent);padding:8px 12px;border-radius:0 7px 7px 0;font-size:13px}
+  .spoken b{color:var(--accent)}
+  .trace{font:12px/1.55 ui-monospace,Menlo,monospace;background:#0a0f17;border:1px solid var(--line);border-radius:10px;padding:10px 12px;white-space:pre-wrap}
+  .trace .ln{display:block;padding:1px 0}
+  .trace .ok{color:var(--pass)} .trace .warn{color:var(--correct)} .trace .bad{color:var(--block)} .trace .mut{color:var(--dim)} .trace .sem{color:var(--semantic)}
+  .spans b{background:rgba(90,160,255,.18);border-radius:3px;padding:0 2px}
+  .pill{display:inline-block;font-size:10px;border:1px solid var(--line);border-radius:10px;padding:1px 7px;color:var(--dim);margin-left:6px}
+  code{background:var(--panel2);padding:1px 5px;border-radius:4px}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:11.5px;color:var(--dim);margin:6px 0 12px}
+  .legend span{display:inline-flex;align-items:center;gap:5px}
+  .dot{width:9px;height:9px;border-radius:50%}
+</style>
+</head>
+<body>
+<header>
+  <h1>plivo-mirror <b style="color:var(--accent)">v4</b> — dual-boundary policy firewall</h1>
+  <p>Feed a customer turn + the LLM's planned reply/tool call through the real router logic and watch where the firewall passes, corrects, or blocks. Deterministic layers run faithfully in-browser; the LLM-backed nodes (grounded verifier, NLI) are yours to toggle.</p>
+</header>
+<div class="wrap">
+  <!-- ============ LEFT: PLAYGROUND INPUTS ============ -->
+  <div class="left">
+    <h2>Scenario</h2>
+    <select id="preset"></select>
+    <div class="hint">Pick a preset, or edit anything below and re-run.</div>
+
+    <h2>The turn</h2>
+    <label>Customer said</label>
+    <textarea id="customer"></textarea>
+    <label>LLM planned reply (what the agent is about to say)</label>
+    <textarea id="reply"></textarea>
+    <div class="row">
+      <div><label>Tool call (name, blank = none)</label><input id="tool" type="text" placeholder="place_order"/></div>
+      <div><label>Tool args (JSON)</label><input id="targs" type="text" placeholder="{}"/></div>
+    </div>
+
+    <h2>Session state <span class="pill">source of truth</span></h2>
+    <label>Validated items (comma-sep, written by extract_state)</label>
+    <input id="items" type="text" placeholder="veggie wrap"/>
+    <label>Confirmed intent</label>
+    <input id="intent" type="text" placeholder="veggie wrap"/>
+    <label>Known facts (key:value per line — catalog/hours/prices)</label>
+    <textarea id="facts" placeholder="open_until: 9 PM"></textarea>
+
+    <h2>Policies <span class="pill">FORBID: / REQUIRE: = deterministic</span></h2>
+    <textarea id="policies" style="min-height:80px"></textarea>
+
+    <h2>Model-backed nodes <span class="pill">you decide</span></h2>
+    <div class="toggles">
+      <label class="tog"><input type="checkbox" id="nliOn" checked/> NLI semantic tier enabled</label>
+      <label class="tog"><input type="checkbox" id="nliContra"/> NLI: reply contradicts the customer</label>
+      <label class="tog"><input type="checkbox" id="verSupported"/> Grounded verifier: claim is supported</label>
+      <label class="tog"><input type="checkbox" id="poGate" checked/> place_order gate: require items + confirmed intent</label>
+      <label class="tog"><input type="checkbox" id="escalate"/> escalate to human on non-convergence</label>
+    </div>
+    <button class="run" id="runBtn">▶ Run through plivo-mirror</button>
+    <div class="hint">The grounded verifier &amp; NLI run real models in production; here you set their output so you can explore every branch.</div>
+  </div>
+
+  <!-- ============ RIGHT: DIAGRAM + RESULT ============ -->
+  <div class="right">
+    <div id="verdict" class="verdict"><div class="d">— ready —</div><div class="meta">Run a scenario to see the verdict, the path, and the spoken output.</div></div>
+
+    <div class="legend">
+      <span><i class="dot" style="background:var(--pass)"></i> pass</span>
+      <span><i class="dot" style="background:var(--correct)"></i> correct</span>
+      <span><i class="dot" style="background:var(--block)"></i> block</span>
+      <span><i class="dot" style="background:var(--semantic)"></i> semantic route</span>
+      <span><i class="dot" style="background:var(--skip)"></i> skipped / not reached</span>
+    </div>
+
+    <div class="flow" id="flow">
+      <div class="lane-title">Inputs</div>
+      <div class="stage">
+        <div class="node" id="n_customer"><div class="t">Customer turn</div><div class="s">caller utterance</div></div>
+        <div class="arrow">→</div>
+        <div class="node" id="n_extract"><div class="t">State grounding</div><div class="s">extract_state → entities</div><span class="badge"></span></div>
+        <div class="arrow">→</div>
+        <div class="node" id="n_llm"><div class="t">LLM</div><div class="s">planned reply + tool intents</div></div>
+      </div>
+
+      <div class="group">
+        <div class="lane-title">① Speech guard &nbsp;<span class="pill">tokens → TTS</span></div>
+        <div class="stage">
+          <div class="node" id="n_det"><div class="t">Deterministic</div><div class="s">FORBID / REQUIRE</div><span class="badge"></span></div>
+          <div class="arrow">→</div>
+          <div class="node" id="n_span"><div class="t">Risk-span tagger</div><div class="s">price · number · commit · name</div><span class="badge"></span></div>
+          <div class="arrow">→</div>
+          <div class="node" id="n_commit"><div class="t">Committal gate</div><div class="s">skip questions/refusals</div><span class="badge"></span></div>
+          <div class="arrow">→</div>
+          <div class="node semantic" id="n_nli"><div class="t">NLI semantic</div><div class="s">contradicts customer?</div><span class="badge"></span></div>
+        </div>
+        <div class="stage">
+          <div class="node" id="n_conf"><div class="t">Confidence gate</div><div class="s">inert (no logprobs)</div><span class="badge"></span></div>
+          <div class="arrow">→</div>
+          <div class="node" id="n_verifier"><div class="t">Grounded verifier</div><div class="s">supported by state/policy?</div><span class="badge"></span></div>
+          <div class="arrow">→</div>
+          <div class="node" id="n_interv"><div class="t">Intervention</div><div class="s">deflect → regenerate → reverify</div><span class="badge"></span></div>
+        </div>
+      </div>
+
+      <div class="group">
+        <div class="lane-title">② Action guard &nbsp;<span class="pill">tool call → execution · only if speech passed</span></div>
+        <div class="stage">
+          <div class="node" id="n_fc"><div class="t">False-completion</div><div class="s">"done" w/ no tool</div><span class="badge"></span></div>
+          <div class="arrow">→</div>
+          <div class="node" id="n_mismatch"><div class="t">Arg ↔ state</div><div class="s">consistency</div><span class="badge"></span></div>
+          <div class="arrow">→</div>
+          <div class="node" id="n_authz"><div class="t">Authorization</div><div class="s">separate service</div><span class="badge"></span></div>
+          <div class="arrow">→</div>
+          <div class="node" id="n_valid"><div class="t">Param/policy</div><div class="s">business rules (code)</div><span class="badge"></span></div>
+        </div>
+      </div>
+
+      <div class="stage">
+        <div class="node" id="n_out"><div class="t">Final output</div><div class="s">speak / fire tools — or correction</div><span class="badge"></span></div>
+      </div>
+    </div>
+
+    <h2>Decision trace</h2>
+    <div class="trace" id="trace"><span class="mut">…</span></div>
+  </div>
+</div>
+
+<script>
+/* ===================================================================
+   Faithful in-browser port of plivo-mirror v4's DETERMINISTIC path.
+   Mirrors: guards/risk_spans.py, guards/speech.py (_reply_is_committal +
+   router order), policy/compiler.py (FORBID/REQUIRE), guards/action.py,
+   runtime/loop.py (review_turn), intervention/correction.py (lines).
+   The grounded verifier and NLI are model-backed in production; here they
+   are driven by the toggles so every branch is explorable.
+=================================================================== */
+
+const COMMIT_WORDS = ["refund","discount","eligible","eligibility","guarantee","guaranteed","waive","waived","free of charge","no charge","promise","approved","approve","cancel","cancellation","reimburse","credit","covered","entitled"];
+const RE_PRICE   = /\$\s?\d[\d,]*(?:\.\d+)?|\b\d[\d,]*(?:\.\d+)?\s?(?:dollars?|usd)\b/ig;
+const RE_PERCENT = /\b\d+(?:\.\d+)?\s?%|\b\d+(?:\.\d+)?\s?percent\b/ig;
+const RE_NUMBER  = /\b\d+(?:\.\d+)?\b/g;
+const RE_COMMIT  = new RegExp("\\b(" + COMMIT_WORDS.map(w=>w.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join("|") + ")\\b","ig");
+const RE_NAME    = /(?<=[a-z,]\s)([A-Z][a-z]{2,}(?:\s[A-Z][a-z]{2,})*)/g;
+const RE_NONCOMMITTAL = /\b(i\s*can'?t|i\s*cannot|i'?m\s+not\s+able|i\s+am\s+not\s+able|i\s+do\s*n'?t|i'?m\s+sorry|i'?m\s+unable|not\s+able\s+to|let\s+me\s+(?:check|confirm|double-?check|make\s+sure))\b/i;
+const RE_COMPLETION = /\b(i'?ve|i have)\s+(placed|submitted|processed|booked|charged|refunded|cancelled|canceled|scheduled)\b|\byour\s+(order|booking|payment|refund|request)\s+(is|has been)\s+(placed|submitted|processed|booked|confirmed|done|cancelled|canceled)\b|\b(all set|it'?s done|that'?s done)\b/i;
+const RE_REFUSAL_ACTION = /\bi\s+(?:will\s+not|won'?t)\s+(place|charge|book|process|submit|refund|cancel)\w*/i;
+
+function overlaps(s,e,taken){ return taken.some(([ts,te]) => !(e<=ts || s>=te)); }
+function tagRiskSpans(text){
+  if(!text) return [];
+  const spans=[], taken=[];
+  const passes=[[RE_COMMIT,"commitment"],[RE_PRICE,"price"],[RE_PERCENT,"percent"],[RE_NUMBER,"number"],[RE_NAME,"name"]];
+  for(const [re,kind] of passes){
+    re.lastIndex=0; let m;
+    while((m=re.exec(text))){
+      const s=m.index, e=m.index+m[0].length;
+      if(!overlaps(s,e,taken)){ taken.push([s,e]); spans.push({text:m[0].trim(),kind,start:s,end:e}); }
+      if(m[0].length===0) re.lastIndex++;
+    }
+  }
+  spans.sort((a,b)=>a.start-b.start);
+  return spans;
+}
+function replyIsCommittal(reply){
+  const r=(reply||"").trim();
+  if(!r) return false;
+  if(RE_NONCOMMITTAL.test(r)) return false;
+  const sentences=r.split(/(?<=[.!?])\s+/).map(s=>s.trim()).filter(Boolean);
+  const declarative=sentences.filter(s=>!s.endsWith("?"));
+  return declarative.length>0;
+}
+// policy/compiler.py — FORBID/REQUIRE directives
+function parsePolicies(text){
+  return (text||"").split("\n").map(l=>l.trim()).filter(l=>l && !l.startsWith("#")).map(l=>{
+    const m=/^(FORBID|REQUIRE):\s*(.+)$/i.exec(l);
+    if(m) return {kind:m[1].toUpperCase(), phrase:m[2].trim(), text:l};
+    return {kind:"VERIFIER", phrase:null, text:l};
+  });
+}
+function runDeterministic(reply, policies){
+  const r=(reply||"");
+  for(const p of policies){
+    if(p.kind==="FORBID" && p.phrase && r.toLowerCase().includes(p.phrase.toLowerCase()))
+      return {decision:"block", reason:`forbidden phrase present: '${p.phrase}'`, policy:p.text};
+    if(p.kind==="REQUIRE" && p.phrase && r.trim() && !r.toLowerCase().includes(p.phrase.toLowerCase()))
+      return {decision:"block", reason:`required disclosure missing: '${p.phrase}'`, policy:p.text};
+  }
+  return null;
+}
+// intervention/correction.py — agent-voice lines
+const CORR = {
+  commitment:"I want to make sure I get this exactly right — let me confirm that before I commit to anything.",
+  price:"Let me double-check that figure before I give you a number.",
+  number:"Let me double-check that figure before I give you a number.",
+  percent:"Let me double-check that figure before I give you a number.",
+  name:"Let me just confirm those details before I continue.",
+  semantic:"Let me make sure I've got your request exactly right before I confirm that.",
+  _default:"Let me make sure I have that right before I say more."
+};
+function correctionForSpans(spans){
+  const kinds=new Set(spans.map(s=>s.kind));
+  for(const k of ["commitment","price","number","percent","name","semantic"]) if(kinds.has(k)) return CORR[k];
+  return CORR._default;
+}
+const RECONFIRM={mismatch:"Before I do that — let me make sure I have your request exactly right. Could you confirm that for me?",
+  authz:"I'm not able to authorize that on this call — let me confirm the details or get the right person to help you.",
+  policy:"I want to be sure that's within what I'm able to do — let me double-check before I go ahead.",
+  incomplete:"Let me actually take care of that for you right now — one moment."};
+const BLOCK_DEFAULT="I'm not able to confirm that here — let me make sure we handle it the right way for you.";
+const ESC_LINE="I want to make sure you're taken care of — let me connect you with someone who can help directly.";
+
+/* ---- the review_turn pipeline, returning a trace of node states ---- */
+function review(inp){
+  const T=[]; // trace lines {cls,txt}
+  const path={}; // nodeId -> 'on'|'pass'|'correct'|'block'|'semantic'|'skip'
+  const set=(id,st)=>{path[id]=st;};
+  const log=(cls,txt)=>T.push({cls,txt});
+
+  ["n_customer","n_extract","n_llm"].forEach(n=>set(n,"on"));
+  const items=inp.items.filter(Boolean);
+  log("mut", `customer: "${inp.customer||"(none)"}"`);
+  log(items.length?"ok":"mut", `extract_state → state.items = [${items.join(", ")||" "}]  intent=${inp.intent||"∅"}`);
+  log("mut", `LLM reply: "${inp.reply}"` + (inp.tool? `   tool: ${inp.tool}(${inp.targs})`:""));
+
+  // ===== SPEECH GUARD =====
+  // 1. deterministic
+  set("n_det","on");
+  const det=runDeterministic(inp.reply, inp.policies);
+  if(det){ set("n_det","block"); log("bad",`✦ deterministic BLOCK — ${det.reason}`);
+    return finish("block","speech · deterministic", det.reason, BLOCK_DEFAULT, path, T, set); }
+  log("ok","deterministic: no FORBID/REQUIRE hit");
+
+  // 2. risk-span tagger
+  set("n_span","on");
+  let spans=tagRiskSpans(inp.reply);
+  let semantic=false;
+  if(spans.length){
+    log("warn",`risk-span tagger → ${spans.length} span(s): ${spans.map(s=>`[${s.kind}:"${s.text}"]`).join(" ")}`);
+    set("n_span","correct");
+    set("n_commit","skip");
+  } else {
+    log("ok","risk-span tagger → no lexical span");
+    // committal gate → NLI
+    set("n_commit","on");
+    const committal=replyIsCommittal(inp.reply);
+    if(!inp.nliOn){ set("n_nli","skip"); set("n_commit","pass");
+      log("mut","NLI tier disabled");
+    } else if(!committal){ set("n_commit","pass"); set("n_nli","skip");
+      log("ok","committal gate: reply is a question/refusal/deferral → NLI skipped (no over-fire)");
+    } else {
+      set("n_commit","on"); set("n_nli","on");
+      log("sem","committal gate: affirmative reply → consult NLI");
+      if(inp.nliContra){ semantic=true; spans=[{text:inp.reply,kind:"semantic"}];
+        set("n_nli","semantic"); log("sem","NLI: CONTRADICTION → synthesize semantic span, route to verifier");
+      } else { set("n_nli","pass"); log("ok","NLI: no contradiction"); }
+    }
+  }
+
+  if(spans.length===0){
+    // zero-latency pass at the gate
+    ["n_conf","n_verifier","n_interv"].forEach(n=>set(n,"skip"));
+    log("ok","→ PASS (no_risk_span) — verifier never consulted (zero added compute)");
+    return runAction(inp, path, T, set, log, "no_risk_span");
+  }
+
+  // 3. confidence gate (inert) then 4. verifier
+  set("n_conf","on"); log("mut","confidence gate: inert (no logprobs) → escalate span to verifier");
+  set("n_verifier","on");
+  if(inp.verSupported){
+    set("n_verifier","pass"); set("n_interv","skip");
+    log("ok","grounded verifier → SUPPORTED → PASS");
+    return runAction(inp, path, T, set, log, "verifier_supported");
+  }
+  // unsupported → correct + intervention
+  set("n_verifier","correct"); set("n_interv","correct");
+  const line=correctionForSpans(spans);
+  const reason = semantic ? "reply contradicts the customer's stated request (NLI→verifier)" : "claim unsupported by state/policy";
+  log("warn",`grounded verifier → UNSUPPORTED → CORRECT`);
+  log(semantic?"sem":"warn",`intervention: deflect first, then regenerate a grounded reply, re-verify`);
+  return finish("correct", semantic?"speech · semantic→verifier":"speech · verifier", reason, line, path, T, set, true);
+}
+
+// ===== ACTION GUARD (only reached when speech passed) =====
+function runAction(inp, path, T, set, log, speechReason){
+  const items=inp.items.filter(Boolean);
+  const hasTool=!!inp.tool;
+  let args={}; try{ args=JSON.parse(inp.targs||"{}"); }catch(e){ args={_raw:inp.targs}; }
+
+  set("n_fc","on");
+  // false completion: claims done, no tool, nothing committed (we model committed=false)
+  if(!hasTool && RE_COMPLETION.test(inp.reply)){
+    set("n_fc","block");
+    log("bad","✦ action BLOCK — false completion: reply claims an action is done with no tool call");
+    return finish("block","action · false_completion","false completion: claims done with no tool call", RECONFIRM.incomplete, path, T, set);
+  }
+  if(!hasTool){
+    set("n_fc","pass"); ["n_mismatch","n_authz","n_valid"].forEach(n=>set(n,"skip"));
+    log("ok",`no tool intent → action guard clear`);
+    return finish("pass","speech · "+speechReason,"released — nothing to fire", null, path, T, set);
+  }
+  log("ok",`false-completion: ok (tool call present)`);
+  // arg vs state
+  set("n_mismatch","on");
+  let mismatch=null;
+  for(const k of Object.keys(args)){
+    if(k in stateMap(inp)){
+      const expected=stateMap(inp)[k];
+      if(JSON.stringify(norm(args[k]))!==JSON.stringify(norm(expected))){ mismatch={k,proposed:args[k],expected}; break; }
+    }
+  }
+  if(mismatch){ set("n_mismatch","block");
+    log("bad",`✦ action BLOCK — tool arg '${mismatch.k}'=${JSON.stringify(mismatch.proposed)} disagrees with confirmed state ${JSON.stringify(mismatch.expected)}`);
+    return finish("block","action · arg_state_mismatch",`arg '${mismatch.k}' disagrees with state`, RECONFIRM.mismatch, path, T, set);
+  }
+  log("ok",`arg↔state: consistent`+(Object.keys(args).length?"":" (zero-argument: reads from state)"));
+  // spoken refuses action
+  if(RE_REFUSAL_ACTION.test(inp.reply)){ set("n_mismatch","block");
+    log("bad","✦ action BLOCK — spoken reply refuses an action that is being fired");
+    return finish("block","action · spoken_action_mismatch","reply refuses an action it's firing", RECONFIRM.mismatch, path, T, set);
+  }
+  set("n_mismatch","pass");
+  // authz (we don't model a service here)
+  set("n_authz","pass"); log("mut","authorization: no gated service configured");
+  // validators — the example's place_order confirmed-order gate
+  set("n_valid","on");
+  if(inp.tool==="place_order" && inp.poGate){
+    if(!items.length || !inp.intent){ set("n_valid","block");
+      log("bad","✦ action BLOCK — place_order with no confirmed items in state (unconfirmed_order)");
+      return finish("block","action · validator(unconfirmed_order)","place_order with no confirmed items/intent", RECONFIRM.policy, path, T, set);
+    }
+    log("ok",`validator: place_order has confirmed items [${items.join(", ")}] ✓`);
+  } else { log("mut","no param/policy validator for this tool"); }
+  set("n_valid","pass");
+  set("n_out","pass");
+  return finish("pass","speech+action · clear","released — reply spoken, tool fires", null, path, T, set, false, items);
+}
+function stateMap(inp){ const m={}; if(inp.items.filter(Boolean).length) m.items=inp.items.filter(Boolean); if(inp.intent) m.intent=inp.intent; return m; }
+function norm(v){ if(Array.isArray(v)) return v.map(x=>String(x).trim().toLowerCase()).sort(); return String(v).trim().toLowerCase(); }
+
+function finish(decision, guard, reason, spokenCorrection, path, T, set, intervened, items){
+  // final output node
+  if(decision==="pass") set("n_out", "pass");
+  else set("n_out", decision);
+  let spoken;
+  if(decision==="pass"){ spoken = `<b>speak:</b> ${escapeHtml(window.__reply||"")}` + (window.__tool? `  ·  <b>fire:</b> ${window.__tool}() ${items&&items.length?`→ {items:[${items.join(", ")}]}`:""}`:""); }
+  else if(decision==="correct"){ spoken = `<b>deflect (spoken first):</b> ${spokenCorrection}<br><span style="color:var(--dim)">then a grounded, regenerated answer (no echo of the flagged value), re-verified before voicing.</span>`; }
+  else { spoken = `<b>blocked.</b> ${window.__escalate && (guard.includes("verifier")||guard.includes("semantic"))? ESC_LINE : spokenCorrection}`; }
+  return {decision, guard, reason, spoken, path, trace:T};
+}
+function escapeHtml(s){ return (s||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c])); }
+
+/* ===================== UI + presets ===================== */
+const DEFAULT_POLICIES = `Never place an order containing items the customer asked to remove.
+If the customer corrects themselves, the final order reflects ONLY the corrected version.
+Never invent menu items, prices, or promotions.
+FORBID: full refund`;
+
+const PRESETS = {
+  "Clean pass (on-menu order)":{customer:"I'll have a veggie wrap.",reply:"One veggie wrap, got it — anything else?",tool:"",targs:"{}",items:"veggie wrap",intent:"veggie wrap",nliOn:true,nliContra:false,verSupported:true,poGate:true},
+  "Hard block — forbidden phrase":{customer:"I want my money back.",reply:"Sure, I'll process a full refund for you right now.",tool:"",targs:"{}",items:"",intent:"",nliOn:true,nliContra:false,verSupported:false,poGate:true},
+  "Empty / premature placement (action block)":{customer:"How much is a turkey sub?",reply:"Your turkey sub order is confirmed and already placed.",tool:"place_order",targs:"{}",items:"",intent:"",nliOn:true,nliContra:false,verSupported:true,poGate:true},
+  "Fabricated price (verifier → correct)":{customer:"How much is the italian sub?",reply:"The italian sub is $8.50.",tool:"",targs:"{}",items:"",intent:"",nliOn:true,nliContra:false,verSupported:false,poGate:true},
+  "Ignored negation (NLI → correct)":{customer:"A club sandwich, no onions.",reply:"Sure, one club sandwich with extra onions coming up.",tool:"",targs:"{}",items:"club sandwich",intent:"club sandwich",nliOn:true,nliContra:true,verSupported:false,poGate:true},
+  "Off-topic — committal gate (over-fire fix)":{customer:"Hey, are you good at jogging?",reply:"I don't have a body, so I don't jog — but I can help with your order.",tool:"",targs:"{}",items:"",intent:"",nliOn:true,nliContra:true,verSupported:false,poGate:true},
+  "False completion (no tool backs it)":{customer:"Did you place it?",reply:"Yes, I've placed your order.",tool:"",targs:"{}",items:"",intent:"",nliOn:true,nliContra:false,verSupported:true,poGate:true},
+  "Tool arg ↔ state mismatch":{customer:"Just a veggie wrap.",reply:"One veggie wrap, placing it now.",tool:"place_order",targs:'{"items":["turkey sub"]}',items:"veggie wrap",intent:"veggie wrap",nliOn:true,nliContra:false,verSupported:true,poGate:true},
+  "Happy path placement (confirmed)":{customer:"Yes, place it.",reply:"Done — your veggie wrap is on the way.",tool:"place_order",targs:"{}",items:"veggie wrap",intent:"veggie wrap",nliOn:true,nliContra:false,verSupported:true,poGate:true},
+};
+const $=id=>document.getElementById(id);
+function loadPreset(name){
+  const p=PRESETS[name]; if(!p) return;
+  $("customer").value=p.customer; $("reply").value=p.reply; $("tool").value=p.tool; $("targs").value=p.targs;
+  $("items").value=p.items; $("intent").value=p.intent; $("facts").value=$("facts").value||"open_until: 9 PM\nwings_per_order: 6";
+  $("policies").value=$("policies").value||DEFAULT_POLICIES;
+  $("nliOn").checked=p.nliOn; $("nliContra").checked=p.nliContra; $("verSupported").checked=p.verSupported; $("poGate").checked=p.poGate;
+}
+function resetNodes(){
+  document.querySelectorAll(".node").forEach(n=>{n.className="node"+(n.classList.contains("semantic")?" semantic":"");n.querySelector(".badge") && (n.querySelector(".badge").textContent="");});
+}
+function run(){
+  window.__reply=$("reply").value; window.__tool=$("tool").value.trim(); window.__escalate=$("escalate").checked;
+  const inp={
+    customer:$("customer").value, reply:$("reply").value, tool:$("tool").value.trim(), targs:$("targs").value.trim()||"{}",
+    items:$("items").value.split(",").map(s=>s.trim()), intent:$("intent").value.trim(),
+    policies:parsePolicies($("policies").value),
+    nliOn:$("nliOn").checked, nliContra:$("nliContra").checked, verSupported:$("verSupported").checked, poGate:$("poGate").checked,
+  };
+  const res=review(inp);
+  // animate
+  resetNodes();
+  const order=["n_customer","n_extract","n_llm","n_det","n_span","n_commit","n_nli","n_conf","n_verifier","n_interv","n_fc","n_mismatch","n_authz","n_valid","n_out"];
+  let i=0;
+  const tr=$("trace"); tr.innerHTML="";
+  (function step(){
+    if(i<order.length){
+      const id=order[i++], st=res.path[id];
+      const el=$(id);
+      if(st){ el.classList.remove("skip"); el.classList.add(st==="on"?"on":st); if(st!=="on"&&st!=="skip"){el.classList.add("on"); const b=el.querySelector(".badge"); if(b&&["pass","correct","block"].includes(st)) b.textContent=st;} if(st==="skip"){el.classList.add("skip");} }
+      else { el.classList.add("skip"); }
+      setTimeout(step,90);
+    } else {
+      // trace
+      res.trace.forEach(l=>{ const s=document.createElement("span"); s.className="ln "+l.cls; s.textContent=l.txt; tr.appendChild(s); });
+      const v=$("verdict"); v.className="verdict "+res.decision;
+      v.innerHTML=`<div class="d">${res.decision}</div><div class="meta">${res.guard} &nbsp;·&nbsp; ${escapeHtml(res.reason)}</div><div class="spoken">${res.spoken}</div>`;
+    }
+  })();
+}
+// init
+const sel=$("preset");
+Object.keys(PRESETS).forEach(n=>{const o=document.createElement("option");o.textContent=n;sel.appendChild(o);});
+$("policies").value=DEFAULT_POLICIES; $("facts").value="open_until: 9 PM\nwings_per_order: 6";
+sel.addEventListener("change",e=>{loadPreset(e.target.value);run();});
+$("runBtn").addEventListener("click",run);
+loadPreset(Object.keys(PRESETS)[0]); run();
+</script>
+</body>
+</html>
