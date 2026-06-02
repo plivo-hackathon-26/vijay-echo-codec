@@ -22,6 +22,8 @@ Run:
 
 from __future__ import annotations
 
+import os
+
 from dotenv import load_dotenv
 from livekit import agents
 from livekit.agents import AgentSession, JobContext, function_tool
@@ -32,6 +34,22 @@ from plivo_mirror.adapters.livekit import SupervisedAgent
 from plivo_mirror.state.entities import validate_item
 
 load_dotenv()
+
+
+def _agent_llm() -> "openai.LLM":
+    """Resolve the agent's LLM the same way the firewall resolves the
+    verifier (single-LLM principle): native Azure vars if present, else an
+    OpenAI-compatible endpoint via ``OPENAI_BASE_URL`` / ``OPENAI_API_URL``
+    (e.g. Azure's ``/openai/v1`` surface). Keeps agent + verifier on one
+    model/endpoint and works across both credential styles."""
+    if os.environ.get("AZURE_OPENAI_API_KEY"):
+        return openai.LLM.with_azure()
+    base_url = os.environ.get("OPENAI_BASE_URL") or os.environ.get("OPENAI_API_URL")
+    return openai.LLM(
+        model=os.environ.get("OPENAI_MODEL", "gpt-4o-mini"),
+        base_url=base_url or None,
+        api_key=os.environ.get("OPENAI_API_KEY"),
+    )
 
 SYSTEM_PROMPT = """You are SandwichBot, a friendly sandwich-shop voice
 agent. Take the order, confirm it, and place it with the place_order tool.
@@ -84,11 +102,17 @@ class SandwichAgent(SupervisedAgent):
 
 
 async def entrypoint(ctx: JobContext) -> None:
+    # ElevenLabs plugin reads ELEVEN_API_KEY; accept the ELEVENLABS_API_KEY
+    # spelling too and pass it explicitly so either env name works.
+    el_key = os.environ.get("ELEVEN_API_KEY") or os.environ.get("ELEVENLABS_API_KEY")
+    el_kw = {"api_key": el_key} if el_key else {}
+    if os.environ.get("ELEVENLABS_VOICE_ID"):
+        el_kw["voice_id"] = os.environ["ELEVENLABS_VOICE_ID"]
     session = AgentSession(
         vad=silero.VAD.load(),
         stt=deepgram.STT(),
-        llm=openai.LLM.with_azure(),
-        tts=elevenlabs.TTS(),
+        llm=_agent_llm(),
+        tts=elevenlabs.TTS(**el_kw),
     )
     await session.start(agent=SandwichAgent(), room=ctx.room)
 
