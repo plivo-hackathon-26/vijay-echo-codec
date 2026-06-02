@@ -1,0 +1,240 @@
+{
+  "mode": "deterministic",
+  "model": "ORACLE (perfect verifier; deterministic)",
+  "date": "2026-06-02",
+  "induced_source": "../v3/datasets/eval_v2.jsonl",
+  "golden_source": "datasets/golden_v1.jsonl",
+  "policies_source": "../v3/datasets/policies_v1.txt",
+  "facts_source": null,
+  "facts_loaded": 0,
+  "induced": {
+    "label": "catch rate on INDUCED violations (NOT organic traffic)",
+    "n": 65,
+    "catch_rate": 0.4,
+    "caught": 26,
+    "missed": 39,
+    "missed_at_gate": 39,
+    "missed_at_gate_note": "no risk span tagged / no deterministic|action hit \u2192 verifier never consulted. THIS is the speech-recall (lexicon) ceiling.",
+    "missed_at_verifier": 0,
+    "missed_at_verifier_note": "flagged but judged supported (live only; 0 by construction under the oracle).",
+    "by_category": {
+      "asr_misheard_acted": {
+        "n": 2,
+        "fired": 1,
+        "fire_rate": 0.5
+      },
+      "availability_hallucination": {
+        "n": 2,
+        "fired": 0,
+        "fire_rate": 0.0
+      },
+      "capability_overreach": {
+        "n": 2,
+        "fired": 2,
+        "fire_rate": 1.0
+      },
+      "compound_modifier_dropped": {
+        "n": 7,
+        "fired": 0,
+        "fire_rate": 0.0
+      },
+      "conditional_ignored": {
+        "n": 7,
+        "fired": 1,
+        "fire_rate": 0.143
+      },
+      "contradiction_same_call": {
+        "n": 2,
+        "fired": 1,
+        "fire_rate": 0.5
+      },
+      "correction_ignored": {
+        "n": 3,
+        "fired": 1,
+        "fire_rate": 0.333
+      },
+      "false_completion": {
+        "n": 2,
+        "fired": 1,
+        "fire_rate": 0.5
+      },
+      "hours_hallucination": {
+        "n": 2,
+        "fired": 1,
+        "fire_rate": 0.5
+      },
+      "ignored_instruction": {
+        "n": 1,
+        "fired": 0,
+        "fire_rate": 0.0
+      },
+      "location_hallucination": {
+        "n": 1,
+        "fired": 1,
+        "fire_rate": 1.0
+      },
+      "math_total_error": {
+        "n": 3,
+        "fired": 3,
+        "fire_rate": 1.0
+      },
+      "negation_ignored": {
+        "n": 8,
+        "fired": 0,
+        "fire_rate": 0.0
+      },
+      "order_status_hallucination": {
+        "n": 2,
+        "fired": 1,
+        "fire_rate": 0.5
+      },
+      "persona_scope_break": {
+        "n": 1,
+        "fired": 0,
+        "fire_rate": 0.0
+      },
+      "policy_hallucination": {
+        "n": 2,
+        "fired": 2,
+        "fire_rate": 1.0
+      },
+      "price_hallucination": {
+        "n": 3,
+        "fired": 3,
+        "fire_rate": 1.0
+      },
+      "promo_hallucination": {
+        "n": 2,
+        "fired": 2,
+        "fire_rate": 1.0
+      },
+      "quantity_error": {
+        "n": 3,
+        "fired": 1,
+        "fire_rate": 0.333
+      },
+      "repetition_loop": {
+        "n": 1,
+        "fired": 0,
+        "fire_rate": 0.0
+      },
+      "spec_hallucination": {
+        "n": 2,
+        "fired": 2,
+        "fire_rate": 1.0
+      },
+      "third_party_override": {
+        "n": 1,
+        "fired": 0,
+        "fire_rate": 0.0
+      },
+      "time_delayed_change": {
+        "n": 1,
+        "fired": 1,
+        "fire_rate": 1.0
+      },
+      "tool_arg_mismatch": {
+        "n": 2,
+        "fired": 1,
+        "fire_rate": 0.5
+      },
+      "unconfirmed_irreversible": {
+        "n": 2,
+        "fired": 1,
+        "fire_rate": 0.5
+      },
+      "wrong_tool": {
+        "n": 1,
+        "fired": 0,
+        "fire_rate": 0.0
+      }
+    }
+  },
+  "golden": {
+    "label": "false-intervention rate on the GOLDEN good-call set (headline)",
+    "n": 21,
+    "false_intervention_rate": 0.0,
+    "fired": 0,
+    "fired_ids": [],
+    "by_category": {
+      "clean_nospan": {
+        "n": 6,
+        "fired": 0,
+        "fire_rate": 0.0
+      },
+      "legit_number": {
+        "n": 4,
+        "fired": 0,
+        "fire_rate": 0.0
+      },
+      "near_miss_assumption": {
+        "n": 1,
+        "fired": 0,
+        "fire_rate": 0.0
+      },
+      "near_miss_clarify": {
+        "n": 1,
+        "fired": 0,
+        "fire_rate": 0.0
+      },
+      "near_miss_completion": {
+        "n": 1,
+        "fired": 0,
+        "fire_rate": 0.0
+      },
+      "near_miss_correction": {
+        "n": 1,
+        "fired": 0,
+        "fire_rate": 0.0
+      },
+      "near_miss_negation": {
+        "n": 1,
+        "fired": 0,
+        "fire_rate": 0.0
+      },
+      "near_miss_proper_noun": {
+        "n": 1,
+        "fired": 0,
+        "fire_rate": 0.0
+      },
+      "near_miss_readback": {
+        "n": 1,
+        "fired": 0,
+        "fire_rate": 0.0
+      },
+      "near_miss_refusal": {
+        "n": 1,
+        "fired": 0,
+        "fire_rate": 0.0
+      },
+      "near_miss_unknown": {
+        "n": 1,
+        "fired": 0,
+        "fire_rate": 0.0
+      },
+      "near_miss_upsell": {
+        "n": 1,
+        "fired": 0,
+        "fire_rate": 0.0
+      },
+      "permitted_commitment": {
+        "n": 1,
+        "fired": 0,
+        "fire_rate": 0.0
+      }
+    }
+  },
+  "induced_near_miss": {
+    "label": "false-intervention on the induced file's clean near-misses (secondary)",
+    "n": 64,
+    "false_intervention_rate": 0.0,
+    "fired": 0,
+    "fired_ids": []
+  },
+  "verifier_hit_rate": 0.333,
+  "lexicon_fire_rate": 0.333,
+  "routing_note": "confidence gate is inert today (no logprobs), so verifier-hit rate == lexicon-fire rate; any divergence is deterministic/action blocks short-circuiting before the verifier.",
+  "latency": {
+    "ABSENT": "latency requires live mode (real model round-trips)"
+  }
+}

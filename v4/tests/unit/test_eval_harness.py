@@ -16,6 +16,7 @@ _GOLD = _DATASETS / "golden_v1.jsonl"
 _FACTS = _DATASETS / "facts_v1.json"
 _POLICIES = _V3 / "policies_v1.txt"
 _INDUCED = _V3 / "eval_v1.jsonl"
+_INDUCED_V2 = _V3 / "eval_v2.jsonl"  # the wider 100+-case set
 
 
 def test_datasets_present_and_labeled():
@@ -78,6 +79,36 @@ async def test_deterministic_scorecard_records_facts_source():
     # structural invariants (facts only move LIVE-mode FPs). Lock that here so
     # the deterministic CI numbers stay honest about what facts do and don't do.
     assert sc["induced"]["missed_at_verifier"] == 0
+
+
+async def test_eval_v2_wired_and_semantic_gate_gap_is_real():
+    # CLAUDE.md: the regression suite wires to BOTH eval_v1 and eval_v2. This
+    # locks the wider 65-violation ruler in CI (deterministic, no LLM) and
+    # records the structural fact the NLI lever exists to fix: the lexicon
+    # gate leaves the pure semantic-contradiction categories unrouted.
+    induced = load_cases(_INDUCED_V2)
+    violations = [c for c in induced if c.expected_intervene]
+    assert len(violations) >= 60  # grown set, not the 16-case eval_v1
+
+    sc = await evaluate(
+        induced_path=str(_INDUCED_V2),
+        golden_path=str(_GOLD),
+        policies_path=str(_POLICIES),
+        mode="deterministic",
+    )
+    ind = sc["induced"]
+    # oracle invariant still holds on the wider set
+    assert ind["missed_at_verifier"] == 0
+    assert ind["caught"] + ind["missed_at_gate"] == ind["n"]
+    # the semantic categories the gate cannot see (NLI targets) stay near-zero
+    # fire under a PERFECT verifier — proving the gap is structural (the gate),
+    # not the judge. If a future gate change starts routing these, this test
+    # SHOULD be updated to reflect the new (higher) ceiling.
+    by_cat = ind["by_category"]
+    for cat in ("compound_modifier_dropped", "negation_ignored"):
+        d = by_cat.get(cat, {})
+        assert d.get("n", 0) >= 5  # the grown coverage is present
+        assert d.get("fired", 0) == 0  # lexicon-invisible today
 
 
 async def test_clean_nospan_golden_cases_never_fire_deterministic():
