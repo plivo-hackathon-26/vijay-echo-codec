@@ -67,6 +67,9 @@ class NoSemanticSignal:
     ) -> SemanticResult:
         return SemanticResult(contradiction=False)
 
+    def contradicts_any(self, premises: list[str], hypothesis: str) -> SemanticResult:
+        return SemanticResult(contradiction=False)
+
 
 class NLICrossEncoderSignal:
     """Default real impl: a local cross-encoder NLI model (default a
@@ -145,22 +148,41 @@ class NLICrossEncoderSignal:
 
         import torch  # local: only when the model is actually loaded
 
+        return self.contradicts_any([premise], hypothesis)
+
+    def contradicts_any(self, premises: list[str], hypothesis: str) -> SemanticResult:
+        """Batched fast-path: score MANY premises against ONE hypothesis in a
+        single forward pass, returning the highest-contradiction premise. The
+        speech guard hands all of a turn's premises (the customer turn + the
+        relevant known facts) here at once, so a committal turn costs ONE
+        inference instead of one-per-premise — the latency fix."""
+        hyp = (hypothesis or "").strip()
+        prems = [p.strip() for p in (premises or []) if p and p.strip()]
+        if not hyp or not prems:
+            return SemanticResult(contradiction=False, hypothesis=hyp)
+        if not self._ensure_loaded():
+            return SemanticResult(contradiction=False, hypothesis=hyp)
+
+        import torch  # local: only when the model is actually loaded
+
         with torch.no_grad():
             inputs = self._tok(
-                premise,
-                hypothesis,
+                prems,
+                [hyp] * len(prems),
                 truncation=True,
                 max_length=self.max_length,
+                padding=True,
                 return_tensors="pt",
             )
-            logits = self._model(**inputs).logits[0]
-            probs = torch.softmax(logits, dim=-1)
-            score = float(probs[self._contra_idx])
+            probs = torch.softmax(self._model(**inputs).logits, dim=-1)
+            scores = probs[:, self._contra_idx]  # (N,)
+            best = int(torch.argmax(scores))
+            score = float(scores[best])
         return SemanticResult(
             contradiction=score >= self.threshold,
             score=score,
-            premise=premise,
-            hypothesis=hypothesis,
+            premise=prems[best],
+            hypothesis=hyp,
         )
 
 

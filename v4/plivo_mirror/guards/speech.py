@@ -129,19 +129,25 @@ class SpeechGuard:
 
     def _semantic_contradiction(self, context: TurnContext, reply: str) -> bool:
         """True if the reply contradicts (a) the customer's stated request, or
-        (b) a code-owned KNOWN FACT — either one routes the turn to the
-        verifier. (b) is the fact-hallucination lever: fabricated hours /
-        availability / policy with no number or commitment word."""
-        # (a) reply vs the customer's stated request
-        if self._semantic.contradicts(
-            context.customer_text, reply, state=context.state
-        ).contradiction:
-            return True
-        # (b) reply vs each relevant known fact (token-overlap pre-filtered)
-        for fact in _relevant_facts(reply, context.state):
-            if self._semantic.contradicts(fact, reply, state=context.state).contradiction:
-                return True
-        return False
+        (b) a code-owned KNOWN FACT — either routes the turn to the verifier.
+        (b) is the fact-hallucination lever (fabricated hours/availability/
+        policy with no number or commitment word).
+
+        All premises (the customer turn + the top relevant facts) are scored in
+        ONE batched NLI pass when the signal supports it, so a committal turn
+        costs a single inference, not one-per-premise. Facts are capped at the
+        2 highest-overlap ones (latency + focus)."""
+        premises = [context.customer_text] + _relevant_facts(
+            reply, context.state, cap=2
+        )
+        sig = self._semantic
+        if hasattr(sig, "contradicts_any"):
+            return sig.contradicts_any(premises, reply).contradiction
+        # fallback for signals that only implement the single-pair API
+        return any(
+            sig.contradicts(p, reply, state=context.state).contradiction
+            for p in premises
+        )
 
     async def inspect(self, context: TurnContext) -> Verdict:
         reply = context.planned_reply or ""

@@ -195,6 +195,13 @@ class _TimingSemantic:
         self.calls += 1
         return r
 
+    def contradicts_any(self, premises, hypothesis):
+        t = time.perf_counter()
+        r = self._inner.contradicts_any(premises, hypothesis)
+        self.ms += (time.perf_counter() - t) * 1000.0
+        self.calls += 1
+        return r
+
 
 # ─────────────────────────── per-case result ─────────────────────────
 
