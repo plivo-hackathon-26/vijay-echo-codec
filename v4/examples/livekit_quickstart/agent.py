@@ -29,11 +29,17 @@ from livekit import agents
 from livekit.agents import AgentSession, JobContext, function_tool
 from livekit.plugins import deepgram, elevenlabs, openai, silero
 
-from plivo_mirror import Firewall
+from plivo_mirror import Firewall, NLICrossEncoderSignal
 from plivo_mirror.adapters.livekit import SupervisedAgent
+from plivo_mirror.contracts import Verdict
 from plivo_mirror.state.entities import validate_item
 
 load_dotenv()
+
+# HuggingFace reads HF_TOKEN; accept the HF_API_KEY spelling too so the NLI
+# model download authenticates regardless of which name is in .env.
+if os.environ.get("HF_API_KEY") and not os.environ.get("HF_TOKEN"):
+    os.environ["HF_TOKEN"] = os.environ["HF_API_KEY"]
 
 
 def _agent_llm() -> "openai.LLM":
@@ -65,10 +71,35 @@ POLICIES = [
 
 MENU = {"turkey sub", "veggie wrap", "italian sub", "meatball sub", "club sandwich"}
 
+
+def _require_confirmed_order(intent, state) -> "Verdict | None":
+    """Action-guard gate: block ``place_order`` unless the order is real —
+    validated items exist in state AND an intent was confirmed. Stops the
+    agent from 'placing' an empty cart or committing off a price question
+    (the irreversible-action defense; business rule lives in CODE)."""
+    if not state.entity_value("items") or not state.confirmed_intent:
+        return Verdict.block(
+            reason="place_order with no confirmed items in state",
+            policy_id="unconfirmed_order",
+        )
+    return None
+
+
 # One firewall per process. The grounded verifier ("last model for
 # intervening") is auto-wired from env; pass verifier=... or model=... to
-# configure it explicitly.
-firewall = Firewall.from_env(policies=POLICIES)
+# configure it explicitly. The semantic tier (NLI) routes lexically-invisible
+# contradictions to the verifier; the action validator gates irreversible
+# placement.
+_nli = NLICrossEncoderSignal()
+firewall = Firewall.from_env(
+    policies=POLICIES,
+    semantic_signal=_nli,
+    validators={"place_order": [_require_confirmed_order]},
+)
+
+# Pre-load the NLI model at startup (~10s) so the FIRST live turn doesn't
+# stall on a cold model load. No-op if the optional dependency is missing.
+_nli.contradicts("warm", "up")
 
 
 class SandwichAgent(SupervisedAgent):
