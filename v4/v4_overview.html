@@ -274,16 +274,19 @@ function light(id,cls,txt){const n=document.getElementById(id);n.classList.add('
 let running=false;
 async function seq(steps){if(running)return;running=true;clearLit();for(const[id,cls,txt,d]of steps){light(id,cls,txt);await new Promise(r=>setTimeout(r,d||650));}running=false;}
 document.getElementById('playClean').onclick=()=>seq([
- ['n_caller','', '📞 Caller: "I\'ll have a veggie wrap, no onions."'],
+ ['n_caller','', '📞 Caller: "yes, a large veggie wrap — place it"'],
  ['n_stt','', 'Speech → text'],
- ['n_ground','', 'Validate "veggie wrap" + "no onions" → SESSION STATE (outside the model)'],
- ['n_state','', 'State now holds the truth'],
- ['n_llm','', 'Agent drafts: "One veggie wrap, no onions — anything else?"'],
- ['s_det','', 'Speech guard: no forbidden phrase'],
- ['s_span','pass', 'No risky span — clean, ~0 ms'],
- ['n_verdict','pass', 'VERDICT: pass'],
- ['n_tts','pass', 'Speak the reply + fire tools (zero-arg)'],
- ['n_safe','pass', '✓ Caller hears the correct reply — no added latency'],
+ ['n_ground','', 'Validate "large veggie wrap" → SESSION STATE (outside the model)'],
+ ['n_state','', 'Truth pinned: items = [large veggie wrap], intent confirmed'],
+ ['n_llm','', 'Agent: "Placing your large veggie wrap now." + place_order()'],
+ ['s_det','pass', 'Speech guard FIRST — no forbidden phrase'],
+ ['s_span','pass', 'No risky span — SPEECH GUARD PASSES (~0 ms)'],
+ ['a_fc','pass', 'Speech passed → action guard now checks the tool call'],
+ ['a_arg','pass', 'Arg ↔ state: matches the confirmed order ✓'],
+ ['a_val','pass', 'Validators pass · tool fires ZERO-ARG (reads items from state, not the model)'],
+ ['n_verdict','pass', 'VERDICT: pass — BOTH boundaries clear'],
+ ['n_tts','pass', 'Speak the reply + the order is placed'],
+ ['n_safe','pass', '✓ Correct words spoken, correct order placed — no added latency'],
 ]);
 document.getElementById('playFlag').onclick=()=>seq([
  ['n_caller','', '📞 Caller: "just a large mushroom"'],
