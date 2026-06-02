@@ -176,6 +176,26 @@ class _CountingVerifier:
         return await self._inner.verify(claim, evidence)
 
 
+class _TimingSemantic:
+    """Wraps the semantic (NLI) signal to count invocations + time spent, so
+    the harness can isolate the NLI tier's latency — the only guard tier that
+    runs on CLEAN turns (the latency-tradeoff question). ``contradicts`` may be
+    called several times per turn (customer check + each known-fact check), so
+    ``ms`` accumulates the total NLI time for the turn."""
+
+    def __init__(self, inner: Any) -> None:
+        self._inner = inner
+        self.calls = 0
+        self.ms = 0.0
+
+    def contradicts(self, customer_text, reply, *, state=None):
+        t = time.perf_counter()
+        r = self._inner.contradicts(customer_text, reply, state=state)
+        self.ms += (time.perf_counter() - t) * 1000.0
+        self.calls += 1
+        return r
+
+
 # ─────────────────────────── per-case result ─────────────────────────
 
 
@@ -189,6 +209,8 @@ class CaseResult:
     review_ms: float
     first_audio_ms: float | None = None
     corrected_ms: float | None = None
+    nli_ms: float = 0.0
+    nli_calls: int = 0
 
 
 async def _run_case(
@@ -201,9 +223,17 @@ async def _run_case(
     if isinstance(verifier_counter, OracleVerifier):
         verifier_counter.set_case(case.expected_intervene)
 
+    sem_timer = getattr(firewall.speech_guard, "_semantic", None)
+    if isinstance(sem_timer, _TimingSemantic):
+        sem_timer.calls = 0
+        sem_timer.ms = 0.0
+
     t0 = time.perf_counter()
     verdict: Verdict = await firewall.review_turn(ctx)
     review_ms = (time.perf_counter() - t0) * 1000.0
+
+    nli_ms = sem_timer.ms if isinstance(sem_timer, _TimingSemantic) else 0.0
+    nli_calls = sem_timer.calls if isinstance(sem_timer, _TimingSemantic) else 0
 
     fired = verdict.intervened
     verifier_hit = verifier_counter.calls > 0
@@ -232,6 +262,8 @@ async def _run_case(
         review_ms=review_ms,
         first_audio_ms=first_audio_ms,
         corrected_ms=corrected_ms,
+        nli_ms=nli_ms,
+        nli_calls=nli_calls,
     )
 
 
@@ -287,7 +319,7 @@ async def evaluate(
     if nli:
         from plivo_mirror.guards.semantic import NLICrossEncoderSignal
 
-        semantic_signal = NLICrossEncoderSignal(nli_model, threshold=nli_threshold)
+        semantic_signal = _TimingSemantic(NLICrossEncoderSignal(nli_model, threshold=nli_threshold))
     induced = load_cases(induced_path)
     golden = load_cases(golden_path)
     if limit:
@@ -409,13 +441,28 @@ async def evaluate(
         "any divergence is deterministic/action blocks short-circuiting before the verifier."
     )
 
-    # ── latency (live only) ──
+    # ── latency (live only) — the tradeoff question ──
     if mode == "live":
         clean = [r for r in all_results if not r.fired]
         flagged = [r for r in all_results if r.fired]
+        # On a CLEAN turn, review_ms IS the firewall's added compute (the turn
+        # passes, so all of it is overhead). Split by whether the NLI tier ran:
+        #   - fast-path: lexical pass / non-committal → NLI never ran (~0 ms)
+        #   - nli-clean: committal clean turn → NLI ran (the real tradeoff)
+        clean_fast = [r for r in clean if r.nli_calls == 0]
+        clean_nli = [r for r in clean if r.nli_calls > 0]
         scorecard["latency"] = {
-            "note": "verifier+regeneration latency; TTS adds ~250-500ms on top (not included).",
-            "time_to_first_audio_clean": _percentiles([r.first_audio_ms for r in clean]),
+            "note": (
+                "ADDED guard compute, ms. On clean turns review_ms = pure overhead. "
+                "The deterministic+lexical layer is ~0ms; the NLI tier is the only "
+                "tier that runs on clean turns (verifier/regen run only on flagged "
+                "turns and are covered by the deflection filler). TTS adds "
+                "~250-500ms on top, not included."
+            ),
+            "clean_fastpath_added_ms": _percentiles([r.review_ms for r in clean_fast]),
+            "clean_with_nli_added_ms": _percentiles([r.review_ms for r in clean_nli]),
+            "nli_tier_ms_per_turn": _percentiles([r.nli_ms for r in clean_nli]),
+            "nli_ran_on_clean": f"{len(clean_nli)}/{len(clean)} clean turns ran the NLI tier",
             "time_to_first_audio_flagged": _percentiles([r.first_audio_ms for r in flagged]),
             "time_to_corrected_answer_flagged": _percentiles([r.corrected_ms for r in flagged]),
         }
@@ -469,9 +516,13 @@ def format_report(sc: dict[str, Any]) -> str:
         L.append(f"  ABSENT — {lat['ABSENT']}")
     else:
         L.append(f"  {lat['note']}")
-        for k in ("time_to_first_audio_clean", "time_to_first_audio_flagged", "time_to_corrected_answer_flagged"):
-            v = lat[k]
-            L.append(f"    {k:<34} {v if v else 'n/a'}")
+        if lat.get("nli_ran_on_clean"):
+            L.append(f"    {lat['nli_ran_on_clean']}")
+        for k in ("clean_fastpath_added_ms", "clean_with_nli_added_ms", "nli_tier_ms_per_turn",
+                  "time_to_first_audio_flagged", "time_to_corrected_answer_flagged"):
+            if k in lat:
+                v = lat[k]
+                L.append(f"    {k:<34} {v if v else 'n/a'}")
     L.append("=" * 66)
     return "\n".join(L)
 

@@ -11,12 +11,12 @@
   "induced": {
     "label": "catch rate on INDUCED violations (NOT organic traffic)",
     "n": 65,
-    "catch_rate": 0.677,
-    "caught": 44,
-    "missed": 21,
+    "catch_rate": 0.646,
+    "caught": 42,
+    "missed": 23,
     "missed_at_gate": 19,
     "missed_at_gate_note": "no risk span tagged / no deterministic|action hit \u2192 verifier never consulted. THIS is the speech-recall (lexicon) ceiling.",
-    "missed_at_verifier": 2,
+    "missed_at_verifier": 4,
     "missed_at_verifier_note": "flagged but judged supported (live only; 0 by construction under the oracle).",
     "by_category": {
       "asr_misheard_acted": {
@@ -76,8 +76,8 @@
       },
       "math_total_error": {
         "n": 3,
-        "fired": 2,
-        "fire_rate": 0.667
+        "fired": 1,
+        "fire_rate": 0.333
       },
       "negation_ignored": {
         "n": 8,
@@ -101,8 +101,8 @@
       },
       "price_hallucination": {
         "n": 3,
-        "fired": 3,
-        "fire_rate": 1.0
+        "fired": 2,
+        "fire_rate": 0.667
       },
       "promo_hallucination": {
         "n": 2,
@@ -154,10 +154,9 @@
   "golden": {
     "label": "false-intervention rate on the GOLDEN good-call set (headline)",
     "n": 21,
-    "false_intervention_rate": 0.19,
-    "fired": 4,
+    "false_intervention_rate": 0.143,
+    "fired": 3,
     "fired_ids": [
-      "correction_handled_01",
       "legit_orderid_01",
       "readback_total_01",
       "confirmed_irreversible_01"
@@ -190,8 +189,8 @@
       },
       "near_miss_correction": {
         "n": 1,
-        "fired": 1,
-        "fire_rate": 1.0
+        "fired": 0,
+        "fire_rate": 0.0
       },
       "near_miss_negation": {
         "n": 1,
@@ -233,37 +232,49 @@
   "induced_near_miss": {
     "label": "false-intervention on the induced file's clean near-misses (secondary)",
     "n": 64,
-    "false_intervention_rate": 0.109,
-    "fired": 7,
+    "false_intervention_rate": 0.125,
+    "fired": 8,
     "fired_ids": [
-      "time_delayed_change_handled_01",
       "capability_refusal_02",
       "correct_change_01",
       "confirmed_irreversible_02",
       "honest_completion_01",
       "no_contradiction_01",
-      "upsell_normal_01"
+      "clarifying_question_01",
+      "upsell_normal_01",
+      "conditional_handled_06"
     ]
   },
   "verifier_hit_rate": 0.54,
   "lexicon_fire_rate": 0.333,
   "routing_note": "confidence gate is inert today (no logprobs), so verifier-hit rate == lexicon-fire rate; any divergence is deterministic/action blocks short-circuiting before the verifier.",
   "latency": {
-    "note": "verifier+regeneration latency; TTS adds ~250-500ms on top (not included).",
-    "time_to_first_audio_clean": {
-      "p50_ms": 1136.4,
-      "p95_ms": 2967.0,
-      "n": 95
+    "note": "ADDED guard compute, ms. On clean turns review_ms = pure overhead. The deterministic+lexical layer is ~0ms; the NLI tier is the only tier that runs on clean turns (verifier/regen run only on flagged turns and are covered by the deflection filler). TTS adds ~250-500ms on top, not included.",
+    "clean_fastpath_added_ms": {
+      "p50_ms": 0.1,
+      "p95_ms": 1509.6,
+      "n": 45
     },
+    "clean_with_nli_added_ms": {
+      "p50_ms": 1693.3,
+      "p95_ms": 3028.9,
+      "n": 52
+    },
+    "nli_tier_ms_per_turn": {
+      "p50_ms": 1412.0,
+      "p95_ms": 2577.4,
+      "n": 52
+    },
+    "nli_ran_on_clean": "52/97 clean turns ran the NLI tier",
     "time_to_first_audio_flagged": {
-      "p50_ms": 1481.7,
-      "p95_ms": 2892.1,
-      "n": 55
+      "p50_ms": 1286.4,
+      "p95_ms": 2940.6,
+      "n": 53
     },
     "time_to_corrected_answer_flagged": {
-      "p50_ms": 3944.6,
-      "p95_ms": 7304.9,
-      "n": 55
+      "p50_ms": 4281.9,
+      "p95_ms": 7334.8,
+      "n": 53
     }
   }
 }
