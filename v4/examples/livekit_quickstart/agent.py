@@ -102,9 +102,17 @@ firewall = Firewall.from_env(
 _nli.contradicts("warm", "up")
 
 
+_SPECULATIVE = os.environ.get("MIRROR_SPECULATIVE", "").lower() in ("1", "true", "yes")
+
+
 class SandwichAgent(SupervisedAgent):
     def __init__(self) -> None:
-        super().__init__(firewall=firewall, instructions=SYSTEM_PROMPT)
+        # MIRROR_SPECULATIVE=1 → run the NLI tier OFF the first-audio path on
+        # lexically-clean, no-tool turns (snappier; corrects-after instead of
+        # prevents on those turns). Default off = fully synchronous (prevents).
+        super().__init__(
+            firewall=firewall, instructions=SYSTEM_PROMPT, speculative=_SPECULATIVE
+        )
 
     async def extract_state(self, customer_text: str) -> None:
         """Validate any on-menu items out of the caller's utterance and

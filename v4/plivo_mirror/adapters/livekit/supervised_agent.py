@@ -44,6 +44,8 @@ from livekit.agents.voice.agent import ModelSettings
 
 from plivo_mirror.contracts import ToolCallIntent, TurnContext
 from plivo_mirror.firewall import Firewall
+from plivo_mirror.guards.deterministic import run_deterministic
+from plivo_mirror.guards.risk_spans import tag_risk_spans
 from plivo_mirror.runtime.escalation import build_handoff
 from plivo_mirror.runtime.grounding import (
     build_grounding_block,
@@ -72,11 +74,22 @@ class SupervisedAgent(Agent):
         *,
         firewall: Firewall,
         grounding_channel: str = "system",
+        speculative: bool = False,
         **kw: Any,
     ) -> None:
         super().__init__(**kw)
         self._firewall = firewall
         self._grounding_channel = grounding_channel
+        # Speculative-NLI mode (opt-in): on a lexically-clean, NO-TOOL turn,
+        # release the reply to TTS IMMEDIATELY and run the expensive NLI tier
+        # (+ verifier) OFF the first-audio path, emitting a correction only if
+        # it fires. This removes the ~0.9s NLI cost from perceived latency
+        # while keeping the precise large model. TRADEOFF: a semantic/fact
+        # violation on such a turn is spoken-then-corrected rather than
+        # prevented — so it's opt-in, and never applies to tool calls,
+        # lexically-risky spans (numbers/commitments), or deterministic hits,
+        # which stay fully synchronous (prevented before voicing).
+        self._speculative = speculative
         self._last_customer_text = ""
         self._pending_reinject = ""  # persona summary to inject NEXT turn
         self._init_call_state()
@@ -171,7 +184,7 @@ class SupervisedAgent(Agent):
                 yield c
             return
 
-        # 4. Dual-boundary review.
+        # 4. Build the per-turn context.
         # NOTE (confidence signal): we do NOT populate ctx.logprobs here.
         # LiveKit's llm_node streams ChatChunks without token logprobs, and
         # the Azure gpt-5-mini agent model does not expose them. So the
@@ -185,6 +198,71 @@ class SupervisedAgent(Agent):
             tool_intents=tool_intents,
             customer_text=self._last_customer_text,
         )
+
+        def _on_escalate(handoff):
+            log.info("🛡  Mirror v4 escalation: %s", handoff.reason)
+            # Hand `handoff.as_briefing()` to your transfer/SIP path here.
+
+        # 5. Persona guard (cheap, no LLM) — runs up front on every path so a
+        #    tone/length escalation pre-empts both review modes.
+        signal = self._persona.observe_turn(
+            customer_text=self._last_customer_text, agent_text=full_text
+        )
+        if signal.escalate:
+            handoff = build_handoff(self._state, signal.reason)
+            log.info("🛡  Mirror v4 escalation: %s", signal.reason)
+            self._state.note_spoken("Let me bring in a specialist who can help.")
+            yield (
+                "I want to make sure you're taken care of — let me connect you "
+                "with someone who can help directly."
+            )
+            _ = handoff
+            return
+        if signal.reinject:
+            self._pending_reinject = signal.reinject_text
+
+        # 6. Speculative-NLI fast path (opt-in). On a lexically-clean, NO-TOOL,
+        #    non-deterministic-hit turn, the only expensive work left is the
+        #    NLI tier (+ verifier). Release the reply to TTS NOW and run that
+        #    OFF the first-audio path; emit a correction only if it fires. This
+        #    removes the ~0.9s NLI cost from perceived latency. TRADEOFF: such a
+        #    turn is corrected-after rather than prevented. Never applies to
+        #    tool calls / lexical risk spans / deterministic hits (those stay
+        #    fully synchronous below = prevented before voicing).
+        if (
+            self._speculative
+            and not tool_intents
+            and not tag_risk_spans(full_text)
+            and run_deterministic(ctx) is None
+        ):
+            self._state.note_spoken(full_text)
+            for c in buffered:
+                yield c
+            try:
+                verdict = await self._firewall.review_turn(ctx)
+            except Exception:
+                log.warning("Mirror speculative review failed (reply already released)", exc_info=True)
+                return
+            log.info(
+                "🛡  Mirror v4 [speculative] %s  reason=%s",
+                verdict.decision,
+                (verdict.reason or "")[:120],
+            )
+            if verdict.intervened:
+                if self._state.confirmed_intent:
+                    self._intent.hold(self._state.confirmed_intent, turns=3)
+                try:
+                    async for chunk in self._firewall.intervene_stream(
+                        verdict, ctx, on_escalate=_on_escalate
+                    ):
+                        self._state.note_spoken(chunk)
+                        yield chunk
+                except Exception:
+                    log.warning("speculative intervention stream failed", exc_info=True)
+            return
+
+        # 7. Synchronous dual-boundary review (default): review BEFORE voicing,
+        #    so a violation is prevented rather than corrected-after.
         try:
             verdict = await self._firewall.review_turn(ctx)
         except Exception:
@@ -199,26 +277,7 @@ class SupervisedAgent(Agent):
             (verdict.reason or "")[:120],
         )
 
-        # 5. Persona guard — re-injection / escalation.
-        signal = self._persona.observe_turn(
-            customer_text=self._last_customer_text, agent_text=full_text
-        )
-        if signal.escalate:
-            handoff = build_handoff(self._state, signal.reason)
-            log.info("🛡  Mirror v4 escalation: %s", signal.reason)
-            self._state.note_spoken("Let me bring in a specialist who can help.")
-            yield (
-                "I want to make sure you're taken care of — let me connect you "
-                "with someone who can help directly."
-            )
-            # Hand `handoff.as_briefing()` to your transfer/SIP path here.
-            _ = handoff
-            return
-        if signal.reinject:
-            # Apply the persona-prompt summary on the NEXT turn's injection.
-            self._pending_reinject = signal.reinject_text
-
-        # 6. Act.
+        # 8. Act.
         if not verdict.intervened:
             self._state.note_spoken(full_text)
             for c in buffered:
@@ -227,14 +286,9 @@ class SupervisedAgent(Agent):
 
         # Regeneration loop, STREAMED: the deflection filler is yielded to
         # TTS FIRST (it derives from the verdict and needs no LLM), then the
-        # grounded answer is awaited and yielded — so the filler is already
-        # being spoken while regeneration runs. Original tool calls dropped.
+        # grounded answer is awaited and yielded. Original tool calls dropped.
         if self._state.confirmed_intent:
             self._intent.hold(self._state.confirmed_intent, turns=3)
-
-        def _on_escalate(handoff):
-            log.info("🛡  Mirror v4 escalation: %s", handoff.reason)
-            # Hand `handoff.as_briefing()` to your transfer/SIP path here.
 
         spoke_any = False
         try:
