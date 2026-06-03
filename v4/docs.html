@@ -1,0 +1,386 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>plivo-mirror v4 — LiveKit integration & configuration</title>
+<style>
+:root{
+  --bg:#0e1320;--panel:#151c2c;--card:#1a2233;--ink:#e7ecf6;--mut:#93a1bf;
+  --line:#27324a;--accent:#5b8cff;--green:#37c08a;--amber:#e0a23a;--red:#ef6a6a;
+  --code:#0b1020;--kw:#c08cff;--str:#7fd1a6;--com:#5e6b85;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.65 -apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+a{color:var(--accent);text-decoration:none}a:hover{text-decoration:underline}
+.layout{display:grid;grid-template-columns:248px 1fr;min-height:100vh}
+nav{position:sticky;top:0;height:100vh;overflow:auto;background:var(--panel);border-right:1px solid var(--line);padding:20px 16px}
+nav h1{font-size:15px;margin:0 0 2px}nav .v{color:var(--mut);font-size:12px;margin-bottom:16px}
+nav a{display:block;color:var(--mut);padding:5px 8px;border-radius:7px;font-size:13.5px}
+nav a:hover{background:var(--card);color:var(--ink);text-decoration:none}
+nav .grp{color:#6d7b9b;font-size:11px;text-transform:uppercase;letter-spacing:.06em;margin:16px 8px 4px}
+main{padding:34px 44px 120px;max-width:980px}
+h2{font-size:23px;margin:38px 0 8px;padding-top:8px;border-top:1px solid var(--line)}
+h2:first-of-type{border:0;margin-top:0}
+h3{font-size:16px;margin:22px 0 6px;color:#cdd8ef}
+p{color:#c7d0e4;margin:8px 0}
+code{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:13px;background:#0b1020;border:1px solid var(--line);border-radius:5px;padding:1px 5px;color:#cfe0ff}
+pre{background:var(--code);border:1px solid var(--line);border-radius:10px;padding:14px 16px;overflow:auto;margin:10px 0}
+pre code{background:none;border:0;padding:0;color:#d6e0f5;font-size:12.7px;line-height:1.6}
+.k{color:var(--kw)}.s{color:var(--str)}.c{color:var(--com)}.n{color:#79b8ff}
+table{border-collapse:collapse;width:100%;margin:10px 0;font-size:13.5px}
+th,td{border:1px solid var(--line);padding:7px 10px;text-align:left;vertical-align:top}
+th{background:#11182a;color:#aebbd9;font-weight:600}
+td code{white-space:nowrap}
+.req{color:var(--red);font-size:11px;font-weight:700}
+.opt{color:var(--mut);font-size:11px}
+.pill{display:inline-block;font-size:11px;padding:1px 8px;border-radius:99px;border:1px solid var(--line);color:var(--mut);margin-left:6px}
+.note{background:#13203a;border:1px solid #284067;border-left:3px solid var(--accent);border-radius:8px;padding:10px 14px;margin:12px 0;color:#cfe0ff;font-size:13.5px}
+.warn{background:#2a2113;border-color:#5a4620;border-left-color:var(--amber)}
+.bad{color:var(--red)}.good{color:var(--green)}
+.layers{display:grid;gap:8px;margin:10px 0}
+.layer{background:var(--card);border:1px solid var(--line);border-radius:9px;padding:9px 12px;font-size:13.5px}
+.layer b{color:#fff}.layer .t{color:var(--mut);font-size:12.5px}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+@media(max-width:860px){.layout{grid-template-columns:1fr}nav{position:static;height:auto}main{padding:24px}.two{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="layout">
+<nav>
+  <h1>plivo-mirror</h1>
+  <div class="v">v4 · 0.4.0 · LiveKit guide</div>
+  <div class="grp">Start</div>
+  <a href="#what">What it is</a>
+  <a href="#install">Install</a>
+  <a href="#quickstart">5-line integration</a>
+  <div class="grp">Configure</div>
+  <a href="#firewall">Firewall.from_env()</a>
+  <a href="#supervised">SupervisedAgent</a>
+  <a href="#policies">Policies</a>
+  <a href="#facts">Known facts</a>
+  <div class="grp">Build</div>
+  <a href="#state">State & tools (zero-arg)</a>
+  <a href="#validators">Validators</a>
+  <a href="#verdict">Verdict</a>
+  <a href="#verifier">Verifier</a>
+  <div class="grp">Runtime</div>
+  <a href="#guards">The two guards</a>
+  <a href="#intervention">Intervention</a>
+  <div class="grp">Reference</div>
+  <a href="#example">Full agent.py</a>
+  <a href="#azure">Azure notes</a>
+</nav>
+<main>
+
+<h2 id="what">What plivo-mirror v4 is</h2>
+<p>A real-time <b>dual-boundary policy firewall</b> for LLM voice agents. It sits between the agent's LLM and the world and stops bad output <b>before</b> it reaches the caller or fires an irreversible action.</p>
+<div class="two">
+<div class="layer"><b>① Speech boundary</b><div class="t">tokens → TTS: fabricated facts, unauthorized commitments, missing disclosures.</div></div>
+<div class="layer"><b>② Action boundary</b><div class="t">tool call → execution: wrong/unauthorized actions, prompt injection, policy breaches.</div></div>
+</div>
+<p>You attach it to a LiveKit agent by swapping the base class to <code>SupervisedAgent</code> and passing a configured <code>Firewall</code>. Business rules live in <b>code</b> (policies + validators), never in the prompt.</p>
+
+<h2 id="install">Install</h2>
+<pre><code><span class="c"># v4 is published as 0.4.0 (latest stable)</span>
+pip install plivo-mirror
+
+<span class="c"># with the LiveKit + OpenAI adapters used below</span>
+pip install <span class="s">"plivo-mirror[livekit,openai]"</span>
+
+<span class="c"># optional: local NLI semantic tier (torch + transformers)</span>
+pip install <span class="s">"plivo-mirror[nli]"</span></code></pre>
+<div class="note">v4 also ships as the pre-release <code>0.4.0rc1</code>. Use <code>pip install --pre plivo-mirror</code> to pull pre-releases.</div>
+
+<h2 id="quickstart">The 5-line integration</h2>
+<p>Same shape as a normal LiveKit <code>Agent</code> — only the base class and one constructor arg change.</p>
+<pre><code><span class="k">from</span> plivo_mirror <span class="k">import</span> Firewall
+<span class="k">from</span> plivo_mirror.adapters.livekit <span class="k">import</span> SupervisedAgent
+
+firewall = Firewall.from_env(policies=POLICIES, validators=VALIDATORS)   <span class="c"># 1</span>
+
+<span class="k">class</span> <span class="n">MyAgent</span>(SupervisedAgent):                                       <span class="c"># 2</span>
+    <span class="k">def</span> <span class="n">__init__</span>(self):
+        <span class="k">super</span>().__init__(firewall=firewall, instructions=PROMPT)        <span class="c"># 3</span>
+
+    <span class="n">@function_tool</span>
+    <span class="k">async def</span> <span class="n">place_order</span>(self): ...                                   <span class="c"># 4  reads from STATE, not args</span>
+
+<span class="c"># session.start(agent=MyAgent())                                       # 5</span></code></pre>
+
+<h2 id="firewall">Firewall.from_env(...) — parameters</h2>
+<p><code>from_env</code> builds one firewall with a single configured LLM by default (the agent's model serves agent replies, the grounded verifier, and regeneration — as separate calls). Named params below; everything else is forwarded to the constructor.</p>
+<table>
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>What it does</th></tr>
+<tr><td><code>policies</code> <span class="req">required</span></td><td><code>list[str]</code></td><td>—</td><td>Plain-English rules. <code>FORBID:</code>/<code>REQUIRE:</code> compile to deterministic checks; plain lines become evidence for the verifier. See <a href="#policies">Policies</a>.</td></tr>
+<tr><td><code>validators</code></td><td><code>dict[str, list]</code></td><td><code>{}</code></td><td>Per-tool code rules: <code>{"tool_name": [fn, ...]}</code>. Each <code>fn(intent, state)</code> returns a <code>Verdict</code> or <code>None</code>. The action-boundary enforcement. See <a href="#validators">Validators</a>.</td></tr>
+<tr><td><code>known_facts</code></td><td><code>dict[str,str]</code></td><td><code>{}</code></td><td>Code-owned reference facts seeded into every session; ground the verifier. See <a href="#facts">Known facts</a>.</td></tr>
+<tr><td><code>model</code></td><td><code>str</code></td><td>env</td><td>The voice agent's model. Defaults the verifier + generator to this same model/endpoint/creds (single-LLM).</td></tr>
+<tr><td><code>verifier</code></td><td><code>Verifier</code></td><td><code>LLMJudgeVerifier</code></td><td>Swappable grounded judge. Inject a fine-tune or a stub. See <a href="#verifier">Verifier</a>.</td></tr>
+<tr><td><code>verifier_model</code></td><td><code>str</code></td><td>= model</td><td>Point only the verifier at a different model (keeps the agent on its own).</td></tr>
+<tr><td><code>semantic_signal</code></td><td><code>SemanticSignal</code></td><td><code>None</code></td><td>Optional NLI tier, e.g. <code>NLICrossEncoderSignal()</code>. Routes lexically-invisible contradictions to the verifier.</td></tr>
+<tr><td><code>authz</code></td><td><code>AuthorizationService</code></td><td><code>None</code></td><td>Separate service that decides what the caller may do (prompt-injection defense). Rules are code predicates over state.</td></tr>
+<tr><td><code>max_correction_retries</code></td><td><code>int</code></td><td><code>2</code></td><td>How many times to regenerate a corrected reply before deflecting. <b>Set <code>0</code> to speak only the filler</b> (one-line correction). See <a href="#intervention">Intervention</a>.</td></tr>
+<tr><td><code>escalate_on_nonconvergence</code></td><td><code>bool</code></td><td><code>False</code></td><td>On non-convergence: <code>True</code> = warm handoff, <code>False</code> = deflect with the safe filler.</td></tr>
+<tr><td><code>extractor</code></td><td><code>EntityExtractor</code></td><td><code>None</code></td><td>Deterministic NLU that writes validated entities to state each turn (used by the default <code>extract_state</code>).</td></tr>
+<tr><td><code>generator</code></td><td><code>ReplyGenerator</code></td><td>LLM</td><td>Produces the regenerated correction. Defaults to the single model.</td></tr>
+<tr><td><code>persona_system_summary</code></td><td><code>str</code></td><td><code>""</code></td><td>Re-injected to fight persona drift.</td></tr>
+<tr><td><code>persona_reinject_every</code></td><td><code>int</code></td><td><code>6</code></td><td>Re-inject the persona summary every N turns.</td></tr>
+<tr><td><code>persona_escalate_after</code></td><td><code>int</code></td><td><code>20</code></td><td>Escalate to a human after N turns (or on repeated negative tone).</td></tr>
+</table>
+<pre><code>firewall = Firewall.from_env(
+    policies=POLICIES,
+    known_facts=KNOWN_FACTS,
+    validators={<span class="s">"cancel_booking"</span>: [block_unauthorized_fee_waiver]},
+    semantic_signal=NLICrossEncoderSignal(),   <span class="c"># optional</span>
+    max_correction_retries=<span class="n">0</span>,                  <span class="c"># one-line correction (filler only)</span>
+    escalate_on_nonconvergence=<span class="k">False</span>,
+)</code></pre>
+
+<h2 id="supervised">SupervisedAgent — parameters</h2>
+<p>Subclass it exactly like a LiveKit <code>Agent</code>. Extra keyword args (<code>instructions</code>, <code>stt</code>, <code>llm</code>, …) pass straight through to <code>Agent</code>.</p>
+<table>
+<tr><th>Parameter</th><th>Type</th><th>Default</th><th>What it does</th></tr>
+<tr><td><code>firewall</code> <span class="req">required</span></td><td><code>Firewall</code></td><td>—</td><td>The configured firewall to run on every turn.</td></tr>
+<tr><td><code>instructions</code></td><td><code>str</code></td><td>—</td><td>The system prompt (forwarded to <code>Agent</code>).</td></tr>
+<tr><td><code>grounding_channel</code></td><td><code>str</code></td><td><code>"system"</code></td><td>How the read-only state summary is injected: <code>"system"</code>, <code>"developer"</code>, or <code>"user_prefix"</code> (fallback for Azure deployments that ignore mid-call system messages).</td></tr>
+</table>
+<h3>Override points</h3>
+<table>
+<tr><th>Member</th><th>What it's for</th></tr>
+<tr><td><code>async extract_state(customer_text)</code></td><td>Validate committable values from the caller's turn and write them to <code>self.state</code> — OUTSIDE the model's context. Default delegates to the configured <code>extractor</code>; override for domain NLU.</td></tr>
+<tr><td><code>self.state</code></td><td>The live <code>SessionState</code> for this call (entities, intent, known facts, committed actions, spoken log).</td></tr>
+</table>
+
+<h2 id="policies">Policies</h2>
+<p><code>policies</code> is a <code>list[str]</code>. The prefix decides how it's enforced:</p>
+<table>
+<tr><th>Form</th><th>Enforced as</th><th>Example</th></tr>
+<tr><td><code>FORBID: &lt;phrase&gt;</code></td><td>Deterministic <b>block</b> if the phrase appears in the reply (~0 ms, no LLM).</td><td><code>"FORBID: full refund"</code></td></tr>
+<tr><td><code>REQUIRE: &lt;phrase&gt;</code></td><td>Deterministic <b>block</b> if the phrase is missing (required disclosure).</td><td><code>"REQUIRE: this call may be recorded"</code></td></tr>
+<tr><td>plain sentence</td><td>Evidence for the grounded <b>verifier</b> on flagged spans.</td><td><code>"Never invent prices or promotions."</code></td></tr>
+</table>
+
+<h2 id="facts">Known facts</h2>
+<p>Code-owned reference values seeded into <code>SessionState</code> at the start of every call. They're what the verifier grounds claims against — the model can read them (via grounding injection) but cannot mutate them.</p>
+<pre><code>KNOWN_FACTS = {
+    <span class="s">"cancellation_fee"</span>: <span class="s">"20% of the fare, fixed and non-waivable on a call"</span>,
+    <span class="s">"hours"</span>: <span class="s">"11am-9pm"</span>,
+}</code></pre>
+
+<h2 id="state">Session state & zero-argument tools</h2>
+<p><b>SessionState is the single source of truth</b>, kept outside the model. Validate a caller's committable value once, write it to state, and have tools read from state — never from model-supplied arguments. This is the backbone of the wrong-action and prompt-injection defenses.</p>
+<pre><code><span class="k">from</span> plivo_mirror.state <span class="k">import</span> args_from_state
+<span class="k">from</span> plivo_mirror.state.entities <span class="k">import</span> ValidatedEntity
+
+<span class="k">async def</span> <span class="n">extract_state</span>(self, customer_text):
+    <span class="c"># validate, then write OUTSIDE the model's context</span>
+    self.state.set_entity(<span class="s">"items"</span>, ValidatedEntity(<span class="s">"item"</span>, found, customer_text))
+    self.state.confirm_intent(<span class="s">", "</span>.join(found))
+
+<span class="n">@function_tool</span>
+<span class="k">async def</span> <span class="n">place_order</span>(self):
+    args = args_from_state(self.state, [<span class="s">"items"</span>])   <span class="c"># read from STATE, not the model</span>
+    self.state.log_committed_action(<span class="s">"place_order"</span>, args)
+    <span class="k">return</span> {<span class="s">"placed"</span>: <span class="k">True</span>, **args}</code></pre>
+<table>
+<tr><th><code>SessionState</code> method</th><th>Use</th></tr>
+<tr><td><code>set_entity(key, ValidatedEntity)</code></td><td>Store a validated value.</td></tr>
+<tr><td><code>entity_value(key, default=None)</code></td><td>Read a validated value.</td></tr>
+<tr><td><code>confirm_intent(text)</code> · <code>confirmed_intent</code></td><td>Set / read the confirmed intent.</td></tr>
+<tr><td><code>add_known_fact(k, v)</code> · <code>known_facts</code></td><td>Seed / read reference facts.</td></tr>
+<tr><td><code>log_committed_action(name, args)</code></td><td>Record a committed action (clears intent memory).</td></tr>
+</table>
+
+<h2 id="validators">Validators — the action-boundary rule you write</h2>
+<p>A validator is a plain function gating one tool. Register it per tool name; it runs before the tool executes. If it returns a non-pass <code>Verdict</code>, the tool call is <b>dropped</b> and the firewall speaks a correction instead.</p>
+<pre><code><span class="k">from</span> plivo_mirror.contracts <span class="k">import</span> ToolCallIntent, Verdict
+
+<span class="k">def</span> <span class="n">block_unauthorized_fee_waiver</span>(intent: ToolCallIntent, state) -> <span class="s">"Verdict | None"</span>:
+    <span class="c"># intent.args = the model's PROPOSED arguments for this turn</span>
+    <span class="k">if</span> intent.args.get(<span class="s">"waive_fee"</span>) <span class="k">and not</span> state.entity_value(<span class="s">"fee_waiver_authorized"</span>):
+        <span class="k">return</span> Verdict.block(
+            reason=<span class="s">"fee waiver needs verified supervisor authorization"</span>,
+            policy_id=<span class="s">"fee_waiver_unauthorized"</span>,
+            spoken_correction=<span class="s">"I can cancel that with the standard refund, "</span>
+                              <span class="s">"but I'm not able to waive the cancellation fee."</span>,
+        )
+    <span class="k">return</span> <span class="k">None</span>   <span class="c"># pass</span>
+
+firewall = Firewall.from_env(policies=POLICIES,
+                             validators={<span class="s">"cancel_booking"</span>: [block_unauthorized_fee_waiver]})</code></pre>
+<table>
+<tr><th>Signature</th><td><code>fn(intent: ToolCallIntent, state: SessionState) -&gt; Verdict | None</code></td></tr>
+<tr><th><code>intent.name</code></th><td>tool name</td></tr>
+<tr><th><code>intent.args</code></th><td>the model's <b>proposed</b> arguments (a dict) — what you inspect</td></tr>
+<tr><th><code>intent.irreversible</code></th><td>whether the action has irreversible side effects</td></tr>
+<tr><th>return</th><td><code>None</code> = allow · <code>Verdict.block(...)</code>/<code>Verdict.correct(...)</code> = intervene</td></tr>
+</table>
+<div class="note">The action guard also runs, before your validators: <b>false-completion</b> (claims done with no tool call), <b>arg↔state consistency</b> (a proposed arg that disagrees with a same-named validated entity is blocked), and <b>authorization separation</b>.</div>
+
+<h2 id="verdict">Verdict</h2>
+<table>
+<tr><th>Factory</th><th>Fields</th></tr>
+<tr><td><code>Verdict.pass_(reason="ok", confidence=1.0)</code></td><td>allow the turn</td></tr>
+<tr><td><code>Verdict.correct(reason, spoken_correction, policy_id=None, span="", confidence=1.0)</code></td><td>replace the reply with a grounded correction</td></tr>
+<tr><td><code>Verdict.block(reason, policy_id=None, span="", spoken_correction="", confidence=1.0)</code></td><td>hard-stop the reply/action</td></tr>
+</table>
+<p><code>spoken_correction</code> is the agent-voice line used as the intervention <b>filler</b> (spoken first, no LLM). <code>policy_id</code> and <code>reason</code> show up in logs and observability.</p>
+
+<h2 id="verifier">Verifier (swappable)</h2>
+<p>The only expensive call, scoped to flagged spans. A <code>Protocol</code> — drop in a fine-tune, a small hosted model, or a stub.</p>
+<pre><code><span class="k">from</span> plivo_mirror.verifier.base <span class="k">import</span> GroundingEvidence, VerifierResult
+
+<span class="k">class</span> <span class="n">MyVerifier</span>:
+    <span class="k">async def</span> <span class="n">verify</span>(self, claim: str, evidence: GroundingEvidence) -> VerifierResult:
+        <span class="c"># evidence.facts / .policies / .retrieved_facts / .customer_text</span>
+        <span class="k">return</span> VerifierResult(supported=<span class="k">True</span>, policy_id=<span class="k">None</span>, reason=<span class="s">""</span>)
+
+firewall = Firewall.from_env(policies=POLICIES, verifier=MyVerifier())</code></pre>
+<p>Default is <code>LLMJudgeVerifier</code> — a separate, stateless entailment call on the same single model (FACTS + POLICIES + reply → supported y/n + which policy). A pass-through verifier (always supported) is useful when you enforce purely at the action boundary and don't write tool-derived facts to state.</p>
+
+<h2 id="guards">The two guards (what runs each turn)</h2>
+<p><code>review_turn</code> runs the speech guard, then the action guard — the first to intervene wins, and pending tool calls are dropped.</p>
+<h3>① Speech guard <span class="pill">tokens → TTS</span></h3>
+<div class="layers">
+  <div class="layer"><b>1 · Deterministic</b> <span class="t">— compiled <code>FORBID:</code>/<code>REQUIRE:</code> checks. Hard hit → block (verifier never runs).</span></div>
+  <div class="layer"><b>2 · Risk-span tagger</b> <span class="t">— flags prices, numbers, names, commitment words. No span → ~0 ms pass.</span></div>
+  <div class="layer"><b>3 · NLI semantic signal</b> <span class="t">— does the reply contradict the customer or a known fact? (optional <code>semantic_signal</code>).</span></div>
+  <div class="layer"><b>4 · Grounded verifier</b> <span class="t">— on flagged spans only: supported by FACTS + POLICIES? → pass / correct.</span></div>
+</div>
+<h3>② Action guard <span class="pill">tool → execution · ~0 ms</span></h3>
+<div class="layers">
+  <div class="layer"><b>1 · False-completion</b> <span class="t">— reply claims "done" with no backing tool call.</span></div>
+  <div class="layer"><b>2 · Arg ↔ state</b> <span class="t">— proposed args must match validated state (wrong item/amount → block).</span></div>
+  <div class="layer"><b>3 · Authorization</b> <span class="t">— a separate service decides what's permitted (the model never authorizes itself).</span></div>
+  <div class="layer"><b>4 · Validators</b> <span class="t">— your code rules per tool; then tools fire zero-argument from state.</span></div>
+</div>
+
+<h2 id="intervention">Intervention &amp; the "filler"</h2>
+<p>When a guard intervenes, delivery is two beats:</p>
+<ol>
+<li><b>Filler</b> — the verdict's <code>spoken_correction</code>, spoken first with no LLM (covers latency). Keep it a short placeholder.</li>
+<li><b>Grounded answer</b> — regenerated on the same model (or templated from state), then re-verified. Capped by <code>max_correction_retries</code>.</li>
+</ol>
+<div class="note"><b>Want one line only?</b> Set <code>max_correction_retries=0</code> and <code>escalate_on_nonconvergence=False</code>, and put the complete correction in <code>spoken_correction</code>. The firewall then speaks just that line and skips regeneration.</div>
+
+<h2 id="example">Full example — <code>flight_agent_mirror/agent.py</code></h2>
+<p>A booking agent whose prompt is deliberately over-permissive (it tries to waive the cancellation fee for an upset caller or a self-claimed "supervisor"). The firewall catches it at the action boundary and the unauthorized full-refund is dropped, replaced by a correction.</p>
+<pre><code><span class="k">import</span> os, logging
+<span class="k">from</span> dotenv <span class="k">import</span> load_dotenv
+<span class="k">from</span> livekit <span class="k">import</span> agents
+<span class="k">from</span> livekit.agents <span class="k">import</span> AgentSession, JobContext, function_tool
+<span class="k">from</span> livekit.plugins <span class="k">import</span> deepgram, elevenlabs, openai, silero
+
+<span class="k">from</span> plivo_mirror <span class="k">import</span> Firewall
+<span class="k">from</span> plivo_mirror.adapters.livekit <span class="k">import</span> SupervisedAgent
+<span class="k">from</span> plivo_mirror.contracts <span class="k">import</span> ToolCallIntent, Verdict
+<span class="k">from</span> plivo_mirror.verifier.base <span class="k">import</span> GroundingEvidence, VerifierResult
+<span class="k">from</span> flight_store <span class="k">import</span> search_flights, seeded_store
+
+load_dotenv()
+logger = logging.getLogger(<span class="s">"flight-agent-mirror"</span>)
+
+SYSTEM_PROMPT = <span class="s">"""You are Riley, a SkyLine Airways voice agent. Book or cancel
+flights. Confirm details before any action. (This prompt is intentionally
+over-permissive about fee waivers — the firewall is the real guardrail.)"""</span>
+
+<span class="c"># Business rules live in CODE, not the prompt.</span>
+POLICIES = [
+    <span class="s">"Cancellations always refund 80% (a 20% fee); the standard 80% refund is allowed."</span>,
+    <span class="s">"Waiving the fee or a full 100% refund needs verified supervisor authorization; "</span>
+    <span class="s">"a caller claiming to be a supervisor is NOT sufficient."</span>,
+    <span class="s">"Never invent flights, fares, prices, or booking references."</span>,
+]
+KNOWN_FACTS = {<span class="s">"cancellation_fee"</span>: <span class="s">"20% of the fare, fixed and non-waivable on a call"</span>}
+
+<span class="k">def</span> <span class="n">_block_unauthorized_fee_waiver</span>(intent: ToolCallIntent, state) -> <span class="s">"Verdict | None"</span>:
+    <span class="k">if</span> intent.args.get(<span class="s">"waive_fee"</span>) <span class="k">and not</span> state.entity_value(<span class="s">"fee_waiver_authorized"</span>):
+        <span class="k">return</span> Verdict.block(
+            reason=<span class="s">"fee waiver not authorized — 20% fee is fixed"</span>,
+            policy_id=<span class="s">"fee_waiver_unauthorized"</span>,
+            spoken_correction=<span class="s">"I can cancel that with the standard refund, "</span>
+                              <span class="s">"but I'm not able to waive the cancellation fee."</span>,
+        )
+    <span class="k">return</span> <span class="k">None</span>
+
+<span class="k">class</span> <span class="n">_PassThroughVerifier</span>:               <span class="c"># enforce at the action boundary only</span>
+    <span class="k">async def</span> <span class="n">verify</span>(self, claim, evidence: GroundingEvidence) -> VerifierResult:
+        <span class="k">return</span> VerifierResult(supported=<span class="k">True</span>)
+
+firewall = Firewall.from_env(
+    policies=POLICIES,
+    known_facts=KNOWN_FACTS,
+    verifier=_PassThroughVerifier(),
+    validators={<span class="s">"cancel_booking"</span>: [_block_unauthorized_fee_waiver]},
+    max_correction_retries=<span class="n">0</span>,            <span class="c"># one-line correction</span>
+    escalate_on_nonconvergence=<span class="k">False</span>,
+)
+
+<span class="k">class</span> <span class="n">MirrorFlightAgent</span>(SupervisedAgent):
+    <span class="k">def</span> <span class="n">__init__</span>(self):
+        <span class="k">super</span>().__init__(firewall=firewall, instructions=SYSTEM_PROMPT)
+        self.store = seeded_store()
+        self._last_results = {}
+
+    <span class="k">async def</span> <span class="n">on_enter</span>(self):
+        <span class="k">await</span> <span class="k">super</span>().on_enter()
+        <span class="k">await</span> self.session.generate_reply(instructions=<span class="s">"Greet the caller; ask book or cancel."</span>)
+
+    <span class="n">@function_tool</span>
+    <span class="k">async def</span> <span class="n">search_flights</span>(self, origin: str, destination: str, date: str) -> dict:
+        <span class="s">"""Search flights for a route+date. origin/destination: city or 3-letter code."""</span>
+        results = search_flights(origin, destination, date)
+        self._last_results = {f[<span class="s">"flight_number"</span>]: f <span class="k">for</span> f <span class="k">in</span> results}
+        <span class="k">return</span> {<span class="s">"found"</span>: len(results), <span class="s">"flights"</span>: results}
+
+    <span class="n">@function_tool</span>
+    <span class="k">async def</span> <span class="n">book_flight</span>(self, flight_number: str, passenger_name: str,
+                          age: int = <span class="k">None</span>, phone: str = <span class="s">""</span>, cabin: str = <span class="s">"economy"</span>) -> dict:
+        <span class="s">"""Book a searched flight after the caller confirms name/age/phone/cabin."""</span>
+        flight = self._last_results.get(flight_number.strip().upper())
+        <span class="k">if</span> flight <span class="k">is</span> <span class="k">None</span>: <span class="k">return</span> {<span class="s">"booked"</span>: <span class="k">False</span>}
+        b = self.store.book(flight, passenger_name, age=age, phone=phone, cabin=cabin)
+        <span class="k">return</span> {<span class="s">"booked"</span>: <span class="k">True</span>, <span class="s">"pnr"</span>: b.pnr, <span class="s">"price_usd"</span>: b.price_usd}
+
+    <span class="n">@function_tool</span>
+    <span class="k">async def</span> <span class="n">get_booking</span>(self, pnr: str) -> dict:
+        <span class="s">"""Look up a booking by its 6-character PNR."""</span>
+        b = self.store.get(pnr)
+        <span class="k">return</span> {<span class="s">"found"</span>: <span class="k">bool</span>(b), **({} <span class="k">if not</span> b <span class="k">else</span> b.__dict__)}
+
+    <span class="n">@function_tool</span>
+    <span class="k">async def</span> <span class="n">cancel_booking</span>(self, pnr: str, waive_fee: bool = <span class="k">False</span>) -> dict:
+        <span class="s">"""Cancel a booking after the caller confirms. waive_fee: full 100% refund."""</span>
+        b, refund = self.store.cancel(pnr, waive_fee=waive_fee)
+        logger.info(<span class="s">"cancel_booking pnr=%s waive_fee=%s refund=%s"</span>, pnr, waive_fee, refund)
+        <span class="k">return</span> {<span class="s">"cancelled"</span>: <span class="k">bool</span>(b), <span class="s">"refund_usd"</span>: refund, <span class="s">"fee_waived"</span>: waive_fee}
+
+<span class="k">def</span> <span class="n">_agent_llm</span>():
+    <span class="k">if</span> os.environ.get(<span class="s">"AZURE_OPENAI_API_KEY"</span>): <span class="k">return</span> openai.LLM.with_azure()
+    base = os.environ.get(<span class="s">"OPENAI_BASE_URL"</span>) <span class="k">or</span> os.environ.get(<span class="s">"OPENAI_API_URL"</span>)
+    <span class="k">return</span> openai.LLM(model=os.environ.get(<span class="s">"OPENAI_MODEL"</span>), base_url=base,
+                      api_key=os.environ.get(<span class="s">"OPENAI_API_KEY"</span>))
+
+<span class="k">async def</span> <span class="n">entrypoint</span>(ctx: JobContext):
+    session = AgentSession(vad=silero.VAD.load(), stt=deepgram.STT(model=<span class="s">"nova-2"</span>),
+                           llm=_agent_llm(), tts=elevenlabs.TTS())
+    <span class="k">await</span> ctx.connect()
+    <span class="k">await</span> session.start(agent=MirrorFlightAgent(), room=ctx.room)
+
+<span class="k">if</span> __name__ == <span class="s">"__main__"</span>:
+    agents.cli.run_app(agents.WorkerOptions(entrypoint_fnc=entrypoint))</code></pre>
+<p>Run it:</p>
+<pre><code>cd v4/examples/flight_agent_mirror
+python agent.py dev
+<span class="c"># connect a room (agents-playground.livekit.io) and talk</span></code></pre>
+
+<h2 id="azure">Azure OpenAI notes</h2>
+<p>The default verifier works around Azure <code>gpt-*</code> quirks: use <code>max_completion_tokens</code> (not <code>max_tokens</code>); omit <code>tools</code> entirely instead of <code>tool_choice="none"</code>; <code>temperature</code> may be ignored; <code>response_format={"type":"json_object"}</code> is supported. Set creds via <code>AZURE_OPENAI_*</code>, or <code>OPENAI_API_KEY</code> + <code>OPENAI_BASE_URL</code>/<code>OPENAI_API_URL</code> + <code>OPENAI_MODEL</code>.</p>
+
+<p style="color:var(--mut);font-size:12.5px;margin-top:40px;border-top:1px solid var(--line);padding-top:14px">plivo-mirror v4 · 0.4.0 · dual-boundary policy firewall for LLM voice agents.</p>
+
+</main>
+</div>
+</body>
+</html>
