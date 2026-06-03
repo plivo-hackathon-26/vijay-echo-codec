@@ -12,7 +12,9 @@
   header{padding:16px 24px;background:#fff;border-bottom:1px solid var(--line)}
   header h1{margin:0;font-size:18px;font-weight:800}
   header p{margin:5px 0 0;color:var(--muted);font-size:13px}
-  .controls{display:flex;gap:10px;align-items:center;padding:12px 24px;background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5;flex-wrap:wrap}
+  .sticky-top{position:sticky;top:0;z-index:8;background:#fff;box-shadow:0 3px 8px rgba(11,23,54,.08)}
+  #headsvg{display:block;margin:0 auto}
+  .controls{display:flex;gap:10px;align-items:center;padding:12px 24px;background:#fff;border-bottom:1px solid var(--line);flex-wrap:wrap}
   button{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:8px 15px;font-weight:700;font-size:13px;cursor:pointer}
   button.alt{background:#fff;color:var(--accent);border:1.5px solid var(--accent)}
   button:disabled{opacity:.4;cursor:default}
@@ -20,7 +22,7 @@
   .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11.5px;color:var(--muted);margin-left:auto}
   .legend span{display:inline-flex;align-items:center;gap:5px}
   .dot{width:10px;height:10px;border-radius:3px}
-  .wrap{padding:16px 24px 200px;overflow-x:auto}
+  .wrap{padding:8px 24px 240px;overflow-x:auto}
   svg{display:block}
   .detail{position:fixed;bottom:0;left:0;right:0;background:#0b1f44;color:#fff;padding:14px 24px;border-top:3px solid var(--accent);min-height:96px}
   .detail .step{font-size:11px;letter-spacing:.5px;color:#9ed0ff;font-weight:700;text-transform:uppercase}
@@ -34,13 +36,16 @@
   <h1>plivo-mirror v4 — what happens under the hood, one turn</h1>
   <p>A request flows down through the components. Step through it to see the actual technical operation at each layer. Two branches at the end: a clean PASS, and a CAUGHT violation (correct).</p>
 </header>
-<div class="controls">
-  <button class="alt" id="prev">◀ Prev</button>
-  <button id="next">Next ▶</button>
-  <button class="alt" id="play">▶ Play all</button>
-  <button class="alt" id="reset">Reset</button>
-  <span class="count" id="count">step 0 / 0</span>
-  <span class="legend" id="legend"></span>
+<div class="sticky-top">
+  <div class="controls">
+    <button class="alt" id="prev">◀ Prev</button>
+    <button id="next">Next ▶</button>
+    <button class="alt" id="play">▶ Play all</button>
+    <button class="alt" id="reset">Reset</button>
+    <span class="count" id="count">step 0 / 0</span>
+    <span class="legend" id="legend"></span>
+  </div>
+  <svg id="headsvg"></svg>
 </div>
 <div class="wrap"><svg id="svg"></svg></div>
 <div class="detail"><div class="step" id="dstep">—</div><div class="msg" id="dmsg">Press “Next ▶” to walk through what the firewall does, layer by layer.</div><div class="why" id="dwhy"></div></div>
@@ -114,62 +119,62 @@ const M=[
 
 const PHASE={input:"--input",llm:"--llm",guard:"--guard",speech:"--speech",nli:"--nli",action:"--action",interv:"--interv",output:"--output"};
 const cssv=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
-const L0=110, GAP=168, TOP=92, HEADH=56, Y0=150, DY=46;
-const lifeX={}; LIFELINES.forEach((l,i)=>lifeX[l.id]=L0+i*GAP);
-const W=L0+ (LIFELINES.length-1)*GAP + 110;
-const H=Y0 + M.length*DY + 30;
-let cur=0; // 0 = nothing shown
+const chr10="\n";
+function esc(t){return (t||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
+const L0=110, GAP=168;
+const lifeX={}, LBL={}; LIFELINES.forEach((l,i)=>{lifeX[l.id]=L0+i*GAP; LBL[l.id]=l.label.replace(chr10,' ');});
+const W=L0+(LIFELINES.length-1)*GAP+110;
+const HBOXY=12, HEADH=56, HHEAD=HBOXY+HEADH+12;      // pinned header SVG
+const BY0=34, DY=46, BH=BY0+M.length*DY+40;          // scrolling body SVG
+let cur=0;
 
 function build(){
-  const svg=document.getElementById('svg');
-  svg.setAttribute('width',W); svg.setAttribute('height',H); svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
-  let s=`<defs><marker id="ah" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 z" fill="#0b1736"/></marker>
-   <marker id="aha" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 z" fill="${cssv('--accent')}"/></marker></defs>`;
-  // lifelines
+  // ── pinned header band (always visible while you scroll) ──
+  const head=document.getElementById('headsvg');
+  head.setAttribute('width',W); head.setAttribute('height',HHEAD); head.setAttribute('viewBox',`0 0 ${W} ${HHEAD}`);
+  let hs='';
   LIFELINES.forEach(l=>{const x=lifeX[l.id], c=cssv(PHASE[l.c]);
-    s+=`<line x1="${x}" y1="${TOP+HEADH}" x2="${x}" y2="${H-20}" stroke="#c7d2e3" stroke-width="1.5" stroke-dasharray="5 5"/>`;
-    s+=`<rect x="${x-70}" y="${TOP}" width="140" height="${HEADH}" rx="9" fill="#fff" stroke="${c}" stroke-width="2"/>`;
-    l.label.split("\n").forEach((ln,j)=>{s+=`<text x="${x}" y="${TOP+(l.label.includes(chr10)?22:32)+j*16}" text-anchor="middle" font-size="12.5" font-weight="700" fill="${c}">${esc(ln)}</text>`;});
+    hs+=`<rect id="hr_${l.id}" x="${x-72}" y="${HBOXY}" width="144" height="${HEADH}" rx="9" fill="#fff" stroke="${c}" stroke-width="2"/>`;
+    const two=l.label.includes(chr10);
+    l.label.split(chr10).forEach((ln,j)=>{hs+=`<text x="${x}" y="${HBOXY+(two?22:32)+j*16}" text-anchor="middle" font-size="12.5" font-weight="700" fill="${c}">${esc(ln)}</text>`;});
   });
-  // messages
+  head.innerHTML=hs;
+
+  // ── scrolling body: dashed lifelines + messages ──
+  const svg=document.getElementById('svg');
+  svg.setAttribute('width',W); svg.setAttribute('height',BH); svg.setAttribute('viewBox',`0 0 ${W} ${BH}`);
+  let s=`<defs><marker id="ah" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 z" fill="#0b1736"/></marker></defs>`;
+  LIFELINES.forEach(l=>{const x=lifeX[l.id];
+    s+=`<line x1="${x}" y1="0" x2="${x}" y2="${BH-12}" stroke="#c7d2e3" stroke-width="1.5" stroke-dasharray="5 5"/>`;});
   M.forEach((m,i)=>{
-    const y=Y0+i*DY, x1=lifeX[m[0]], x2=lifeX[m[1]], c=cssv(PHASE[m[3]]);
-    const id=`m${i}`;
-    if(m[0]===m[1]){ // self message (internal step)
-      const bx=x1, bw=Math.min(GAP*1.7,300);
-      s+=`<g class="msg" id="${id}" opacity="0.18">
-        <rect x="${bx+8}" y="${y-13}" width="${bw}" height="26" rx="6" fill="none" stroke="${c}" stroke-width="1.5"/>
+    const y=BY0+i*DY, x1=lifeX[m[0]], x2=lifeX[m[1]], c=cssv(PHASE[m[3]]);
+    if(m[0]===m[1]){ const bx=x1, bw=Math.min(GAP*1.7,300);
+      s+=`<g class="msg" id="m${i}" opacity="0.16">
+        <rect x="${bx+8}" y="${y-13}" width="${bw}" height="26" rx="6" fill="#fff" stroke="${c}" stroke-width="1.5"/>
         <text x="${bx+16}" y="${y+4}" font-size="11.5" font-weight="600" fill="${c}">${esc(m[2])}</text>
         <path d="M${bx} ${y-9} h8 M${bx+8} ${y+9} h-8" stroke="${c}" stroke-width="1.5" marker-end="url(#ah)"/></g>`;
-    } else {
-      const dir=x2>x1?1:-1, lx=(x1+x2)/2;
-      s+=`<g class="msg" id="${id}" opacity="0.18">
+    } else { const dir=x2>x1?1:-1, lx=(x1+x2)/2;
+      s+=`<g class="msg" id="m${i}" opacity="0.16">
         <line x1="${x1}" y1="${y}" x2="${x2-dir*3}" y2="${y}" stroke="${c}" stroke-width="2" marker-end="url(#ah)"/>
         <text x="${lx}" y="${y-7}" text-anchor="middle" font-size="11.5" font-weight="600" fill="${c}">${esc(m[2])}</text></g>`;
     }
   });
   svg.innerHTML=s;
 }
-const chr10="\n";
-function esc(t){return (t||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
 
 function render(){
-  M.forEach((m,i)=>{const g=document.getElementById('m'+i);
-    if(i<cur) g.setAttribute('opacity','1');
-    else if(i===cur-1) g.setAttribute('opacity','1');
-    else g.setAttribute('opacity','0.16');
-  });
-  // highlight current
-  M.forEach((m,i)=>{const g=document.getElementById('m'+i); g.querySelectorAll('line,rect,path,text').forEach(()=>{});});
+  M.forEach((m,i)=>{document.getElementById('m'+i).setAttribute('opacity', i<cur?'1':'0.16');});
+  // reset + highlight the two columns talking in the current step
+  LIFELINES.forEach(l=>{const r=document.getElementById('hr_'+l.id); r.setAttribute('stroke-width','2'); r.setAttribute('fill','#fff');});
   document.getElementById('count').textContent=`step ${cur} / ${M.length}`;
   document.getElementById('prev').disabled=cur===0;
   document.getElementById('next').disabled=cur>=M.length;
   if(cur>0){const m=M[cur-1];
-    document.getElementById('dstep').textContent=`Step ${cur} · ${m[0]} → ${m[1]}`;
+    [m[0],m[1]].forEach(id=>{const r=document.getElementById('hr_'+id); r.setAttribute('stroke-width','4'); r.setAttribute('fill','#fff4d6');});
+    document.getElementById('dstep').textContent=`Step ${cur} / ${M.length}  ·  ${LBL[m[0]]}  →  ${LBL[m[1]]}`;
     document.getElementById('dmsg').textContent=m[2];
     document.getElementById('dwhy').innerHTML=m[4];
-    // emphasize current arrow color
-    const g=document.getElementById('m'+(cur-1)); g.setAttribute('opacity','1');
+    document.getElementById('m'+(cur-1)).scrollIntoView({block:'center',behavior:'smooth'});
   } else {
     document.getElementById('dstep').textContent='—';
     document.getElementById('dmsg').textContent='Press “Next ▶” to walk through what the firewall does, layer by layer.';
