@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>plivo-mirror v4 — what happens under the hood (sequence)</title>
+<style>
+  :root{--bg:#f5f8fc;--ink:#0b1736;--muted:#5d6b85;--line:#dfe6f0;--accent:#1f6bff;
+    --input:#1971c2;--llm:#7048e8;--guard:#0b1f44;--speech:#e8590c;--nli:#ae3ec9;--action:#1aa260;--interv:#c026d3;--output:#0c8599;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,sans-serif}
+  header{padding:16px 24px;background:#fff;border-bottom:1px solid var(--line)}
+  header h1{margin:0;font-size:18px;font-weight:800}
+  header p{margin:5px 0 0;color:var(--muted);font-size:13px}
+  .controls{display:flex;gap:10px;align-items:center;padding:12px 24px;background:#fff;border-bottom:1px solid var(--line);position:sticky;top:0;z-index:5;flex-wrap:wrap}
+  button{background:var(--accent);color:#fff;border:none;border-radius:8px;padding:8px 15px;font-weight:700;font-size:13px;cursor:pointer}
+  button.alt{background:#fff;color:var(--accent);border:1.5px solid var(--accent)}
+  button:disabled{opacity:.4;cursor:default}
+  .count{font-weight:700;color:var(--muted);font-size:13px}
+  .legend{display:flex;gap:12px;flex-wrap:wrap;font-size:11.5px;color:var(--muted);margin-left:auto}
+  .legend span{display:inline-flex;align-items:center;gap:5px}
+  .dot{width:10px;height:10px;border-radius:3px}
+  .wrap{padding:16px 24px 200px;overflow-x:auto}
+  svg{display:block}
+  .detail{position:fixed;bottom:0;left:0;right:0;background:#0b1f44;color:#fff;padding:14px 24px;border-top:3px solid var(--accent);min-height:96px}
+  .detail .step{font-size:11px;letter-spacing:.5px;color:#9ed0ff;font-weight:700;text-transform:uppercase}
+  .detail .msg{font-size:16px;font-weight:700;margin:3px 0}
+  .detail .why{font-size:13.5px;color:#cfe0f5;line-height:1.5}
+  .detail code{background:#13346b;padding:1px 6px;border-radius:4px;font-size:12.5px}
+</style>
+</head>
+<body>
+<header>
+  <h1>plivo-mirror v4 — what happens under the hood, one turn</h1>
+  <p>A request flows down through the components. Step through it to see the actual technical operation at each layer. Two branches at the end: a clean PASS, and a CAUGHT violation (correct).</p>
+</header>
+<div class="controls">
+  <button class="alt" id="prev">◀ Prev</button>
+  <button id="next">Next ▶</button>
+  <button class="alt" id="play">▶ Play all</button>
+  <button class="alt" id="reset">Reset</button>
+  <span class="count" id="count">step 0 / 0</span>
+  <span class="legend" id="legend"></span>
+</div>
+<div class="wrap"><svg id="svg"></svg></div>
+<div class="detail"><div class="step" id="dstep">—</div><div class="msg" id="dmsg">Press “Next ▶” to walk through what the firewall does, layer by layer.</div><div class="why" id="dwhy"></div></div>
+
+<script>
+const LIFELINES=[
+ {id:"caller",label:"Caller / STT",c:"input"},
+ {id:"adapter",label:"Adapter\n(llm_node)",c:"guard"},
+ {id:"state",label:"Session\nState",c:"input"},
+ {id:"speech",label:"Speech\nGuard",c:"speech"},
+ {id:"nli",label:"NLI model\n(local)",c:"nli"},
+ {id:"llm",label:"LLM\n(judge · regen)",c:"llm"},
+ {id:"action",label:"Action\nGuard",c:"action"},
+ {id:"tts",label:"TTS",c:"output"},
+];
+// from,to,label,phase,detail(HTML)
+const M=[
+ ["caller","adapter","audio → STT text","input",
+  "Deepgram transcribes the caller. The adapter captures the latest user turn as <code>customer_text</code> — e.g. <i>“just a large veggie wrap, place it.”</i>"],
+ ["adapter","state","extract_state(): validate → write_entity","input",
+  "Regex/validator extraction pulls the committable values (item, amount, date) and writes the <b>validated</b> ones into <code>SessionState</code> — <b>outside the model's context.</b> This is the source of truth."],
+ ["adapter","llm","generate reply (buffered)","llm",
+  "Adapter injects a <b>read-only</b> state summary into the chat context, calls the agent LLM, and <b>buffers the full reply + any tool intents</b> before a single word is voiced."],
+ ["llm","adapter","reply + tool intents","llm",
+  "e.g. <i>“Placing your large veggie wrap now.”</i> plus a <code>place_order()</code> tool call. Nothing is spoken yet."],
+ ["adapter","speech","inspect(TurnContext)","guard",
+  "<code>review_turn</code> builds <code>TurnContext{state, planned_reply, tool_intents, customer_text}</code> and runs the <b>speech guard first</b> (the first guard to object wins)."],
+ ["speech","speech","① run_deterministic(): regex FORBID / REQUIRE","speech",
+  "Compiled policy checks — a substring/regex scan of the reply for forbidden phrases (<code>FORBID: full refund</code>) and required disclosures (<code>REQUIRE: this call is recorded</code>). A hit → <b>block immediately</b>, verifier never runs. ~0 ms."],
+ ["speech","speech","② tag_risk_spans(): regex price·number·commitment·name","speech",
+  "Lexical tagger over the reply. <b>No risky span → zero-latency PASS</b> (the verifier never runs — this is the clean-turn fast path). A span → escalate it."],
+ ["speech","nli","③ contradicts_any([customer + top-2 facts], reply)","nli",
+  "Runs only if there's NO lexical span AND the reply is committal. <b>One batched cross-encoder forward pass</b> scores the reply against the customer turn + the most relevant known facts."],
+ ["nli","speech","contradiction prob ≥ threshold? → synth span","nli",
+  "Catches what the lexicon can't — ignored negations, dropped modifiers, fabricated hours. If it fires, a synthetic <code>'semantic'</code> span is created so the turn routes to the verifier (recall here, precision there)."],
+ ["speech","llm","④ verify(claim, GroundingEvidence)","llm",
+  "Only for flagged spans. A <b>separate, stateless</b> call: <code>POST chat/completions</code> with <code>{system: entailment rubric, user: FACTS + POLICIES + customer_text + the claim}</code>, <code>response_format=json_object</code>."],
+ ["llm","speech","← { supported, policy_id, reason }","llm",
+  "The judge returns strict JSON. It is <b>not</b> the agent persona and <b>not</b> grading its own output in-context — a fresh entailment call — which is what makes single-LLM safe. Fails OPEN on error (never blocks a live call)."],
+ ["speech","adapter","Verdict(pass | correct | block)","guard",
+  "supported → <code>pass</code>; unsupported → <code>correct</code> carrying an agent-voice <code>spoken_correction</code> + the flagged span + policy_id."],
+ ["adapter","action","⑤ inspect() — only if speech passed","action",
+  "Deterministic, ~0 ms: <b>false-completion</b> (claims done w/ no tool) · <b>arg↔state</b> (tool args must equal validated state) · <b>authorization</b> (a SEPARATE service decides) · code <b>validators</b>."],
+ ["action","state","args_from_state(): tools fire ZERO-ARG","action",
+  "The executor reads validated values straight from state — the model passes <b>no arguments</b>, so it can't inject a wrong/hacked item, amount, or account. This is the prompt-injection + wrong-action backbone."],
+ ["adapter","tts","CLEAN PATH → speak reply + fire tools","output",
+  "Both boundaries clear → the buffered reply is yielded to TTS and the tool fires. ~0 ms guard compute added on the clean path."],
+ ["adapter","tts","CAUGHT PATH → deflection filler FIRST (no LLM)","interv",
+  "If the verdict was correct/block: a safe agent-voice line (<i>“let me make sure I've got that right…”</i>) is voiced <b>immediately</b> — needs no LLM — to cover the regeneration latency."],
+ ["adapter","llm","build correction packet → regenerate","interv",
+  "Packet = the <b>correct facts + the rule</b>, framed so it <b>never restates the wrong value</b> (<code>assert_no_echo</code> — avoids the pink-elephant trap). The <b>same LLM</b> regenerates from it + the real customer turn."],
+ ["llm","speech","re-verify candidate (loop, cap 2)","interv",
+  "The new reply is run back through the speech guard. Accept on pass; else regenerate again (capped); else deflect / warm-handoff. Only a verified reply is voiced."],
+ ["adapter","tts","corrected reply → audio","output",
+  "The grounded, re-verified reply is spoken. The wrong version <b>never aired</b> — corrected from the truth in state."],
+];
+
+const PHASE={input:"--input",llm:"--llm",guard:"--guard",speech:"--speech",nli:"--nli",action:"--action",interv:"--interv",output:"--output"};
+const cssv=v=>getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+const L0=110, GAP=168, TOP=92, HEADH=56, Y0=150, DY=46;
+const lifeX={}; LIFELINES.forEach((l,i)=>lifeX[l.id]=L0+i*GAP);
+const W=L0+ (LIFELINES.length-1)*GAP + 110;
+const H=Y0 + M.length*DY + 30;
+let cur=0; // 0 = nothing shown
+
+function build(){
+  const svg=document.getElementById('svg');
+  svg.setAttribute('width',W); svg.setAttribute('height',H); svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  let s=`<defs><marker id="ah" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 z" fill="#0b1736"/></marker>
+   <marker id="aha" markerWidth="9" markerHeight="9" refX="7" refY="3" orient="auto"><path d="M0,0 L7,3 L0,6 z" fill="${cssv('--accent')}"/></marker></defs>`;
+  // lifelines
+  LIFELINES.forEach(l=>{const x=lifeX[l.id], c=cssv(PHASE[l.c]);
+    s+=`<line x1="${x}" y1="${TOP+HEADH}" x2="${x}" y2="${H-20}" stroke="#c7d2e3" stroke-width="1.5" stroke-dasharray="5 5"/>`;
+    s+=`<rect x="${x-70}" y="${TOP}" width="140" height="${HEADH}" rx="9" fill="#fff" stroke="${c}" stroke-width="2"/>`;
+    l.label.split("\n").forEach((ln,j)=>{s+=`<text x="${x}" y="${TOP+(l.label.includes(chr10)?22:32)+j*16}" text-anchor="middle" font-size="12.5" font-weight="700" fill="${c}">${esc(ln)}</text>`;});
+  });
+  // messages
+  M.forEach((m,i)=>{
+    const y=Y0+i*DY, x1=lifeX[m[0]], x2=lifeX[m[1]], c=cssv(PHASE[m[3]]);
+    const id=`m${i}`;
+    if(m[0]===m[1]){ // self message (internal step)
+      const bx=x1, bw=Math.min(GAP*1.7,300);
+      s+=`<g class="msg" id="${id}" opacity="0.18">
+        <rect x="${bx+8}" y="${y-13}" width="${bw}" height="26" rx="6" fill="none" stroke="${c}" stroke-width="1.5"/>
+        <text x="${bx+16}" y="${y+4}" font-size="11.5" font-weight="600" fill="${c}">${esc(m[2])}</text>
+        <path d="M${bx} ${y-9} h8 M${bx+8} ${y+9} h-8" stroke="${c}" stroke-width="1.5" marker-end="url(#ah)"/></g>`;
+    } else {
+      const dir=x2>x1?1:-1, lx=(x1+x2)/2;
+      s+=`<g class="msg" id="${id}" opacity="0.18">
+        <line x1="${x1}" y1="${y}" x2="${x2-dir*3}" y2="${y}" stroke="${c}" stroke-width="2" marker-end="url(#ah)"/>
+        <text x="${lx}" y="${y-7}" text-anchor="middle" font-size="11.5" font-weight="600" fill="${c}">${esc(m[2])}</text></g>`;
+    }
+  });
+  svg.innerHTML=s;
+}
+const chr10="\n";
+function esc(t){return (t||"").replace(/[&<>]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]));}
+
+function render(){
+  M.forEach((m,i)=>{const g=document.getElementById('m'+i);
+    if(i<cur) g.setAttribute('opacity','1');
+    else if(i===cur-1) g.setAttribute('opacity','1');
+    else g.setAttribute('opacity','0.16');
+  });
+  // highlight current
+  M.forEach((m,i)=>{const g=document.getElementById('m'+i); g.querySelectorAll('line,rect,path,text').forEach(()=>{});});
+  document.getElementById('count').textContent=`step ${cur} / ${M.length}`;
+  document.getElementById('prev').disabled=cur===0;
+  document.getElementById('next').disabled=cur>=M.length;
+  if(cur>0){const m=M[cur-1];
+    document.getElementById('dstep').textContent=`Step ${cur} · ${m[0]} → ${m[1]}`;
+    document.getElementById('dmsg').textContent=m[2];
+    document.getElementById('dwhy').innerHTML=m[4];
+    // emphasize current arrow color
+    const g=document.getElementById('m'+(cur-1)); g.setAttribute('opacity','1');
+  } else {
+    document.getElementById('dstep').textContent='—';
+    document.getElementById('dmsg').textContent='Press “Next ▶” to walk through what the firewall does, layer by layer.';
+    document.getElementById('dwhy').innerHTML='';
+  }
+}
+document.getElementById('next').onclick=()=>{if(cur<M.length){cur++;render();}};
+document.getElementById('prev').onclick=()=>{if(cur>0){cur--;render();}};
+document.getElementById('reset').onclick=()=>{cur=0;render();};
+let timer=null;
+document.getElementById('play').onclick=()=>{if(timer){clearInterval(timer);timer=null;return;}
+  if(cur>=M.length)cur=0; timer=setInterval(()=>{if(cur>=M.length){clearInterval(timer);timer=null;return;}cur++;render();},1400);};
+// legend
+const phases=[["input","STT / state"],["llm","LLM call"],["speech","speech guard"],["nli","NLI model"],["action","action guard"],["interv","intervention"],["output","TTS"]];
+document.getElementById('legend').innerHTML=phases.map(([k,t])=>`<span><i class="dot" style="background:${cssv(PHASE[k])}"></i>${t}</span>`).join('');
+build(); render();
+</script>
+</body>
+</html>
