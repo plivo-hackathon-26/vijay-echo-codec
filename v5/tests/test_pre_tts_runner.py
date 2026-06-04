@@ -147,3 +147,28 @@ async def test_gate_crash_releases_draft_unchanged():
 
     out = await collect(runner.gate_stream(FakeChatCtx(), default_node))
     assert out == original
+
+
+async def test_commitment_retraction_is_not_an_echo():
+    """Live finding: the echo check killed every honest retraction ('I'm
+    not able to WAIVE the fee' contains the flagged span 'waive') and the
+    loop exhausted into a handoff. Commitment spans are exempt from echo —
+    the re-gate's negation guard judges them instead."""
+    runner, _, calls = make_runner()
+
+    def default_node(ctx):
+        async def stream():
+            calls["n"] += 1
+            if calls["n"] == 1:
+                yield chunk("Done — I've waived the fee, full refund issued!")
+            else:
+                # honest retraction NAMES the thing it can't do
+                yield chunk("I'm not able to waive the fee — the standard "
+                            "refund of $249.60 applies.")
+        return stream()
+
+    out = await collect(runner.gate_stream(FakeChatCtx(), default_node))
+    text = " ".join(str(o) for o in out)
+    assert "waived the fee, full refund issued" not in text
+    assert "not able to waive" in text            # the correction LANDED
+    assert "connect you with a teammate" not in text   # no forced handoff

@@ -269,12 +269,23 @@ def build_violation_packet(verdicts: list[Verdict]) -> str:
     )
 
 
+# Echo-checking only applies to VALUE-bearing claims: repeating the wrong
+# price is the pink elephant. Commitment/authorization/persona spans are
+# WORDS ("waive", "full refund") that any honest retraction must contain —
+# echo-checking those killed every valid correction and forced handoffs
+# (live finding). The re-gate (with its negation guard) judges those.
+_ECHO_CHECKED_CLAIM_TYPES = frozenset(
+    {"price", "policy", "hours", "fact", "action", "action_args"})
+
+
 def _echoes_flagged(candidate: str, verdicts: list[Verdict]) -> bool:
-    """Pink-elephant check: a candidate restating a flagged wrong value is a
+    """Pink-elephant check: a candidate restating a flagged wrong VALUE is a
     failed attempt even if the gate would pass it (e.g. ref drift)."""
     lowered = candidate.casefold()
     for v in verdicts:
         if not v.fired or v.evidence is None or v.detector == "JUDGE":
+            continue
+        if v.evidence.claim_type not in _ECHO_CHECKED_CLAIM_TYPES:
             continue
         from plivo_mirror_v5.engine.layers.l2_deterministic import CURRENCY_SYMBOLS
         spoken = (v.evidence.spoken_value or "").casefold().lstrip(CURRENCY_SYMBOLS)
