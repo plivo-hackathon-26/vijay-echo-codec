@@ -4,17 +4,21 @@ import { fetchAgents, registerAgent, setAgentMode } from './api.js'
 const POLL_MS = 5000
 
 function snippet(agentId) {
-  return `from plivo_mirror_v5.integrations import attach_mirror
+  return `import os
+from plivo_mirror_v5.integrations import attach_mirror
 
-# inside your LiveKit entrypoint, after ctx.connect():
+# inside your LiveKit entrypoint, after ctx.connect() —
+# works WHEREVER the agent runs (laptop, VPS, LiveKit Agents Cloud):
 attach_mirror(
     session,
     room_id=ctx.room.name,            # call_id == LiveKit room id
-    backend_url="${window.location.origin.replace(/:\d+$/, ':8500')}",
+    backend_url=os.getenv("MIRROR_BACKEND_URL",
+                          "${window.location.origin.replace(/:\d+$/, ':8500')}"),
     agent_id="${agentId}",            # ← must match this registration
     agent=my_agent,                   # enables dashboard-toggled intervene
 )
-await session.start(agent=my_agent, room=ctx.room)`
+await session.start(agent=my_agent, room=ctx.room)
+# cloud hosting guide: v5/docs/CONNECT_CLOUD.md`
 }
 
 function ago(t) {

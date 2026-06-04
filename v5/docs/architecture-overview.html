@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>plivo-mirror v5 — architecture</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel2:#1c2230; --ink:#e6edf3; --muted:#8b949e;
+    --line:#30363d; --accent:#58a6ff; --green:#3fb950; --amber:#d29922; --red:#f85149;
+    --purple:#bc8cff; --cyan:#39c5cf; --pink:#f778ba;
+    --mono:'SF Mono',ui-monospace,'Cascadia Code',Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--sans);line-height:1.45}
+  header{padding:28px 32px 14px;border-bottom:1px solid var(--line)}
+  h1{margin:0;font-size:22px;letter-spacing:.2px}
+  h1 .v{color:var(--accent)}
+  .sub{color:var(--muted);font-size:14px;margin-top:6px;max-width:980px}
+  .legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:14px;font-size:12px;color:var(--muted)}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .dot{width:10px;height:10px;border-radius:2px;display:inline-block}
+  main{padding:24px 32px 80px;max-width:1280px;margin:0 auto}
+  .lane{margin:22px 0}
+  .lane-title{font-size:11px;text-transform:uppercase;letter-spacing:1.5px;color:var(--muted);
+    margin:0 0 10px;display:flex;align-items:center;gap:10px}
+  .lane-title::after{content:"";flex:1;height:1px;background:var(--line)}
+  .row{display:flex;gap:14px;flex-wrap:wrap;align-items:stretch}
+  .box{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:13px 15px;
+    flex:1 1 0;min-width:210px;position:relative;transition:.15s;cursor:default}
+  .box:hover{border-color:var(--accent);transform:translateY(-2px);box-shadow:0 6px 22px rgba(0,0,0,.4)}
+  .box h3{margin:0 0 4px;font-size:14px;display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .box .file{font-family:var(--mono);font-size:10.5px;color:var(--muted);word-break:break-all}
+  .box p{margin:8px 0 0;font-size:12.5px;color:#c9d1d9}
+  .box ul{margin:8px 0 0;padding-left:16px;font-size:12px;color:#c9d1d9}
+  .box ul li{margin:3px 0}
+  code{font-family:var(--mono);font-size:11.5px;background:#0d1117;border:1px solid var(--line);
+    border-radius:4px;padding:0 4px;color:#c9d1d9}
+  .tag{font-family:var(--mono);font-size:10px;padding:1px 6px;border-radius:5px;border:1px solid var(--line);color:var(--muted)}
+  .badge{font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px;color:#0d1117}
+  .b-green{background:var(--green)} .b-amber{background:var(--amber)} .b-red{background:var(--red)}
+  .b-blue{background:var(--accent)} .b-purple{background:var(--purple)} .b-cyan{background:var(--cyan)}
+  .l-green{border-left:3px solid var(--green)} .l-amber{border-left:3px solid var(--amber)}
+  .l-red{border-left:3px solid var(--red)} .l-blue{border-left:3px solid var(--accent)}
+  .l-purple{border-left:3px solid var(--purple)} .l-cyan{border-left:3px solid var(--cyan)}
+  .l-pink{border-left:3px solid var(--pink)} .l-muted{border-left:3px solid var(--muted)}
+  .engine{border:1px dashed #3d4757;border-radius:14px;padding:16px;background:linear-gradient(180deg,#12161d,#0f141b)}
+  .engine .cap{font-size:11px;color:var(--muted);font-family:var(--mono);margin-bottom:12px}
+  .split{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:880px){.split{grid-template-columns:1fr}}
+  .note{font-size:11px;color:var(--muted);font-style:italic;margin-top:6px}
+  .kpis{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+  .kpi{background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:8px 12px;font-size:12px}
+  .kpi b{color:var(--green);font-size:15px;display:block}
+  .pill{display:inline-block;font-family:var(--mono);font-size:10px;background:#0d1117;border:1px solid var(--line);
+    border-radius:5px;padding:1px 6px;color:var(--cyan);margin:2px 3px 0 0}
+  .truth{display:flex;gap:10px;flex-wrap:wrap}
+  .arrowdown{display:block;text-align:center;color:#3d4757;font-size:13px;margin:-2px 0;font-family:var(--mono)}
+  .twocol{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  @media(max-width:880px){.twocol{grid-template-columns:1fr}}
+  footer{color:var(--muted);font-size:11px;padding:0 32px 40px;max-width:1280px;margin:0 auto;border-top:1px solid var(--line);padding-top:16px}
+</style>
+</head>
+<body>
+<header>
+  <h1>plivo-mirror <span class="v">v5</span> — grounded output firewall for LLM voice agents</h1>
+  <div class="sub">
+    Watches the <b>agent</b>, not the caller. Every claim the agent speaks is diffed against
+    deterministic ground truth held in-stack — session state, structured reference data, the tool log —
+    with a <code>{spoken, truth, source}</code> receipt. <b>One engine, two deployables</b>
+    (shadow monitoring · live intervention), selected by a single <code>mode</code> flag.
+  </div>
+  <div class="legend">
+    <span><i class="dot" style="background:var(--green)"></i> deterministic / inline-safe (µs)</span>
+    <span><i class="dot" style="background:var(--amber)"></i> gate (no detection)</span>
+    <span><i class="dot" style="background:var(--purple)"></i> model-in-loop (judge)</span>
+    <span><i class="dot" style="background:var(--accent)"></i> integration / routing</span>
+    <span><i class="dot" style="background:var(--cyan)"></i> telemetry / storage</span>
+    <span><i class="dot" style="background:var(--pink)"></i> offline backstop</span>
+  </div>
+</header>
+
+<main>
+
+  <!-- VOICE AGENT -->
+  <div class="lane">
+    <p class="lane-title">Voice agent (host) — LiveKit AgentSession</p>
+    <div class="row">
+      <div class="box l-muted">
+        <h3>STT → LLM → TTS</h3>
+        <div class="file">examples/aurora_agent · skyline_flight_agent</div>
+        <p>The customer's voice agent. plivo-mirror imports <b>nothing</b> from LiveKit — duck-typed against its event payloads.</p>
+      </div>
+      <div class="box l-muted">
+        <h3>Tool calls</h3>
+        <p>Executed functions emitted via <code>function_tools_executed</code> — buffered and attached to the agent's <i>next</i> utterance so "I've cancelled it" can be diffed against what actually fired.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="arrowdown">▼  events: conversation_item_added · function_tools_executed · close</div>
+
+  <!-- INTEGRATION -->
+  <div class="lane">
+    <p class="lane-title">Integration layer — the single observer</p>
+    <div class="row">
+      <div class="box l-blue">
+        <h3>attach_mirror() <span class="tag">~5 lines</span></h3>
+        <div class="file">integrations/livekit_adapter.py</div>
+        <ul>
+          <li>Subscribes to the session's events</li>
+          <li><b>Registration-driven config:</b> <code>GET /agents/{id}/config</code> → facts, mode, policies, system prompt</li>
+          <li>intervene + <code>agent=</code> → auto-wires Hook A &amp; Hook B</li>
+          <li>Unreachable backend → degrades to shadow; attach never fails</li>
+        </ul>
+      </div>
+      <div class="box l-blue">
+        <h3>MirrorObserver</h3>
+        <div class="file">integrations/livekit_observer.py</div>
+        <ul>
+          <li>Runs the engine <b>off the event loop</b> (<code>create_task</code> + <code>to_thread</code>) — the live call never blocks</li>
+          <li><code>call_id == LiveKit room id</code></li>
+          <li><code>mode</code> selects <b>routing only</b>; detection is identical</li>
+        </ul>
+      </div>
+      <div class="box l-blue">
+        <h3>ClaimExtractor</h3>
+        <div class="file">engine/claims.py</div>
+        <p>Transcript → claims. Live default = <b>action-claims only</b> (<code>fact_claims=False</code>): lexicon number-attribution caused false alarms; facts are the judge's job.</p>
+        <span class="pill">Lexicon</span><span class="pill">LLM (NLU)</span><span class="pill">Passthrough</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="arrowdown">▼  TurnInput { transcript, claims, tool_calls, asr_confidence }</div>
+
+  <!-- ENGINE -->
+  <div class="lane">
+    <p class="lane-title">Detection engine — pure, offline-capable, emits nothing &amp; takes no action</p>
+    <div class="engine">
+      <div class="cap">engine/engine.py · evaluate_turn(turn, state) → TurnResult &nbsp;|&nbsp; snapshots state first (auditable state_snapshot_id)</div>
+
+      <div class="box l-amber" style="margin-bottom:12px">
+        <h3>L1 — Input Integrity <span class="badge b-amber">GATE</span></h3>
+        <div class="file">engine/layers/l1_input_integrity.py · user turns</div>
+        <p>Not a detector. (1) Low ASR confidence → mark turn <b>untrusted</b> so L2 downgrades to <code>info</code> (don't punish answering a mis-transcribed question). (2) Readback corrections → write the corrected fact into SessionState. All verdicts <code>info</code>.</p>
+      </div>
+
+      <div class="box l-green" style="margin-bottom:12px">
+        <h3>L2 — Deterministic Diff <span class="badge b-green">PRIMARY · µs · inline-safe ≤50ms</span></h3>
+        <div class="file">engine/layers/l2_deterministic.py + l2_checks.py · agent turns</div>
+        <div class="twocol" style="margin-top:8px">
+          <div>
+            <p style="margin-top:0"><b>Claims diff</b> — resolve each claim's referent &amp; compare:</p>
+            <span class="pill">session.* → SessionState</span>
+            <span class="pill">reference.* → ReferenceStore</span>
+            <span class="pill">tool.* → tool log (speech-vs-action)</span>
+            <p class="note">Unresolved referent → outside L2 → judge's job.</p>
+          </div>
+          <div>
+            <p style="margin-top:0"><b>Parallel policy checks</b> (the v4 defenses, regex/dict, µs):</p>
+            <span class="pill">tool_args → wrong-action</span>
+            <span class="pill">authorization → prompt-injection</span>
+            <span class="pill">commitments</span>
+            <span class="pill">disclosures</span>
+            <span class="pill">persona drift</span>
+          </div>
+        </div>
+        <p class="note">Every verdict carries Evidence <code>{claim_type, spoken_value, truth_value, source}</code> — rendered verbatim in the dashboard.</p>
+      </div>
+
+      <div class="box l-red">
+        <h3>Arbitration — deterministic wins</h3>
+        <div class="file">engine/arbitration.py</div>
+        <p>Per claim, precedence <code>L2 &gt; JUDGE</code>. A weaker same-claim verdict stops firing &amp; records <code>suppressed_by=["L2"]</code> — auditable; never two firing verdicts for one claim.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- TRUTH SOURCES -->
+  <div class="lane">
+    <p class="lane-title">Ground truth (read by L2)</p>
+    <div class="truth">
+      <div class="box l-green">
+        <h3>SessionState</h3>
+        <div class="file">engine/session_state.py</div>
+        <p><b>Runtime per-call</b> validated facts + committed tool log. Single source of truth for the call. L2 always diffs against an immutable <code>snapshot()</code>.</p>
+      </div>
+      <div class="box l-green">
+        <h3>ReferenceStore</h3>
+        <div class="file">engine/reference.py</div>
+        <p><b>Static per-agent</b> structured data (prices, hours, policies) flattened to dotted keys. <b>Exact keyed lookup — never vector search.</b></p>
+      </div>
+      <div class="box l-purple">
+        <h3>Unstructured KB</h3>
+        <div class="file">(prose → grounded judge)</div>
+        <p>Free-form prose claims with no structured referent are the grounded LLM judge's territory, never L2's.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="arrowdown">▼  TurnResult — routed by mode</div>
+
+  <!-- ROUTING / DEPLOYABLES -->
+  <div class="lane">
+    <p class="lane-title">Routing — same engine, mode flag picks the destination</p>
+    <div class="split">
+
+      <!-- SHADOW -->
+      <div>
+        <div class="box l-cyan">
+          <h3>mode = "shadow" <span class="badge b-cyan">Deployable 1 · Monitoring</span></h3>
+          <p>Crossing verdict → <code>action.taken="would_have"</code>. Everything → telemetry.</p>
+        </div>
+        <div class="arrowdown">▼</div>
+        <div class="box l-cyan">
+          <h3>TelemetryEmitter → Sink</h3>
+          <div class="file">telemetry/emitter.py · schema.py</div>
+          <p>OTel-shaped records, off the hot path via <code>ThreadedSink</code>: call = trace · turn = span · verdict/action = events.</p>
+          <span class="pill">HTTPSink → /ingest</span><span class="pill">InMemorySink</span><span class="pill">OTelSink</span>
+        </div>
+        <div class="arrowdown">▼</div>
+        <div class="box l-cyan">
+          <h3>FastAPI backend + CallStore (SQLite/WAL)</h3>
+          <div class="file">deployables/monitoring/backend/app.py · store.py</div>
+          <ul>
+            <li><code>/calls/{id}/receipts</code> — audit-grade evidence packet</li>
+            <li><code>/stats/precision</code> — <b>measured</b> precision from reviewer ✓/✗ on your traffic</li>
+            <li><code>/stats/patterns</code> — cross-call systemic clusters w/ receipts</li>
+            <li><code>/agents</code> registry · alert webhook (Slack)</li>
+          </ul>
+        </div>
+        <div class="arrowdown">▼</div>
+        <div class="box l-cyan">
+          <h3>React (Vite) frontend</h3>
+          <div class="file">deployables/monitoring/frontend</div>
+          <p>call_id-keyed dashboard; renders evidence verbatim. Single-URL deploy (backend serves <code>dist/</code>).</p>
+        </div>
+      </div>
+
+      <!-- INTERVENE -->
+      <div>
+        <div class="box l-red">
+          <h3>mode = "intervene" <span class="badge b-red">Deployable 2 · Live</span></h3>
+          <p>Crossing verdict (≥ <code>intervene_severity</code>) → handed to an intervention handler.</p>
+        </div>
+        <div class="arrowdown">▼</div>
+        <div class="box l-amber">
+          <h3>Hook A — next-turn correction <span class="badge b-amber">CONTAINMENT</span></h3>
+          <div class="file">deployables/intervention/hook_a_next_turn.py</div>
+          <p>Wrong sentence <i>already spoken</i>. Injects a <code>[CORRECTION:…]</code> system message into the agent's chat context; proactive filler + <code>generate_reply</code>; <b>handoff</b> after N interventions.</p>
+        </div>
+        <div class="arrowdown">▼</div>
+        <div class="box l-red">
+          <h3>Hook B — pre-TTS gate <span class="badge b-red">PREVENTION</span></h3>
+          <div class="file">deployables/intervention/hook_b_pre_tts.py · integrations/pre_tts.py</div>
+          <p>Sits between LLM output and TTS — flagged draft never reaches the speaker:</p>
+          <ul>
+            <li><b>1.</b> L2 deterministic floor (µs) — hard hit holds, no model</li>
+            <li><b>2.</b> Assertiveness gate (µs, <code>engine/gate.py</code>) — chitchat/questions release at ~0ms</li>
+            <li><b>3.</b> <span style="color:var(--purple)">Inline grounded JUDGE</span> — assertive turns only, hard timeout, <b>fail-open</b></li>
+          </ul>
+          <p class="note">Hold → CorrectionRetryLoop: filler → regenerate(main LLM w/ packet) → re-gate + pink-elephant echo check → cap retries → safe handoff.</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- OFFLINE -->
+  <div class="lane">
+    <p class="lane-title">Offline backstop &amp; evaluation (never inline)</p>
+    <div class="row">
+      <div class="box l-pink">
+        <h3>L4 — Post-call LLM judge <span class="badge b-purple">OFFLINE</span></h3>
+        <div class="file">auditor/post_call_judge.py</div>
+        <p>Grounded-entailment judge over the stored timeline (facts + policies + system prompt + conversation → violation y/n + category). <code>audit_call</code> emits AuditFindings (missed_failure / false_alarm). Optional auto-audit on <code>call_end</code>.</p>
+      </div>
+      <div class="box l-pink">
+        <h3>Eval harness</h3>
+        <div class="file">eval/run_eval.py · fixtures (induced + organic)</div>
+        <p>Catch rate per layer, false-alarm rate on clean turns, per-layer latency percentiles + the L2 inline-budget check.</p>
+        <div class="kpis">
+          <div class="kpi"><b>90.8%</b>combined catch</div>
+          <div class="kpi"><b>0%</b>golden false-alarm (inline)</div>
+          <div class="kpi"><b>~50ms</b>L2 inline budget</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <b>Six target failures:</b> fabricated facts · unauthorized commitments · wrong-action-vs-intent ·
+    compliance/disclosure gaps · prompt injection · persona drift.<br/>
+    <b>Known limits</b> (PRODUCTION.md): Hook B not yet wired to the LiveKit transport · English-only lexicons ·
+    SQLite (single instance) · no PII redaction yet.<br/>
+    Generated from source at <code>~/Desktop/vijay-echo-codec/v5</code>.
+  </footer>
+
+</main>
+</body>
+</html>

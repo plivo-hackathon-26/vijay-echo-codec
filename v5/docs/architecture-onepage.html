@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>plivo-mirror v5 — one-page architecture</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel2:#1c2230; --ink:#e6edf3; --muted:#8b949e;
+    --line:#30363d; --accent:#58a6ff; --green:#3fb950; --amber:#d29922; --red:#f85149;
+    --purple:#bc8cff; --cyan:#39c5cf; --pink:#f778ba;
+    --mono:'SF Mono',ui-monospace,'Cascadia Code',Menlo,Consolas,monospace;
+    --sans:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{background:var(--bg);color:var(--ink);font-family:var(--sans);
+    display:flex;justify-content:center;align-items:flex-start;min-height:100vh;padding:18px}
+  .card{width:1100px;background:var(--bg)}
+  h1{font-size:19px;letter-spacing:.2px}
+  h1 .v{color:var(--accent)}
+  .sub{color:var(--muted);font-size:12px;margin-top:3px}
+  .legend{display:flex;gap:14px;flex-wrap:wrap;margin:8px 0 12px;font-size:10.5px;color:var(--muted)}
+  .legend span{display:inline-flex;align-items:center;gap:5px}
+  .dot{width:9px;height:9px;border-radius:2px;display:inline-block}
+  code{font-family:var(--mono);font-size:10.5px;background:#0d1117;border:1px solid var(--line);
+    border-radius:4px;padding:0 4px;color:#c9d1d9}
+  .row{display:flex;gap:10px;align-items:stretch}
+  .box{background:var(--panel);border:1px solid var(--line);border-radius:9px;padding:9px 12px;flex:1}
+  .box h3{font-size:12.5px;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+  .box .f{font-family:var(--mono);font-size:9.5px;color:var(--muted);margin-top:1px}
+  .box p{font-size:11px;color:#c9d1d9;margin-top:4px}
+  .badge{font-size:9px;font-weight:700;padding:1px 6px;border-radius:20px;color:#0d1117}
+  .b-green{background:var(--green)} .b-amber{background:var(--amber)} .b-red{background:var(--red)}
+  .b-cyan{background:var(--cyan)} .b-purple{background:var(--purple)}
+  .arrow{text-align:center;color:#3d4757;font-size:11px;font-family:var(--mono);margin:3px 0}
+  .pill{display:inline-block;font-family:var(--mono);font-size:9.5px;background:#0d1117;
+    border:1px solid var(--line);border-radius:5px;padding:1px 6px;color:var(--cyan);margin:2px 3px 0 0}
+
+  /* the single engine box with three layer strips */
+  .engine{border:1.5px dashed #44506a;border-radius:12px;padding:10px 12px;
+    background:linear-gradient(180deg,#12161d,#0f141b)}
+  .engine .cap{font-size:10px;color:var(--muted);font-family:var(--mono);margin-bottom:8px;
+    display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px}
+  .strip{border-radius:7px;padding:7px 10px;margin-bottom:6px;border:1px solid var(--line);
+    background:var(--panel);display:flex;gap:10px;align-items:flex-start}
+  .strip:last-child{margin-bottom:0}
+  .strip .lbl{flex:0 0 132px;font-size:12px;font-weight:700;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+  .strip .body{flex:1;font-size:10.5px;color:#c9d1d9;line-height:1.4}
+  .l1{border-left:3px solid var(--amber)} .l2{border-left:3px solid var(--green)}
+  .arb{border-left:3px solid var(--red)}
+  .judge-box{border:1px solid var(--purple)}
+  .truth{display:flex;gap:8px;margin-top:6px}
+  .truth .t{flex:1;background:#0d1117;border:1px solid var(--line);border-radius:6px;padding:5px 8px;font-size:10px;color:#c9d1d9}
+  .truth .t b{color:var(--green)}
+  .split{display:flex;gap:10px}
+  .split>div{flex:1;display:flex;flex-direction:column;gap:6px}
+  .mini{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:8px 11px}
+  .mini h4{font-size:11.5px;display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+  .mini .f{font-family:var(--mono);font-size:9px;color:var(--muted);margin-top:1px}
+  .mini p{font-size:10px;color:#c9d1d9;margin-top:3px;line-height:1.4}
+  .l-amber{border-left:3px solid var(--amber)} .l-red{border-left:3px solid var(--red)}
+  .l-cyan{border-left:3px solid var(--cyan)}
+  .foot{color:var(--muted);font-size:9.5px;margin-top:10px;border-top:1px solid var(--line);padding-top:7px;line-height:1.5}
+</style>
+</head>
+<body>
+<div class="card">
+
+  <h1>plivo-mirror <span class="v">v5</span> — grounded output firewall for LLM voice agents</h1>
+  <div class="sub">Watches the <b>agent</b>, not the caller. Diffs every spoken claim against in-stack ground truth → <code>{spoken, truth, source}</code> receipt. One engine, two deployables, one <code>mode</code> flag.</div>
+  <div class="legend">
+    <span><i class="dot" style="background:var(--green)"></i> deterministic (µs)</span>
+    <span><i class="dot" style="background:var(--amber)"></i> gate</span>
+    <span><i class="dot" style="background:var(--purple)"></i> LLM judge</span>
+    <span><i class="dot" style="background:var(--accent)"></i> integration</span>
+    <span><i class="dot" style="background:var(--cyan)"></i> telemetry/storage</span>
+    <span><i class="dot" style="background:var(--red)"></i> intervention</span>
+  </div>
+
+  <!-- VOICE AGENT + INTEGRATION -->
+  <div class="row">
+    <div class="box" style="border-left:3px solid var(--muted)">
+      <h3>Voice agent — LiveKit AgentSession</h3>
+      <div class="f">STT → LLM → TTS · examples/aurora_agent · skyline_flight_agent</div>
+      <p>Emits <code>conversation_item_added</code> (both roles) &amp; <code>function_tools_executed</code> (tools attached to the agent's next utterance). Mirror imports nothing from LiveKit.</p>
+    </div>
+    <div class="box" style="border-left:3px solid var(--accent);flex:0 0 360px">
+      <h3>attach_mirror() → MirrorObserver</h3>
+      <div class="f">integrations/livekit_adapter.py · livekit_observer.py</div>
+      <p>Runs engine <b>off the event loop</b> (<code>to_thread</code>) — call never blocks. <code>call_id == room id</code>. Registration pulls facts/mode/policies. ClaimExtractor builds claims.</p>
+    </div>
+  </div>
+
+  <div class="arrow">▼&nbsp;&nbsp;TurnInput { transcript, claims, tool_calls, asr_confidence }</div>
+
+  <!-- ENGINE: 3 layers in ONE box -->
+  <div class="engine">
+    <div class="cap">
+      <span>DETECTION ENGINE — engine/engine.py · evaluate_turn() → TurnResult</span>
+      <span>pure detection · offline-capable · emits nothing, takes no action</span>
+    </div>
+
+    <div class="strip l1">
+      <div class="lbl">L1 · Input Integrity <span class="badge b-amber">GATE</span></div>
+      <div class="body">Not a detector. Low ASR confidence → mark turn <b>untrusted</b> (L2 downgrades to info). Caller readback corrections → write the corrected fact into SessionState. All verdicts <code>info</code>.</div>
+    </div>
+
+    <div class="strip l2">
+      <div class="lbl">L2 · Deterministic Diff <span class="badge b-green">PRIMARY · µs · ≤50ms</span></div>
+      <div class="body">
+        <b>Claims diff</b> vs 3 truth sources + <b>5 parallel policy checks</b> — all regex/dict, fully explainable Evidence <code>{claim_type, spoken, truth, source}</code>.<br>
+        <span class="pill">session.*</span><span class="pill">reference.*</span><span class="pill">tool.* (speech-vs-action)</span>
+        <span class="pill">tool-args→wrong-action</span><span class="pill">authz→prompt-injection</span><span class="pill">commitments</span><span class="pill">disclosures</span><span class="pill">persona</span>
+      </div>
+    </div>
+
+    <div class="strip arb">
+      <div class="lbl">Arbitration <span class="badge b-red">det. wins</span></div>
+      <div class="body">Per claim, precedence <code>L2 &gt; JUDGE</code>: a weaker same-claim verdict stops firing and records <code>suppressed_by=["L2"]</code> — never two firing verdicts for one claim.</div>
+    </div>
+
+    <div class="truth">
+      <div class="t"><b>SessionState</b> — runtime per-call validated facts + tool log; diffed via immutable snapshot</div>
+      <div class="t"><b>ReferenceStore</b> — static per-agent structured data; exact keyed lookup, never vector</div>
+      <div class="t" style="border-left:2px solid var(--purple)">prose claims (no referent) → <b style="color:var(--purple)">LLM judge ↓</b></div>
+    </div>
+  </div>
+
+  <div class="arrow">▼</div>
+
+  <!-- LLM JUDGE -->
+  <div class="box judge-box">
+    <h3>LLM Judge <span class="badge b-purple">grounded entailment</span> <span style="font-size:10px;color:var(--muted)">facts + policies + system prompt + conversation → violation? + category</span></h3>
+    <div class="f">auditor/post_call_judge.py (LLMPostCallJudge) · hook_b_pre_tts.py (inline, gated)</div>
+    <p><b>Inline</b> (Hook B, intervene only): runs <i>only</i> on assertive turns the deterministic floor passed, hard timeout, <b>fail-open</b>. &nbsp;·&nbsp; <b>Post-call</b> (L4, offline backstop): audits the stored timeline for what L2 missed → AuditFindings; feeds measured precision &amp; the eval loop. Never on the clean inline path.</p>
+  </div>
+
+  <div class="arrow">▼&nbsp;&nbsp;TurnResult routed by <code>mode</code> (routing only — detection is identical)</div>
+
+  <!-- ROUTING -->
+  <div class="split">
+    <div>
+      <div class="mini l-cyan">
+        <h4>mode = "shadow" <span class="badge b-cyan">Deployable 1 · Monitoring</span></h4>
+        <div class="f">telemetry/emitter.py → backend/app.py + CallStore (SQLite/WAL) → React frontend</div>
+        <p>OTel-shaped telemetry off the hot path (ThreadedSink). Receipts export · measured precision from reviewer ✓/✗ · cross-call patterns · alert webhook. <code>action="would_have"</code>.</p>
+      </div>
+    </div>
+    <div>
+      <div class="mini l-amber">
+        <h4>Hook A — next-turn <span class="badge b-amber">CONTAINMENT</span></h4>
+        <div class="f">deployables/intervention/hook_a_next_turn.py</div>
+        <p>Wrong line already spoken → inject <code>[CORRECTION:…]</code> into chat context; proactive filler + regen; handoff after N.</p>
+      </div>
+      <div class="mini l-red">
+        <h4>Hook B — pre-TTS gate <span class="badge b-red">PREVENTION</span></h4>
+        <div class="f">deployables/intervention/hook_b_pre_tts.py</div>
+        <p>L2 floor → assertiveness gate → inline judge; hold → regenerate + re-gate + echo check → release | handoff. <i>(built; not yet wired to transport)</i></p>
+      </div>
+    </div>
+  </div>
+
+  <div class="foot">
+    <b>Six target failures:</b> fabricated facts · unauthorized commitments · wrong-action-vs-intent · compliance/disclosure gaps · prompt injection · persona drift. &nbsp;|&nbsp; mode = "intervene" → Deployable 2 (Hooks A+B). &nbsp;|&nbsp; Source: <code>~/Desktop/vijay-echo-codec/v5</code>.
+  </div>
+
+</div>
+</body>
+</html>
