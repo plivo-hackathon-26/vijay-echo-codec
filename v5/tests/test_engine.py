@@ -3,23 +3,15 @@ import time
 from plivo_mirror_v5.engine import (
     Engine,
     EngineConfig,
-    FakeKBRetriever,
-    KBChunk,
     SessionState,
 )
 from plivo_mirror_v5.engine.layers.base import LayerContext
 
 from helpers import REFERENCE, make_turn
 
-KB = FakeKBRetriever([
-    KBChunk(chunk_id="chunk_02",
-            text="The Aurora home router supports wifi 6 and covers up to 2500 square feet.",
-            score=0.9),
-])
 
-
-def make_engine(config=None, kb=KB):
-    return Engine(config or EngineConfig(), reference=REFERENCE, kb=kb)
+def make_engine(config=None):
+    return Engine(config or EngineConfig(), reference=REFERENCE)
 
 
 def test_mixed_turn_end_to_end():
@@ -30,6 +22,8 @@ def test_mixed_turn_end_to_end():
         claims=[
             {"claim_id": "c1", "claim_type": "price", "spoken_value": "$59.99",
              "ref": "reference.plan.turbo.price_per_month"},
+            # No structured referent → outside L2 jurisdiction; the grounded
+            # LLM judge owns it (inline gate / post-call), not the engine.
             {"claim_id": "c2", "claim_type": "fact", "spoken_value": None, "ref": None,
              "text": "The Aurora router covers up to 5000 square feet"},
         ],
@@ -39,20 +33,23 @@ def test_mixed_turn_end_to_end():
     assert result.state_snapshot_id.startswith("snap-call-t-")
     assert result.action is None  # engine never takes actions
     fired = {(v.detector, v.claim_id) for v in result.fired_verdicts}
-    assert fired == {("L2", "c1"), ("L3", "c2")}
+    assert fired == {("L2", "c1")}
     assert result.max_severity() == "high"
 
 
-def test_l3_skips_claim_l2_resolved():
+def test_unresolved_claim_is_outside_engine_jurisdiction():
     engine = make_engine()
     state = SessionState("call-t")
     turn = make_turn(claims=[
         {"claim_id": "c1", "claim_type": "price", "spoken_value": "$59.99",
          "ref": "reference.plan.turbo.price_per_month",
          "text": "The Turbo plan is $59.99"},
+        {"claim_id": "c2", "claim_type": "fact", "ref": None,
+         "text": "free-form prose claim"},
     ])
     result = engine.evaluate_turn(turn, state)
     assert [v.detector for v in result.verdicts] == ["L2"]
+    assert [v.claim_id for v in result.verdicts] == ["c1"]
 
 
 def test_tool_calls_committed_to_state_after_turn():
@@ -91,7 +88,7 @@ def test_l1_gate_flows_into_same_call_later_turns():
 
 
 def test_layer_enable_flags():
-    config = EngineConfig(enable_l1=False, enable_l3=False)
+    config = EngineConfig(enable_l1=False)
     engine = make_engine(config=config)
     state = SessionState("call-t")
     turn = make_turn(role="user", transcript="x", asr_confidence=0.1, claims=[
@@ -133,7 +130,7 @@ def test_l2_inline_latency_budget():
     for i in range(50):
         turn = make_turn(turn_index=i, claims=claims)
         ctx = LayerContext(config=config, snapshot=state.snapshot(),
-                           reference=REFERENCE, kb=None)
+                           reference=REFERENCE)
         start = time.perf_counter()
         engine.l2.check(turn, state, ctx)
         samples.append((time.perf_counter() - start) * 1000.0)

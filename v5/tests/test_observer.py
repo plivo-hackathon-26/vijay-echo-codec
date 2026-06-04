@@ -86,7 +86,7 @@ async def test_l1_gate_carries_across_items():
 
 async def test_evaluation_never_blocks_the_call_loop():
     observer, sink = make_observer()
-    # Make the engine artificially slow (a slow L3 model, say).
+    # Make the engine artificially slow.
     real_evaluate = observer.engine.evaluate_turn
 
     def slow_evaluate(turn, state):

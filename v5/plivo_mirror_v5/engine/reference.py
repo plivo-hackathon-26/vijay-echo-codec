@@ -3,8 +3,8 @@ data (menu, pricing, policies, hours).
 
 Non-negotiable: this is exact/keyed lookup, NEVER vector search. Vector
 search is fuzzy, slower, and not auditable — structured truth must resolve
-deterministically or not at all. (The vector path exists only as the L3
-retriever over the *unstructured* KB; see ``kb_retriever.py``.)
+deterministically or not at all. (Unstructured/prose knowledge is the
+grounded LLM judge's territory, never L2's.)
 """
 
 from __future__ import annotations

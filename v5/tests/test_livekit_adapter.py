@@ -11,6 +11,17 @@ from plivo_mirror_v5.telemetry import schema as S
 
 from helpers import REFERENCE
 
+import pytest
+
+
+@pytest.fixture(autouse=True)
+def _no_registry_http(monkeypatch):
+    """Tests never hit a real backend: registry fetch is a no-op unless a
+    test monkeypatches it explicitly (the registration tests do)."""
+    from plivo_mirror_v5.integrations import livekit_adapter as mod
+    monkeypatch.setattr(mod, "fetch_agent_config", lambda *a, **k: None)
+
+
 
 class SessionStub:
     def __init__(self):
@@ -127,3 +138,47 @@ async def test_close_event_ends_call():
     session.emit("close")
     [end] = sink.of_type(S.REC_CALL_END)
     assert end[S.ATTR_CALL_ID] == "lk-room-1"
+
+
+# -- registration-driven config (the dashboard "connect an agent" flow) ------
+
+async def test_registry_unreachable_defaults_to_shadow(monkeypatch):
+    from plivo_mirror_v5.integrations import livekit_adapter as mod
+    monkeypatch.setattr(mod, "fetch_agent_config", lambda *a, **k: None)
+    session = SessionStub()
+    observer = attach_mirror(session, room_id="room-reg-1",
+                             sink=InMemorySink(), agent_id="not-registered")
+    assert observer.mode == "shadow"
+    assert observer.engine.reference.keys() == []   # empty store, never crashes
+
+
+async def test_registered_facts_and_intervene_mode_apply(monkeypatch):
+    from plivo_mirror_v5.deployables.intervention import FakeAgent, HookANextTurn
+    from plivo_mirror_v5.integrations import livekit_adapter as mod
+    monkeypatch.setattr(mod, "fetch_agent_config", lambda *a, **k: {
+        "registered": True, "mode": "intervene",
+        "facts": {"plan": {"turbo": {"price_per_month": 79.99}}},
+        "policies": "", "system_prompt": "You are Aurora support.",
+    })
+    agent = FakeAgent()
+    session = SessionStub()
+    observer = attach_mirror(session, room_id="room-reg-2",
+                             sink=InMemorySink(), agent_id="aurora-support",
+                             agent=agent)
+    assert observer.mode == "intervene"
+    assert isinstance(observer.intervention_handler, HookANextTurn)
+    assert observer.engine.reference.get("plan.turbo.price_per_month") == 79.99
+
+
+async def test_explicit_args_beat_registry(monkeypatch):
+    from plivo_mirror_v5.integrations import livekit_adapter as mod
+    monkeypatch.setattr(mod, "fetch_agent_config", lambda *a, **k: {
+        "registered": True, "mode": "intervene", "facts": {"x": 1},
+        "policies": "", "system_prompt": "",
+    })
+    session = SessionStub()
+    observer = attach_mirror(session, room_id="room-reg-3",
+                             sink=InMemorySink(), agent_id="aurora-support",
+                             mode="shadow", reference=REFERENCE)
+    assert observer.mode == "shadow"                       # local arg wins
+    assert observer.engine.reference.get("plan.turbo.price_per_month") == 79.99

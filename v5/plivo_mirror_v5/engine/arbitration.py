@@ -1,10 +1,11 @@
 """Arbitration — deterministic wins.
 
-If L2 produced a verdict for a claim (i.e. had jurisdiction), any L3
-verdict on the same claim is suppressed: it stops firing and records
+If L2 produced a verdict for a claim (i.e. had jurisdiction), any
+same-claim verdict from a weaker detector (e.g. an inline JUDGE verdict
+that was attached to a claim) is suppressed: it stops firing and records
 ``suppressed_by=["L2"]`` so the suppression is auditable. Never emit two
 firing verdicts for the same underlying claim. This keeps the false-alarm
-budget from compounding across layers.
+budget from compounding across detectors.
 """
 
 from __future__ import annotations
@@ -12,7 +13,7 @@ from __future__ import annotations
 from plivo_mirror_v5.engine.verdict import Verdict
 
 # Strict precedence, strongest first.
-_PRECEDENCE = ("L2", "L3")
+_PRECEDENCE = ("L2", "JUDGE")
 
 
 def arbitrate(verdicts: list[Verdict]) -> list[Verdict]:

@@ -9,7 +9,8 @@ the three deterministic sources and diff:
 
 Microseconds, no model, fully explainable: every verdict carries
 ``{claim_type, spoken_value, truth_value, source}``. Claims whose referent
-does not resolve are simply outside L2 jurisdiction and fall through to L3.
+does not resolve are outside L2 jurisdiction — they are the grounded LLM
+judge's job (inline behind the assertiveness gate, or post-call).
 
 While the L1 gate is set (untrusted caller input), mismatches are
 downgraded to ``info`` — the agent may be correctly answering a

@@ -34,11 +34,10 @@ def make_turn(role="agent", transcript="", claims=None, tool_calls=None,
     )
 
 
-def make_ctx(state=None, config=None, reference=REFERENCE, kb=None):
+def make_ctx(state=None, config=None, reference=REFERENCE):
     state = state or SessionState("call-t")
     return state, LayerContext(
         config=config or EngineConfig(),
         snapshot=state.snapshot(),
         reference=reference,
-        kb=kb,
     )

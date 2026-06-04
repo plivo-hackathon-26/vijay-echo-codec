@@ -80,7 +80,7 @@ def test_llm_extractor_maps_claims_and_drops_invented_refs():
     ex = LLMClaimExtractor(REFERENCE, client=fake, tools=["cancel_service"])
     claims = ex.extract_from_text("The Turbo plan is $59.99 and covers 5000 sqft.")
     assert claims[0]["ref"] == "reference.plan.turbo.price_per_month"
-    assert claims[1]["ref"] is None  # hallucinated key neutralized → L3 jurisdiction
+    assert claims[1]["ref"] is None  # hallucinated key neutralized → judge jurisdiction
     # the prompt exposes keys + tools but never truth values
     _, user = fake.prompts[0]
     assert "plan.turbo.price_per_month" in user

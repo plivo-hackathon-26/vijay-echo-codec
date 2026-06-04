@@ -4,18 +4,26 @@ monitoring backend in a few lines:
     from plivo_mirror_v5.integrations import attach_mirror
 
     session = AgentSession(stt=..., llm=..., tts=...)
+    my_agent = MyAgent()
     ...
     await ctx.connect()
     attach_mirror(
         session,
         room_id=ctx.room.name,                  # call_id == LiveKit room id
-        reference=ReferenceStore.from_file("reference.json"),
-        kb=KeywordKBRetriever.from_file("kb.json"),
         backend_url="http://localhost:8500",    # the monitoring backend
-        agent_id="aurora-support", agent_version="1.0.0",
-        action_verbs={"cancel_service": ["cancelled", "canceled"]},
+        agent_id="aurora-support",              # ← the id you REGISTERED in
+        agent_version="1.0.0",                  #   the dashboard's Agents tab
+        agent=my_agent,                         # enables dashboard-toggled intervene
     )
-    await session.start(agent=MyAgent(), room=ctx.room)
+    await session.start(agent=my_agent, room=ctx.room)
+
+REGISTRATION-DRIVEN CONFIG: at attach time the adapter best-effort fetches
+``GET {backend_url}/agents/{agent_id}/config``. A dashboard-registered
+agent supplies its facts (→ ReferenceStore for L2) and its mode — flipping
+the agent to "intervene" in the dashboard makes the NEXT call attach with
+Hook A wired (requires ``agent=``). No registration, no reachable backend →
+shadow mode with whatever ``reference=`` was passed locally; attaching
+never fails because the registry is down.
 
 What it hooks (all sync handlers; evaluation is scheduled off the loop and
 telemetry goes through a ``ThreadedSink`` — the live call NEVER waits):
@@ -41,7 +49,7 @@ from __future__ import annotations
 import json
 import time
 
-from plivo_mirror_v5.engine import Engine, EngineConfig, KBRetriever, ReferenceStore
+from plivo_mirror_v5.engine import Engine, EngineConfig, ReferenceStore
 from plivo_mirror_v5.engine.claims import LexiconClaimExtractor
 from plivo_mirror_v5.integrations.livekit_observer import (
     ConversationItem,
@@ -58,30 +66,63 @@ from plivo_mirror_v5.telemetry import (
 _ROLE_MAP = {"assistant": "agent", "user": "user"}
 
 
+def fetch_agent_config(backend_url: str, agent_id: str,
+                       timeout: float = 2.0) -> dict | None:
+    """Best-effort pull of the dashboard-registered config. Never raises —
+    an unreachable registry must never stop a call from being supervised."""
+    import urllib.parse  # noqa: PLC0415 — stdlib, lazy
+    import urllib.request  # noqa: PLC0415
+
+    url = f"{backend_url.rstrip('/')}/agents/{urllib.parse.quote(agent_id)}/config"
+    try:
+        with urllib.request.urlopen(url, timeout=timeout) as resp:  # noqa: S310
+            return json.loads(resp.read().decode("utf-8"))
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def attach_mirror(
     session,
     *,
     room_id: str,
-    reference: ReferenceStore,
-    kb: KBRetriever | None = None,
+    reference: ReferenceStore | None = None,
     backend_url: str = "http://localhost:8500",
     sink: TelemetrySink | None = None,
     agent_id: str = "unknown",
     agent_version: str = "unknown",
-    mode: str = "shadow",
+    mode: str | None = None,
     config: EngineConfig | None = None,
     action_verbs: dict[str, list[str]] | None = None,
     claim_extractor=None,
     intervention_handler: InterventionHandler | None = None,
+    agent=None,
     room=None,
     audio_tap=None,
 ) -> MirrorObserver:
     """Build engine + emitter + observer and subscribe to the session.
     Returns the observer (handy for tests and graceful shutdown).
 
+    Config resolution (explicit args always win over the registry):
+    - ``reference``: local arg → registered facts → empty store.
+    - ``mode``: local arg → registered mode → "shadow".
+    - intervene mode + ``agent=`` and no handler → Hook A auto-wired.
+
     Pass ``room=ctx.room`` to also tap audio tracks for real per-turn
     waveform levels in the dashboard (best-effort; cosmetic only)."""
-    engine = Engine(config or EngineConfig(mode=mode), reference=reference, kb=kb)
+    registered = fetch_agent_config(backend_url, agent_id) or {}
+    if mode is None:
+        mode = registered.get("mode") or "shadow"
+    if reference is None:
+        reference = ReferenceStore(registered.get("facts") or {})
+
+    if (mode == "intervene" and intervention_handler is None
+            and agent is not None):
+        from plivo_mirror_v5.deployables.intervention import (  # noqa: PLC0415
+            HookANextTurn,
+        )
+        intervention_handler = HookANextTurn(agent, config)
+
+    engine = Engine(config or EngineConfig(mode=mode), reference=reference)
     sink = sink or ThreadedSink(HTTPSink(backend_url))
     emitter = TelemetryEmitter(sink)
     observer = MirrorObserver(

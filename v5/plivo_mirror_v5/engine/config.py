@@ -40,7 +40,6 @@ class EngineConfig:
     # Per-layer enable flags.
     enable_l1: bool = True
     enable_l2: bool = True
-    enable_l3: bool = True
 
     # L1 — input integrity gate.
     asr_min_confidence: float = 0.6
@@ -51,13 +50,15 @@ class EngineConfig:
     )
     default_severity: str = "med"
 
-    # L3 — grounding NLI.
-    l3_top_k: int = 3
-    l3_contradicted_severity: str = "med"
-    l3_unsupported_severity: str = "low"
-
     # Intervention routing (Deployable 2).
     intervene_severity: str = "high"
+
+    # Hook B gated hold (inline judge). The grounded judge is the only
+    # model allowed in the inline path, and ONLY on assertive turns (see
+    # engine/gate.py). Fail-open: a judge timeout/error releases the reply.
+    inline_judge_timeout_s: float = 3.5
+    inline_judge_history_turns: int = 8   # conversation context given to the judge
+    inline_judge_max_retries: int = 2     # regeneration attempts before handoff
 
     # Latency budget: L2 is the only inline-safe detector; its overhead per
     # turn must stay under this (asserted in tests).

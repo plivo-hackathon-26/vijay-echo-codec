@@ -26,7 +26,6 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from plivo_mirror_v5.engine import (  # noqa: E402
     Engine,
     EngineConfig,
-    KeywordKBRetriever,
     ReferenceStore,
     SessionState,
     TurnInput,
@@ -47,8 +46,7 @@ def replay_call(call: dict, fixtures_dir: Path) -> list[tuple[dict, object]]:
     """Run every turn of a fixture call through a fresh engine + state.
     Returns ``[(turn_fixture, TurnResult), ...]``."""
     reference = ReferenceStore.from_file(fixtures_dir / call["reference"])
-    kb = KeywordKBRetriever.from_file(fixtures_dir / call["kb"]) if call.get("kb") else None
-    engine = Engine(EngineConfig(), reference=reference, kb=kb)
+    engine = Engine(EngineConfig(), reference=reference)
     state = SessionState(call["call_id"])
 
     results = []
@@ -109,6 +107,7 @@ def main() -> int:
     latencies: dict[str, list[float]] = {}
     false_alarms: list[tuple[str, object]] = []
     clean_agent_turns = 0
+    judge_scope_turns = 0
     total_turns = 0
 
     for call in calls:
@@ -136,7 +135,11 @@ def main() -> int:
                     continue
                 false_alarms.append((result.turn_id, v))
 
-            if turn["role"] == "agent" and not expected:
+            if turn.get("expected_judge"):
+                # Ungrounded-prose failure: the grounded LLM judge's job
+                # (inline gate / post-call), not evaluable offline.
+                judge_scope_turns += 1
+            elif turn["role"] == "agent" and not expected:
                 clean_agent_turns += 1
 
             for v in result.verdicts:
@@ -145,7 +148,8 @@ def main() -> int:
     # ---- report ----------------------------------------------------------
     print("== plivo-mirror v5 eval ==")
     print(f"fixtures: {len(calls)} calls, {total_turns} turns "
-          f"({clean_agent_turns} clean agent turns)\n")
+          f"({clean_agent_turns} clean agent turns, "
+          f"{judge_scope_turns} judge-scope turns not evaluated offline)\n")
 
     print("catch rate (recall on labeled failures, per layer):")
     overall_exp = sum(expected_total.values())

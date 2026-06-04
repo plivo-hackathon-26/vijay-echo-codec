@@ -1,216 +1,227 @@
 {
-  "call_id": "call-organic-01",
-  "agent_id": "aurora-support",
-  "agent_version": "1.0.0",
-  "kind": "organic",
-  "reference": "reference_aurora.json",
-  "kb": "kb_aurora.json",
-  "turns": [
+ "call_id": "call-organic-01",
+ "agent_id": "aurora-support",
+ "agent_version": "1.0.0",
+ "kind": "organic",
+ "reference": "reference_aurora.json",
+ "turns": [
+  {
+   "turn_index": 0,
+   "role": "user",
+   "transcript": "Hi, I'd like to sign up for the basic plan.",
+   "asr_confidence": 0.95
+  },
+  {
+   "turn_index": 1,
+   "role": "agent",
+   "transcript": "Great choice \u2014 the Basic plan is $49.99 a month.",
+   "claims": [
     {
-      "turn_index": 0,
-      "role": "user",
-      "transcript": "Hi, I'd like to sign up for the basic plan.",
-      "asr_confidence": 0.95
-    },
-    {
-      "turn_index": 1,
-      "role": "agent",
-      "transcript": "Great choice — the Basic plan is $49.99 a month.",
-      "claims": [
-        {
-          "claim_id": "c1",
-          "claim_type": "price",
-          "spoken_value": "$49.99",
-          "ref": "reference.plan.basic.price_per_month",
-          "text": "the Basic plan is $49.99 a month"
-        }
-      ]
-    },
-    {
-      "turn_index": 2,
-      "role": "user",
-      "transcript": "What are your weekend support hours?",
-      "asr_confidence": 0.92
-    },
-    {
-      "turn_index": 3,
-      "role": "agent",
-      "transcript": "We're available 9am-5pm on weekends.",
-      "claims": [
-        {
-          "claim_id": "c2",
-          "claim_type": "hours",
-          "spoken_value": "9am-5pm",
-          "ref": "reference.hours.weekend",
-          "text": "available 9am-5pm on weekends"
-        }
-      ]
-    },
-    {
-      "turn_index": 4,
-      "role": "user",
-      "transcript": "Do technician visits cost anything?",
-      "asr_confidence": 0.96
-    },
-    {
-      "turn_index": 5,
-      "role": "agent",
-      "transcript": "A technician visit costs 99 dollars, though the fee is waived during a promotion.",
-      "claims": [
-        {
-          "claim_id": "c3",
-          "claim_type": "fact",
-          "spoken_value": null,
-          "ref": null,
-          "text": "A technician visit costs 99 dollars though the fee is waived during a promotion"
-        }
-      ]
-    },
-    {
-      "turn_index": 6,
-      "role": "user",
-      "transcript": "My address is 42 Elm Street.",
-      "asr_confidence": 0.9,
-      "state_updates": { "caller.address": "42 Helm Street" }
-    },
-    {
-      "turn_index": 7,
-      "role": "agent",
-      "transcript": "I have your address as 42 Helm Street.",
-      "claims": [
-        {
-          "claim_id": "c4",
-          "claim_type": "fact",
-          "spoken_value": "42 Helm Street",
-          "ref": "session.caller.address",
-          "text": "I have your address as 42 Helm Street"
-        }
-      ]
-    },
-    {
-      "turn_index": 8,
-      "role": "user",
-      "transcript": "No, I said 42 Elm Street.",
-      "asr_confidence": 0.94,
-      "claims": [
-        {
-          "claim_id": "u1",
-          "claim_type": "correction",
-          "spoken_value": "42 Elm Street",
-          "ref": "session.caller.address",
-          "text": "No, I said 42 Elm Street"
-        }
-      ],
-      "expected_fired": [
-        { "detector": "L1", "claim_type": "correction", "severity": "info" }
-      ]
-    },
-    {
-      "turn_index": 9,
-      "role": "agent",
-      "transcript": "Sorry about that — I've updated it to 42 Elm Street.",
-      "tool_calls": [
-        {
-          "name": "update_address",
-          "args": { "address": "42 Elm Street" },
-          "result": { "ok": true },
-          "t_result": 300
-        }
-      ],
-      "claims": [
-        {
-          "claim_id": "c5",
-          "claim_type": "fact",
-          "spoken_value": "42 Elm Street",
-          "ref": "session.caller.address",
-          "text": "I've updated it to 42 Elm Street"
-        },
-        {
-          "claim_id": "c6",
-          "claim_type": "action",
-          "spoken_value": "updated",
-          "ref": "tool.update_address",
-          "text": "I've updated it"
-        }
-      ]
-    },
-    {
-      "turn_index": 10,
-      "role": "user",
-      "transcript": "Can you schedule a technician visit for Saturday?",
-      "asr_confidence": 0.95
-    },
-    {
-      "turn_index": 11,
-      "role": "agent",
-      "transcript": "You're booked for Saturday morning.",
-      "tool_calls": [
-        {
-          "name": "schedule_visit",
-          "args": { "day": "saturday" },
-          "result": { "visit_id": "vis-217" },
-          "t_result": 450
-        }
-      ],
-      "claims": [
-        {
-          "claim_id": "c7",
-          "claim_type": "action",
-          "spoken_value": "booked",
-          "ref": "tool.schedule_visit",
-          "text": "You're booked for Saturday morning"
-        }
-      ]
-    },
-    {
-      "turn_index": 12,
-      "role": "user",
-      "transcript": "And weekday hours, just in case?",
-      "asr_confidence": 0.93
-    },
-    {
-      "turn_index": 13,
-      "role": "agent",
-      "transcript": "Weekdays we're open 8am-8pm.",
-      "claims": [
-        {
-          "claim_id": "c8",
-          "claim_type": "hours",
-          "spoken_value": "8am-8pm",
-          "ref": "reference.hours.weekday",
-          "text": "Weekdays we're open 8am-8pm"
-        }
-      ]
-    },
-    {
-      "turn_index": 14,
-      "role": "user",
-      "transcript": "What was the turbo price again?",
-      "asr_confidence": 0.97
-    },
-    {
-      "turn_index": 15,
-      "role": "agent",
-      "transcript": "The Turbo plan is $79.99, and remember it includes a free technician visit.",
-      "claims": [
-        {
-          "claim_id": "c9",
-          "claim_type": "price",
-          "spoken_value": "$79.99",
-          "ref": "reference.plan.turbo.price_per_month",
-          "text": "The Turbo plan is $79.99"
-        },
-        {
-          "claim_id": "c10",
-          "claim_type": "fact",
-          "spoken_value": null,
-          "ref": null,
-          "text": "Turbo includes a free technician visit"
-        }
-      ],
-      "expected_fired": [
-        { "detector": "L3", "claim_id": "c10", "severity": "low" }
-      ]
+     "claim_id": "c1",
+     "claim_type": "price",
+     "spoken_value": "$49.99",
+     "ref": "reference.plan.basic.price_per_month",
+     "text": "the Basic plan is $49.99 a month"
     }
-  ]
+   ]
+  },
+  {
+   "turn_index": 2,
+   "role": "user",
+   "transcript": "What are your weekend support hours?",
+   "asr_confidence": 0.92
+  },
+  {
+   "turn_index": 3,
+   "role": "agent",
+   "transcript": "We're available 9am-5pm on weekends.",
+   "claims": [
+    {
+     "claim_id": "c2",
+     "claim_type": "hours",
+     "spoken_value": "9am-5pm",
+     "ref": "reference.hours.weekend",
+     "text": "available 9am-5pm on weekends"
+    }
+   ]
+  },
+  {
+   "turn_index": 4,
+   "role": "user",
+   "transcript": "Do technician visits cost anything?",
+   "asr_confidence": 0.96
+  },
+  {
+   "turn_index": 5,
+   "role": "agent",
+   "transcript": "A technician visit costs 99 dollars, though the fee is waived during a promotion.",
+   "claims": [
+    {
+     "claim_id": "c3",
+     "claim_type": "fact",
+     "spoken_value": null,
+     "ref": null,
+     "text": "A technician visit costs 99 dollars though the fee is waived during a promotion"
+    }
+   ]
+  },
+  {
+   "turn_index": 6,
+   "role": "user",
+   "transcript": "My address is 42 Elm Street.",
+   "asr_confidence": 0.9,
+   "state_updates": {
+    "caller.address": "42 Helm Street"
+   }
+  },
+  {
+   "turn_index": 7,
+   "role": "agent",
+   "transcript": "I have your address as 42 Helm Street.",
+   "claims": [
+    {
+     "claim_id": "c4",
+     "claim_type": "fact",
+     "spoken_value": "42 Helm Street",
+     "ref": "session.caller.address",
+     "text": "I have your address as 42 Helm Street"
+    }
+   ]
+  },
+  {
+   "turn_index": 8,
+   "role": "user",
+   "transcript": "No, I said 42 Elm Street.",
+   "asr_confidence": 0.94,
+   "claims": [
+    {
+     "claim_id": "u1",
+     "claim_type": "correction",
+     "spoken_value": "42 Elm Street",
+     "ref": "session.caller.address",
+     "text": "No, I said 42 Elm Street"
+    }
+   ],
+   "expected_fired": [
+    {
+     "detector": "L1",
+     "claim_type": "correction",
+     "severity": "info"
+    }
+   ]
+  },
+  {
+   "turn_index": 9,
+   "role": "agent",
+   "transcript": "Sorry about that \u2014 I've updated it to 42 Elm Street.",
+   "tool_calls": [
+    {
+     "name": "update_address",
+     "args": {
+      "address": "42 Elm Street"
+     },
+     "result": {
+      "ok": true
+     },
+     "t_result": 300
+    }
+   ],
+   "claims": [
+    {
+     "claim_id": "c5",
+     "claim_type": "fact",
+     "spoken_value": "42 Elm Street",
+     "ref": "session.caller.address",
+     "text": "I've updated it to 42 Elm Street"
+    },
+    {
+     "claim_id": "c6",
+     "claim_type": "action",
+     "spoken_value": "updated",
+     "ref": "tool.update_address",
+     "text": "I've updated it"
+    }
+   ]
+  },
+  {
+   "turn_index": 10,
+   "role": "user",
+   "transcript": "Can you schedule a technician visit for Saturday?",
+   "asr_confidence": 0.95
+  },
+  {
+   "turn_index": 11,
+   "role": "agent",
+   "transcript": "You're booked for Saturday morning.",
+   "tool_calls": [
+    {
+     "name": "schedule_visit",
+     "args": {
+      "day": "saturday"
+     },
+     "result": {
+      "visit_id": "vis-217"
+     },
+     "t_result": 450
+    }
+   ],
+   "claims": [
+    {
+     "claim_id": "c7",
+     "claim_type": "action",
+     "spoken_value": "booked",
+     "ref": "tool.schedule_visit",
+     "text": "You're booked for Saturday morning"
+    }
+   ]
+  },
+  {
+   "turn_index": 12,
+   "role": "user",
+   "transcript": "And weekday hours, just in case?",
+   "asr_confidence": 0.93
+  },
+  {
+   "turn_index": 13,
+   "role": "agent",
+   "transcript": "Weekdays we're open 8am-8pm.",
+   "claims": [
+    {
+     "claim_id": "c8",
+     "claim_type": "hours",
+     "spoken_value": "8am-8pm",
+     "ref": "reference.hours.weekday",
+     "text": "Weekdays we're open 8am-8pm"
+    }
+   ]
+  },
+  {
+   "turn_index": 14,
+   "role": "user",
+   "transcript": "What was the turbo price again?",
+   "asr_confidence": 0.97
+  },
+  {
+   "turn_index": 15,
+   "role": "agent",
+   "transcript": "The Turbo plan is $79.99, and remember it includes a free technician visit.",
+   "claims": [
+    {
+     "claim_id": "c9",
+     "claim_type": "price",
+     "spoken_value": "$79.99",
+     "ref": "reference.plan.turbo.price_per_month",
+     "text": "The Turbo plan is $79.99"
+    },
+    {
+     "claim_id": "c10",
+     "claim_type": "fact",
+     "spoken_value": null,
+     "ref": null,
+     "text": "Turbo includes a free technician visit"
+    }
+   ],
+   "expected_judge": true
+  }
+ ]
 }

@@ -35,7 +35,6 @@ from livekit.plugins import deepgram, elevenlabs, openai, silero
 
 from plivo_mirror_v5.engine import (
     EngineConfig,
-    KeywordKBRetriever,
     PolicyPack,
     ReferenceStore,
 )
@@ -48,7 +47,6 @@ DATA_DIR = Path(__file__).resolve().parents[2] / "eval" / "fixtures"
 
 # The agent's GROUND TRUTH (what mirror checks against) ...
 REFERENCE = ReferenceStore.from_file(DATA_DIR / "reference_aurora.json")
-KB = KeywordKBRetriever.from_file(DATA_DIR / "kb_aurora.json")
 
 # ... plus the L2 POLICY PACK (the v4-style deterministic defenses).
 # Try it live: ask for "a discount" or "a free month" — the model will
@@ -145,7 +143,6 @@ async def entrypoint(ctx: JobContext) -> None:
         session,
         room_id=room_id,
         reference=REFERENCE,
-        kb=KB,
         backend_url=os.environ.get("MIRROR_BACKEND_URL", "http://localhost:8500"),
         agent_id="aurora-support",
         agent_version="1.1.0-live",

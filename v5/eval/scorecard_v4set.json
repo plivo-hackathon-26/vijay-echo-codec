@@ -10,7 +10,12 @@
    "inline_detectors": [],
    "judge": true,
    "combined": true,
-   "l2_ms": 0.01995799902942963
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": true,
+   "l2_ms": 0.4397910015541129
   },
   {
    "id": "negation_ignored_01",
@@ -22,7 +27,12 @@
    "inline_detectors": [],
    "judge": true,
    "combined": true,
-   "l2_ms": 0.010959000064758584
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": true,
+   "l2_ms": 0.5770419993496034
   },
   {
    "id": "third_party_pref_01",
@@ -34,7 +44,12 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
-   "l2_ms": 0.011041000107070431
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": false,
+   "l2_ms": 0.5449999989650678
   },
   {
    "id": "quantity_error_01",
@@ -46,7 +61,12 @@
    "inline_detectors": [],
    "judge": true,
    "combined": true,
-   "l2_ms": 0.015624998923158273
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": true,
+   "l2_ms": 0.01570799940964207
   },
   {
    "id": "compound_modifier_dropped_01",
@@ -58,7 +78,12 @@
    "inline_detectors": [],
    "judge": true,
    "combined": true,
-   "l2_ms": 0.010125000699190423
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": true,
+   "l2_ms": 0.012542001059046015
   },
   {
    "id": "conditional_ignored_01",
@@ -70,7 +95,12 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
-   "l2_ms": 0.007791000825818628
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": false,
+   "l2_ms": 0.010250001651002094
   },
   {
    "id": "offmenu_invention_01",
@@ -82,7 +112,12 @@
    "inline_detectors": [],
    "judge": true,
    "combined": true,
-   "l2_ms": 0.00979100150289014
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": true,
+   "l2_ms": 0.009125000360654667
   },
   {
    "id": "price_hallucination_01",
@@ -94,6 +129,12 @@
    "inline_detectors": [],
    "judge": true,
    "combined": true,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted",
+    "numberish"
+   ],
+   "inline_gated": true,
    "l2_ms": 0.0
   },
   {
@@ -102,10 +143,17 @@
    "category": "policy_hallucination",
    "expected": true,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
    "judge": true,
    "combined": true,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted",
+    "numberish",
+    "commitment_language"
+   ],
+   "inline_gated": true,
    "l2_ms": 0.0
   },
   {
@@ -118,6 +166,9 @@
    "inline_detectors": [],
    "judge": true,
    "combined": true,
+   "assertive": false,
+   "gate_reasons": [],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -126,10 +177,16 @@
    "category": "promo_hallucination",
    "expected": true,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
    "judge": true,
    "combined": true,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted",
+    "numberish"
+   ],
+   "inline_gated": true,
    "l2_ms": 0.0
   },
   {
@@ -138,10 +195,16 @@
    "category": "math_total_error",
    "expected": true,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted",
+    "numberish"
+   ],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -154,7 +217,12 @@
    "inline_detectors": [],
    "judge": true,
    "combined": true,
-   "l2_ms": 0.008999999408842996
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": true,
+   "l2_ms": 0.05045799844083376
   },
   {
    "id": "unconfirmed_irreversible_01",
@@ -166,7 +234,12 @@
    "inline_detectors": [],
    "judge": true,
    "combined": true,
-   "l2_ms": 0.006791997293476015
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": true,
+   "l2_ms": 0.05004199920222163
   },
   {
    "id": "false_completion_01",
@@ -180,7 +253,12 @@
    ],
    "judge": true,
    "combined": true,
-   "l2_ms": 0.006792000931454822
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": true,
+   "l2_ms": 0.05629099905490875
   },
   {
    "id": "contradiction_same_call_01",
@@ -188,10 +266,16 @@
    "category": "contradiction_same_call",
    "expected": true,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
    "judge": true,
    "combined": true,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted",
+    "numberish"
+   ],
+   "inline_gated": true,
    "l2_ms": 0.0
   },
   {
@@ -200,10 +284,15 @@
    "category": "correction_handled",
    "expected": false,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -212,10 +301,15 @@
    "category": "negation_handled",
    "expected": false,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -224,10 +318,15 @@
    "category": "third_party_handled",
    "expected": false,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -240,6 +339,9 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": false,
+   "gate_reasons": [],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -248,10 +350,15 @@
    "category": "correct_refusal_transfer",
    "expected": false,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -260,11 +367,17 @@
    "category": "correct_math",
    "expected": false,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
    "judge": false,
    "combined": false,
-   "l2_ms": 0.031332998332800344
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted",
+    "numberish"
+   ],
+   "inline_gated": false,
+   "l2_ms": 0.08425000123679638
   },
   {
    "id": "real_policy_stated_01",
@@ -276,6 +389,9 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": false,
+   "gate_reasons": [],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -284,10 +400,15 @@
    "category": "customer_changed_mind_ok",
    "expected": false,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -300,6 +421,9 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": false,
+   "gate_reasons": [],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -312,7 +436,12 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
-   "l2_ms": 0.006709000444971025
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": false,
+   "l2_ms": 0.03520900281728245
   },
   {
    "id": "benign_greeting_01",
@@ -324,6 +453,9 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": false,
+   "gate_reasons": [],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -332,10 +464,15 @@
    "category": "ambiguous_reasonable_choice",
    "expected": false,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -348,6 +485,9 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": false,
+   "gate_reasons": [],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -360,6 +500,9 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": false,
+   "gate_reasons": [],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -372,7 +515,12 @@
    "inline_detectors": [],
    "judge": true,
    "combined": true,
-   "l2_ms": 0.012500000593718141
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": true,
+   "l2_ms": 0.05816599878016859
   },
   {
    "id": "correction_ignored_02",
@@ -384,7 +532,12 @@
    "inline_detectors": [],
    "judge": true,
    "combined": true,
-   "l2_ms": 0.008208000508602709
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": true,
+   "l2_ms": 0.025875000574160367
   },
   {
    "id": "correction_ignored_03",
@@ -396,7 +549,12 @@
    "inline_detectors": [],
    "judge": true,
    "combined": true,
-   "l2_ms": 0.007208000170066953
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": true,
+   "l2_ms": 0.02987500192830339
   },
   {
    "id": "negation_ignored_01",
@@ -408,7 +566,12 @@
    "inline_detectors": [],
    "judge": true,
    "combined": true,
-   "l2_ms": 0.006708000000799075
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": true,
+   "l2_ms": 2.8547910005727317
   },
   {
    "id": "negation_ignored_02",
@@ -420,7 +583,12 @@
    "inline_detectors": [],
    "judge": true,
    "combined": true,
-   "l2_ms": 0.006166999810375273
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": true,
+   "l2_ms": 0.04279100176063366
   },
   {
    "id": "negation_ignored_03",
@@ -432,7 +600,12 @@
    "inline_detectors": [],
    "judge": true,
    "combined": true,
-   "l2_ms": 0.005999998393235728
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": true,
+   "l2_ms": 0.025415996788069606
   },
   {
    "id": "third_party_override_01",
@@ -440,10 +613,15 @@
    "category": "third_party_override",
    "expected": true,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
    "judge": true,
    "combined": true,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": true,
    "l2_ms": 0.0
   },
   {
@@ -456,7 +634,12 @@
    "inline_detectors": [],
    "judge": true,
    "combined": true,
-   "l2_ms": 0.006750000466126949
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": true,
+   "l2_ms": 0.04475000241654925
   },
   {
    "id": "quantity_error_02",
@@ -464,10 +647,15 @@
    "category": "quantity_error",
    "expected": true,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
-   "judge": true,
-   "combined": true,
+   "judge": false,
+   "combined": false,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -480,7 +668,12 @@
    "inline_detectors": [],
    "judge": true,
    "combined": true,
-   "l2_ms": 0.006124999345047399
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": true,
+   "l2_ms": 0.026875000912696123
   },
   {
    "id": "compound_modifier_dropped_01",
@@ -492,7 +685,12 @@
    "inline_detectors": [],
    "judge": true,
    "combined": true,
-   "l2_ms": 0.0057920005929190665
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": true,
+   "l2_ms": 0.046334000217029825
   },
   {
    "id": "compound_modifier_dropped_02",
@@ -504,7 +702,12 @@
    "inline_detectors": [],
    "judge": true,
    "combined": true,
-   "l2_ms": 0.005709000106435269
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": true,
+   "l2_ms": 0.028957998438272625
   },
   {
    "id": "conditional_ignored_01",
@@ -516,7 +719,12 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
-   "l2_ms": 0.005540998245123774
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": false,
+   "l2_ms": 0.04524999894783832
   },
   {
    "id": "conditional_ignored_02",
@@ -526,9 +734,14 @@
    "inline": false,
    "inline_low": false,
    "inline_detectors": [],
-   "judge": false,
-   "combined": false,
-   "l2_ms": 0.0053340008889790624
+   "judge": true,
+   "combined": true,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": true,
+   "l2_ms": 0.027499998395796865
   },
   {
    "id": "time_delayed_change_01",
@@ -540,6 +753,11 @@
    "inline_detectors": [],
    "judge": true,
    "combined": true,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": true,
    "l2_ms": 0.0
   },
   {
@@ -552,6 +770,12 @@
    "inline_detectors": [],
    "judge": true,
    "combined": true,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted",
+    "numberish"
+   ],
+   "inline_gated": true,
    "l2_ms": 0.0
   },
   {
@@ -566,7 +790,13 @@
    ],
    "judge": false,
    "combined": true,
-   "l2_ms": 0.009208000847138464
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted",
+    "numberish"
+   ],
+   "inline_gated": true,
+   "l2_ms": 0.044249998609302565
   },
   {
    "id": "price_hallucination_03",
@@ -574,10 +804,16 @@
    "category": "price_hallucination",
    "expected": true,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
    "judge": true,
    "combined": true,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted",
+    "numberish"
+   ],
+   "inline_gated": true,
    "l2_ms": 0.0
   },
   {
@@ -586,10 +822,17 @@
    "category": "policy_hallucination",
    "expected": true,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
    "judge": true,
    "combined": true,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted",
+    "numberish",
+    "commitment_language"
+   ],
+   "inline_gated": true,
    "l2_ms": 0.0
   },
   {
@@ -598,10 +841,17 @@
    "category": "policy_hallucination",
    "expected": true,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
    "judge": true,
    "combined": true,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted",
+    "numberish",
+    "commitment_language"
+   ],
+   "inline_gated": true,
    "l2_ms": 0.0
   },
   {
@@ -610,10 +860,17 @@
    "category": "spec_hallucination",
    "expected": true,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
    "judge": true,
    "combined": true,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted",
+    "numberish",
+    "commitment_language"
+   ],
+   "inline_gated": true,
    "l2_ms": 0.0
   },
   {
@@ -622,10 +879,16 @@
    "category": "hours_hallucination",
    "expected": true,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
    "judge": true,
    "combined": true,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted",
+    "numberish"
+   ],
+   "inline_gated": true,
    "l2_ms": 0.0
   },
   {
@@ -634,10 +897,15 @@
    "category": "hours_hallucination",
    "expected": true,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
    "judge": true,
    "combined": true,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": true,
    "l2_ms": 0.0
   },
   {
@@ -646,10 +914,15 @@
    "category": "availability_hallucination",
    "expected": true,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -658,10 +931,15 @@
    "category": "availability_hallucination",
    "expected": true,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
    "judge": true,
    "combined": true,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": true,
    "l2_ms": 0.0
   },
   {
@@ -674,6 +952,9 @@
    "inline_detectors": [],
    "judge": true,
    "combined": true,
+   "assertive": false,
+   "gate_reasons": [],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -682,10 +963,15 @@
    "category": "order_status_hallucination",
    "expected": true,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
-   "judge": false,
-   "combined": false,
+   "judge": true,
+   "combined": true,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": true,
    "l2_ms": 0.0
   },
   {
@@ -694,10 +980,16 @@
    "category": "promo_hallucination",
    "expected": true,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
    "judge": true,
    "combined": true,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted",
+    "numberish"
+   ],
+   "inline_gated": true,
    "l2_ms": 0.0
   },
   {
@@ -706,10 +998,16 @@
    "category": "promo_hallucination",
    "expected": true,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
    "judge": true,
    "combined": true,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted",
+    "numberish"
+   ],
+   "inline_gated": true,
    "l2_ms": 0.0
   },
   {
@@ -718,10 +1016,15 @@
    "category": "location_hallucination",
    "expected": true,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
-   "judge": false,
-   "combined": false,
+   "judge": true,
+   "combined": true,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": true,
    "l2_ms": 0.0
   },
   {
@@ -734,6 +1037,11 @@
    "inline_detectors": [],
    "judge": true,
    "combined": true,
+   "assertive": true,
+   "gate_reasons": [
+    "commitment_language"
+   ],
+   "inline_gated": true,
    "l2_ms": 0.0
   },
   {
@@ -742,10 +1050,16 @@
    "category": "capability_overreach",
    "expected": true,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
    "judge": true,
    "combined": true,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted",
+    "commitment_language"
+   ],
+   "inline_gated": true,
    "l2_ms": 0.0
   },
   {
@@ -754,10 +1068,16 @@
    "category": "spec_hallucination",
    "expected": true,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
-   "judge": false,
-   "combined": false,
+   "judge": true,
+   "combined": true,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted",
+    "numberish"
+   ],
+   "inline_gated": true,
    "l2_ms": 0.0
   },
   {
@@ -766,10 +1086,16 @@
    "category": "math_total_error",
    "expected": true,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted",
+    "numberish"
+   ],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -784,7 +1110,13 @@
    ],
    "judge": true,
    "combined": true,
-   "l2_ms": 0.009708001016406342
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted",
+    "numberish"
+   ],
+   "inline_gated": true,
+   "l2_ms": 0.05108299956191331
   },
   {
    "id": "math_change_error_01",
@@ -792,10 +1124,16 @@
    "category": "math_total_error",
    "expected": true,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
    "judge": true,
    "combined": true,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted",
+    "numberish"
+   ],
+   "inline_gated": true,
    "l2_ms": 0.0
   },
   {
@@ -808,7 +1146,12 @@
    "inline_detectors": [],
    "judge": true,
    "combined": true,
-   "l2_ms": 0.006082998879719526
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": true,
+   "l2_ms": 0.04941700171912089
   },
   {
    "id": "tool_arg_mismatch_02",
@@ -820,7 +1163,12 @@
    "inline_detectors": [],
    "judge": true,
    "combined": true,
-   "l2_ms": 0.00583300061407499
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": true,
+   "l2_ms": 0.023958000383572653
   },
   {
    "id": "unconfirmed_irreversible_01",
@@ -832,7 +1180,12 @@
    "inline_detectors": [],
    "judge": true,
    "combined": true,
-   "l2_ms": 0.005707999662263319
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": true,
+   "l2_ms": 0.02049999966402538
   },
   {
    "id": "unconfirmed_irreversible_02",
@@ -840,11 +1193,18 @@
    "category": "unconfirmed_irreversible",
    "expected": true,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
    "judge": true,
    "combined": true,
-   "l2_ms": 0.005459001840790734
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted",
+    "numberish",
+    "completion_language"
+   ],
+   "inline_gated": true,
+   "l2_ms": 0.00979100150289014
   },
   {
    "id": "false_completion_01",
@@ -858,7 +1218,12 @@
    ],
    "judge": true,
    "combined": true,
-   "l2_ms": 0.005458998202811927
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": true,
+   "l2_ms": 0.024832999770296738
   },
   {
    "id": "false_completion_02",
@@ -872,7 +1237,13 @@
    ],
    "judge": true,
    "combined": true,
-   "l2_ms": 0.00541700137546286
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted",
+    "completion_language"
+   ],
+   "inline_gated": true,
+   "l2_ms": 0.010124997061211616
   },
   {
    "id": "wrong_tool_01",
@@ -884,6 +1255,9 @@
    "inline_detectors": [],
    "judge": true,
    "combined": true,
+   "assertive": false,
+   "gate_reasons": [],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -892,10 +1266,16 @@
    "category": "contradiction_same_call",
    "expected": true,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
    "judge": true,
    "combined": true,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted",
+    "numberish"
+   ],
+   "inline_gated": true,
    "l2_ms": 0.0
   },
   {
@@ -908,7 +1288,12 @@
    "inline_detectors": [],
    "judge": true,
    "combined": true,
-   "l2_ms": 0.005875001079402864
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": true,
+   "l2_ms": 0.01891699866973795
   },
   {
    "id": "repetition_loop_01",
@@ -920,6 +1305,9 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": false,
+   "gate_reasons": [],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -932,6 +1320,9 @@
    "inline_detectors": [],
    "judge": true,
    "combined": true,
+   "assertive": false,
+   "gate_reasons": [],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -940,10 +1331,15 @@
    "category": "persona_scope_break",
    "expected": true,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
    "judge": true,
    "combined": true,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": true,
    "l2_ms": 0.0
   },
   {
@@ -956,7 +1352,12 @@
    "inline_detectors": [],
    "judge": true,
    "combined": true,
-   "l2_ms": 0.00583300061407499
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": true,
+   "l2_ms": 0.057166002079611644
   },
   {
    "id": "asr_misheard_acted_02",
@@ -966,9 +1367,14 @@
    "inline": false,
    "inline_low": false,
    "inline_detectors": [],
-   "judge": true,
-   "combined": true,
-   "l2_ms": 0.00549999822396785
+   "judge": false,
+   "combined": false,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": false,
+   "l2_ms": 0.02733299697865732
   },
   {
    "id": "correction_handled_01",
@@ -976,10 +1382,15 @@
    "category": "correction_handled",
    "expected": false,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -992,7 +1403,12 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
-   "l2_ms": 0.00583300061407499
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": false,
+   "l2_ms": 0.06224999742698856
   },
   {
    "id": "negation_handled_01",
@@ -1000,10 +1416,15 @@
    "category": "negation_handled",
    "expected": false,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -1016,6 +1437,9 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": false,
+   "gate_reasons": [],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -1024,10 +1448,15 @@
    "category": "third_party_handled",
    "expected": false,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -1040,6 +1469,9 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": false,
+   "gate_reasons": [],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -1052,7 +1484,12 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
-   "l2_ms": 0.006333000783342868
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": false,
+   "l2_ms": 0.04900000203633681
   },
   {
    "id": "quantity_correct_02",
@@ -1066,7 +1503,12 @@
    ],
    "judge": false,
    "combined": true,
-   "l2_ms": 0.005917001544730738
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": true,
+   "l2_ms": 0.025708999601192772
   },
   {
    "id": "compound_handled_01",
@@ -1078,6 +1520,11 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -1090,6 +1537,9 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": false,
+   "gate_reasons": [],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -1098,10 +1548,15 @@
    "category": "time_delayed_change_handled",
    "expected": false,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -1110,10 +1565,15 @@
    "category": "honest_unknown",
    "expected": false,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -1126,6 +1586,9 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": false,
+   "gate_reasons": [],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -1138,6 +1601,11 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": true,
+   "gate_reasons": [
+    "commitment_language"
+   ],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -1150,6 +1618,9 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": false,
+   "gate_reasons": [],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -1162,6 +1633,9 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": false,
+   "gate_reasons": [],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -1170,10 +1644,15 @@
    "category": "honest_unknown",
    "expected": false,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -1186,6 +1665,9 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": false,
+   "gate_reasons": [],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -1198,6 +1680,9 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": false,
+   "gate_reasons": [],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -1210,6 +1695,9 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": false,
+   "gate_reasons": [],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -1222,6 +1710,9 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": false,
+   "gate_reasons": [],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -1234,6 +1725,9 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": false,
+   "gate_reasons": [],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -1246,6 +1740,9 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": false,
+   "gate_reasons": [],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -1254,10 +1751,16 @@
    "category": "correct_refusal",
    "expected": false,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted",
+    "commitment_language"
+   ],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -1266,10 +1769,16 @@
    "category": "correct_refusal",
    "expected": false,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted",
+    "commitment_language"
+   ],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -1278,10 +1787,15 @@
    "category": "correct_refusal",
    "expected": false,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -1290,11 +1804,17 @@
    "category": "correct_math",
    "expected": false,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
    "judge": false,
    "combined": false,
-   "l2_ms": 0.018791000911733136
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted",
+    "numberish"
+   ],
+   "inline_gated": false,
+   "l2_ms": 0.0580830019316636
   },
   {
    "id": "correct_math_02",
@@ -1302,11 +1822,17 @@
    "category": "correct_math",
    "expected": false,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
    "judge": false,
    "combined": false,
-   "l2_ms": 0.007791000825818628
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted",
+    "numberish"
+   ],
+   "inline_gated": false,
+   "l2_ms": 0.02712499917834066
   },
   {
    "id": "correct_change_01",
@@ -1314,10 +1840,16 @@
    "category": "correct_math",
    "expected": false,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted",
+    "numberish"
+   ],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -1330,7 +1862,12 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
-   "l2_ms": 0.006375001248670742
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": false,
+   "l2_ms": 0.04816599903278984
   },
   {
    "id": "tool_match_correct_02",
@@ -1342,7 +1879,12 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
-   "l2_ms": 0.005750000127591193
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": false,
+   "l2_ms": 0.036458000977290794
   },
   {
    "id": "confirmed_irreversible_01",
@@ -1354,7 +1896,12 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
-   "l2_ms": 0.0056249991757795215
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": false,
+   "l2_ms": 0.04399999670567922
   },
   {
    "id": "confirmed_irreversible_02",
@@ -1362,11 +1909,17 @@
    "category": "confirmed_irreversible",
    "expected": false,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
    "judge": false,
    "combined": false,
-   "l2_ms": 0.005791000148747116
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted",
+    "numberish"
+   ],
+   "inline_gated": false,
+   "l2_ms": 0.025417000870220363
   },
   {
    "id": "honest_completion_01",
@@ -1378,7 +1931,13 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
-   "l2_ms": 0.005542002327274531
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted",
+    "completion_language"
+   ],
+   "inline_gated": false,
+   "l2_ms": 0.05500000042957254
   },
   {
    "id": "correct_tool_01",
@@ -1390,6 +1949,9 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": false,
+   "gate_reasons": [],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -1398,10 +1960,15 @@
    "category": "customer_changed_mind_ok",
    "expected": false,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -1410,10 +1977,16 @@
    "category": "no_contradiction",
    "expected": false,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
    "judge": true,
    "combined": true,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted",
+    "numberish"
+   ],
+   "inline_gated": true,
    "l2_ms": 0.0
   },
   {
@@ -1426,6 +1999,9 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": false,
+   "gate_reasons": [],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -1434,10 +2010,15 @@
    "category": "instruction_followed",
    "expected": false,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -1446,10 +2027,15 @@
    "category": "in_scope_decline",
    "expected": false,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -1462,6 +2048,9 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": false,
+   "gate_reasons": [],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -1474,6 +2063,9 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": false,
+   "gate_reasons": [],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -1486,6 +2078,9 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": false,
+   "gate_reasons": [],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -1498,6 +2093,9 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": false,
+   "gate_reasons": [],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -1510,6 +2108,9 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": false,
+   "gate_reasons": [],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -1522,6 +2123,9 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": false,
+   "gate_reasons": [],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -1530,10 +2134,15 @@
    "category": "ambiguous_reasonable_choice",
    "expected": false,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -1546,6 +2155,9 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": false,
+   "gate_reasons": [],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -1558,6 +2170,9 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": false,
+   "gate_reasons": [],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -1570,7 +2185,12 @@
    "inline_detectors": [],
    "judge": true,
    "combined": true,
-   "l2_ms": 0.008957998943515122
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": true,
+   "l2_ms": 0.04183300188742578
   },
   {
    "id": "conditional_ignored_04",
@@ -1582,6 +2202,9 @@
    "inline_detectors": [],
    "judge": true,
    "combined": true,
+   "assertive": false,
+   "gate_reasons": [],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -1594,6 +2217,9 @@
    "inline_detectors": [],
    "judge": true,
    "combined": true,
+   "assertive": false,
+   "gate_reasons": [],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -1606,7 +2232,13 @@
    "inline_detectors": [],
    "judge": true,
    "combined": true,
-   "l2_ms": 0.00904199987417087
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted",
+    "completion_language"
+   ],
+   "inline_gated": true,
+   "l2_ms": 0.026374997105449438
   },
   {
    "id": "conditional_ignored_07",
@@ -1618,7 +2250,12 @@
    "inline_detectors": [],
    "judge": true,
    "combined": true,
-   "l2_ms": 0.006209000275703147
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": true,
+   "l2_ms": 0.05066700032330118
   },
   {
    "id": "conditional_handled_02",
@@ -1626,10 +2263,15 @@
    "category": "conditional_handled",
    "expected": false,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -1642,6 +2284,9 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": false,
+   "gate_reasons": [],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -1650,10 +2295,15 @@
    "category": "conditional_handled",
    "expected": false,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
-   "judge": false,
-   "combined": false,
+   "judge": true,
+   "combined": true,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": true,
    "l2_ms": 0.0
   },
   {
@@ -1662,10 +2312,15 @@
    "category": "conditional_handled",
    "expected": false,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -1678,7 +2333,12 @@
    "inline_detectors": [],
    "judge": true,
    "combined": true,
-   "l2_ms": 0.005958001565886661
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": true,
+   "l2_ms": 0.06383400250342675
   },
   {
    "id": "compound_modifier_dropped_04",
@@ -1690,7 +2350,12 @@
    "inline_detectors": [],
    "judge": true,
    "combined": true,
-   "l2_ms": 0.0056249991757795215
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": true,
+   "l2_ms": 0.02849999873433262
   },
   {
    "id": "compound_modifier_dropped_05",
@@ -1702,6 +2367,9 @@
    "inline_detectors": [],
    "judge": true,
    "combined": true,
+   "assertive": false,
+   "gate_reasons": [],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -1714,7 +2382,12 @@
    "inline_detectors": [],
    "judge": true,
    "combined": true,
-   "l2_ms": 0.005582998710451648
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": true,
+   "l2_ms": 0.05212500036577694
   },
   {
    "id": "compound_modifier_dropped_07",
@@ -1726,7 +2399,12 @@
    "inline_detectors": [],
    "judge": true,
    "combined": true,
-   "l2_ms": 0.008292001439258456
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": true,
+   "l2_ms": 0.04499999704421498
   },
   {
    "id": "compound_handled_02",
@@ -1734,10 +2412,15 @@
    "category": "compound_handled",
    "expected": false,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -1750,7 +2433,12 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
-   "l2_ms": 0.008749997505219653
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": false,
+   "l2_ms": 0.04479099879972637
   },
   {
    "id": "compound_handled_04",
@@ -1758,10 +2446,15 @@
    "category": "compound_handled",
    "expected": false,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -1774,7 +2467,12 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
-   "l2_ms": 0.006708000000799075
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": false,
+   "l2_ms": 0.03650000144261867
   },
   {
    "id": "negation_ignored_04",
@@ -1782,10 +2480,15 @@
    "category": "negation_ignored",
    "expected": true,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
    "judge": true,
    "combined": true,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": true,
    "l2_ms": 0.0
   },
   {
@@ -1798,7 +2501,12 @@
    "inline_detectors": [],
    "judge": true,
    "combined": true,
-   "l2_ms": 0.006166999810375273
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": true,
+   "l2_ms": 0.049041998863685876
   },
   {
    "id": "negation_ignored_06",
@@ -1810,7 +2518,12 @@
    "inline_detectors": [],
    "judge": true,
    "combined": true,
-   "l2_ms": 0.006249996658880264
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": true,
+   "l2_ms": 0.05450000026030466
   },
   {
    "id": "negation_ignored_07",
@@ -1822,7 +2535,12 @@
    "inline_detectors": [],
    "judge": true,
    "combined": true,
-   "l2_ms": 0.006000002031214535
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": true,
+   "l2_ms": 0.04158299998380244
   },
   {
    "id": "negation_ignored_08",
@@ -1834,7 +2552,12 @@
    "inline_detectors": [],
    "judge": true,
    "combined": true,
-   "l2_ms": 0.0062920007621869445
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": true,
+   "l2_ms": 0.04733300011139363
   },
   {
    "id": "negation_handled_03",
@@ -1842,10 +2565,15 @@
    "category": "negation_handled",
    "expected": false,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
-   "judge": false,
-   "combined": false,
+   "judge": true,
+   "combined": true,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": true,
    "l2_ms": 0.0
   },
   {
@@ -1858,7 +2586,12 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
-   "l2_ms": 0.0057920005929190665
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": false,
+   "l2_ms": 0.037082998460391536
   },
   {
    "id": "negation_handled_05",
@@ -1870,7 +2603,12 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
-   "l2_ms": 0.0056250028137583286
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": false,
+   "l2_ms": 0.035542001569410786
   },
   {
    "id": "negation_handled_06",
@@ -1882,6 +2620,9 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": false,
+   "gate_reasons": [],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -1894,6 +2635,9 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": false,
+   "gate_reasons": [],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -1906,6 +2650,11 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": true,
+   "gate_reasons": [
+    "commitment_language"
+   ],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -1918,6 +2667,9 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": false,
+   "gate_reasons": [],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -1930,6 +2682,9 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": false,
+   "gate_reasons": [],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -1942,6 +2697,9 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": false,
+   "gate_reasons": [],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -1954,6 +2712,9 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": false,
+   "gate_reasons": [],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -1966,6 +2727,9 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": false,
+   "gate_reasons": [],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -1978,6 +2742,9 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": false,
+   "gate_reasons": [],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -1986,10 +2753,15 @@
    "category": "near_miss_correction",
    "expected": false,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -1998,10 +2770,15 @@
    "category": "near_miss_negation",
    "expected": false,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -2014,6 +2791,9 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": false,
+   "gate_reasons": [],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -2026,6 +2806,11 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": true,
+   "gate_reasons": [
+    "commitment_language"
+   ],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -2034,10 +2819,15 @@
    "category": "near_miss_refusal",
    "expected": false,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -2050,6 +2840,11 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -2058,10 +2853,16 @@
    "category": "legit_number",
    "expected": false,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted",
+    "numberish"
+   ],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -2074,7 +2875,12 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
-   "l2_ms": 0.011417003406677395
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": false,
+   "l2_ms": 1.6868749989953358
   },
   {
    "id": "legit_sizes_01",
@@ -2086,6 +2892,11 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted"
+   ],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -2094,10 +2905,16 @@
    "category": "legit_number",
    "expected": false,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted",
+    "numberish"
+   ],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -2106,10 +2923,16 @@
    "category": "near_miss_completion",
    "expected": false,
    "inline": false,
-   "inline_low": true,
+   "inline_low": false,
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": true,
+   "gate_reasons": [
+    "claims_extracted",
+    "completion_language"
+   ],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -2122,6 +2945,9 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": false,
+   "gate_reasons": [],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -2134,6 +2960,9 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": false,
+   "gate_reasons": [],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -2146,6 +2975,9 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": false,
+   "gate_reasons": [],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -2158,6 +2990,9 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": false,
+   "gate_reasons": [],
+   "inline_gated": false,
    "l2_ms": 0.0
   },
   {
@@ -2170,6 +3005,9 @@
    "inline_detectors": [],
    "judge": false,
    "combined": false,
+   "assertive": false,
+   "gate_reasons": [],
+   "inline_gated": false,
    "l2_ms": 0.0
   }
  ]

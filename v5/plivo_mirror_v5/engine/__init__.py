@@ -1,22 +1,20 @@
 """The detection engine — the shared core both deployables run.
 
-Three layers in strict precedence + arbitration:
+Two deterministic layers + arbitration; everything beyond structured
+truth belongs to the grounded LLM judge (inline via Hook B's gate,
+post-call via the auditor):
 
 - L1 input integrity — a gate, not a detector
-- L2 deterministic diff — PRIMARY: claim vs session state / reference / tool log
-- L3 claim-grounding NLI — SECONDARY: prose claims vs the unstructured KB
+- L2 deterministic diff — the µs floor: claim vs session state /
+  reference / tool log
 
-Deterministic wins: L3 fires only on claims outside L2 jurisdiction.
+Deterministic wins: arbitration suppresses any same-claim verdict from a
+weaker detector.
 """
 
 from plivo_mirror_v5.engine.config import EngineConfig
 from plivo_mirror_v5.engine.engine import Engine
-from plivo_mirror_v5.engine.kb_retriever import (
-    FakeKBRetriever,
-    KBChunk,
-    KBRetriever,
-    KeywordKBRetriever,
-)
+from plivo_mirror_v5.engine.gate import AssertivenessGate, GateResult
 from plivo_mirror_v5.engine.policy import CommitmentRule, DisclosureRule, PolicyPack
 from plivo_mirror_v5.engine.reference import ReferenceStore
 from plivo_mirror_v5.engine.session_state import SessionState, StateSnapshot
@@ -31,16 +29,14 @@ from plivo_mirror_v5.engine.verdict import (
 
 __all__ = [
     "Action",
+    "AssertivenessGate",
     "CommitmentRule",
+    "GateResult",
     "DisclosureRule",
     "Engine",
     "EngineConfig",
     "Evidence",
     "PolicyPack",
-    "FakeKBRetriever",
-    "KBChunk",
-    "KBRetriever",
-    "KeywordKBRetriever",
     "ReferenceStore",
     "SessionState",
     "StateSnapshot",
