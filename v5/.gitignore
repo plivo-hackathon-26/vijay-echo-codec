@@ -1,0 +1,6 @@
+__pycache__/
+*.egg-info/
+venv/
+mirror_monitoring.db
+plivo_mirror_v5/deployables/monitoring/frontend/node_modules/
+plivo_mirror_v5/deployables/monitoring/frontend/dist/
