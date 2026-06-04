@@ -59,16 +59,17 @@ def wire(**kw):
     return session, sink, observer
 
 
-async def test_agent_item_is_verified_with_lexicon_claims():
+async def test_live_default_no_lexicon_fact_claims():
+    """LIVE pipeline judges factual claims with the grounded judge, not
+    lexicon attribution (repeated live FPs): a wrong price in free speech
+    raises NO deterministic flag — action claims (speech-vs-action) and
+    host-attached claims still flow."""
     session, sink, observer = wire()
     session.emit("conversation_item_added", SimpleNamespace(
         item=chat_item("assistant", "The Turbo plan is $59.99 a month.")))
     await observer.drain()
 
-    [verdict] = [v for v in sink.of_type(S.REC_VERDICT) if v[S.ATTR_FIRED]]
-    assert verdict[S.ATTR_DETECTOR] == "L2"
-    assert verdict[S.ATTR_EVIDENCE]["spoken_value"] == "59.99"
-    assert verdict[S.ATTR_EVIDENCE]["truth_value"] == "79.99"
+    assert [v for v in sink.of_type(S.REC_VERDICT) if v[S.ATTR_FIRED]] == []
     [turn] = sink.of_type(S.REC_TURN)
     assert turn[S.ATTR_CALL_ID] == "lk-room-1"
     assert turn[S.ATTR_AUDIO_OFFSET_MS] is not None  # wall-clock stamped

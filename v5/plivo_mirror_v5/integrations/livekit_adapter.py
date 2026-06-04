@@ -135,8 +135,12 @@ def attach_mirror(
         mode=mode,
         agent_id=agent_id,
         agent_version=agent_version,
+        # LIVE default: action claims only (speech-vs-action) — lexicon
+        # fact-claims misattribute numbers in free speech (live FPs) and
+        # the grounded judge owns factual claims at the gate / post-call.
         claim_extractor=claim_extractor
-        or LexiconClaimExtractor(reference, action_verbs=action_verbs),
+        or LexiconClaimExtractor(reference, action_verbs=action_verbs,
+                                 fact_claims=False),
         intervention_handler=intervention_handler,
     )
     bridge = _Bridge(room_id)
@@ -233,7 +237,8 @@ def attach_mirror(
             agent._mirror_pre_tts = PreTTSGateRunner(
                 gate, observer.state,
                 claim_extractor or LexiconClaimExtractor(
-                    reference, action_verbs=action_verbs))
+                    reference, action_verbs=action_verbs,
+                    fact_claims=False))
             # The gate already corrects BEFORE speech — Hook A degrades to
             # silent context injection (no spoken double-correction); its
             # verdicts/actions still land in the dashboard.

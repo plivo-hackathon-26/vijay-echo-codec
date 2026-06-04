@@ -143,9 +143,18 @@ class LexiconClaimExtractor:
         reference: ReferenceStore,
         *,
         action_verbs: dict[str, list[str]] | None = None,
+        fact_claims: bool = True,
     ) -> None:
+        """``fact_claims=False`` disables lexicon-derived REFERENCE-value
+        claims, keeping only action claims (speech-vs-action) and claims
+        attached by the host. The LIVE pipeline runs with False: across
+        real test calls, lexicon attribution of numbers to reference keys
+        produced repeated false positives ('the 20% fee' attributed to
+        refund_percent[80]) and zero catches the grounded judge missed —
+        language attribution is the judge's job; values from STATE/tools
+        stay deterministic."""
         self._reference = reference
-        self._patterns = [
+        self._patterns = [] if not fact_claims else [
             _Pattern(key, _tokens(key.replace(".", " ").replace("_", " ")),
                      truth_value=reference.get(key))
             for key in reference.keys()
