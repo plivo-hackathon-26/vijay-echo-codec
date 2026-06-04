@@ -74,7 +74,7 @@ class DeterministicDiffLayer:
         if turn.role != "agent":
             return []
 
-        verdicts: list[Verdict] = []
+        verdicts: list[Verdict] = self._policy_checks(turn, state, ctx)
         for claim in turn.claims:
             ref = claim.get("ref")
             if not ref or claim.get("claim_type") == "correction":
@@ -120,6 +120,14 @@ class DeterministicDiffLayer:
                 )
             )
         return verdicts
+
+    @staticmethod
+    def _policy_checks(turn, state, ctx) -> list[Verdict]:
+        """The parallel policy checks (arg bindings, authorization
+        separation, commitments, disclosures, persona) — see l2_checks."""
+        from plivo_mirror_v5.engine.layers.l2_checks import run_policy_checks  # noqa: PLC0415
+
+        return run_policy_checks(turn, state, ctx, DeterministicDiffLayer.name)
 
     # -- truth resolution ----------------------------------------------------
 

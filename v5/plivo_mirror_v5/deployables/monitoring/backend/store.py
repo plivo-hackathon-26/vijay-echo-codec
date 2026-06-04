@@ -60,6 +60,17 @@ CREATE TABLE IF NOT EXISTS actions (
     correction_text TEXT,
     t REAL
 );
+CREATE TABLE IF NOT EXISTS audit_findings (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    call_id TEXT NOT NULL,
+    turn_id TEXT,
+    kind TEXT,
+    rationale TEXT,
+    verdict_id TEXT,
+    category TEXT,
+    t REAL
+);
+CREATE INDEX IF NOT EXISTS idx_audit_call ON audit_findings(call_id);
 CREATE INDEX IF NOT EXISTS idx_turns_call ON turns(call_id, turn_index);
 CREATE INDEX IF NOT EXISTS idx_verdicts_call ON verdicts(call_id);
 CREATE INDEX IF NOT EXISTS idx_actions_call ON actions(call_id);
@@ -158,6 +169,38 @@ class CallStore:
         # ignores them; rollups are computed from turns/verdicts at query.
         pass
 
+    # -- post-call audit findings ------------------------------------------
+
+    def save_audit_findings(self, call_id: str, findings: list[dict],
+                            *, t: float | None = None) -> None:
+        """Replace the stored post-call analysis for a call (re-runnable)."""
+        with self._lock:
+            self._conn.execute(
+                "DELETE FROM audit_findings WHERE call_id = ?", (call_id,))
+            for f in findings:
+                self._conn.execute(
+                    "INSERT INTO audit_findings (call_id, turn_id, kind,"
+                    " rationale, verdict_id, category, t) VALUES (?,?,?,?,?,?,?)",
+                    (call_id, f.get("turn_id"), f.get("kind"),
+                     f.get("rationale"), f.get("verdict_id"),
+                     f.get("category"), t),
+                )
+            # mark analyzed even when zero findings
+            self._conn.execute(
+                "INSERT INTO audit_findings (call_id, turn_id, kind, rationale, t)"
+                " SELECT ?, NULL, '_analyzed', '', ? WHERE NOT EXISTS ("
+                "   SELECT 1 FROM audit_findings WHERE call_id = ?)",
+                (call_id, t, call_id),
+            )
+            self._conn.commit()
+
+    def get_audit_findings(self, call_id: str) -> dict:
+        with self._lock:
+            rows = [dict(r) for r in self._conn.execute(
+                "SELECT * FROM audit_findings WHERE call_id = ?", (call_id,))]
+        findings = [r for r in rows if r["kind"] != "_analyzed"]
+        return {"analyzed": bool(rows), "findings": findings}
+
     # -- queries ------------------------------------------------------------
 
     def list_calls(self) -> list[dict]:
@@ -216,4 +259,5 @@ class CallStore:
             if turn.get("audio_levels"):
                 turn["audio_levels"] = json.loads(turn["audio_levels"])
         call["turns"] = turns
+        call["audit"] = self.get_audit_findings(call_id)
         return call

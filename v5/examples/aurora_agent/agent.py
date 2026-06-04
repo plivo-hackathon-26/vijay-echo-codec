@@ -33,7 +33,12 @@ from livekit import agents
 from livekit.agents import Agent, AgentSession, JobContext, function_tool
 from livekit.plugins import deepgram, elevenlabs, openai, silero
 
-from plivo_mirror_v5.engine import KeywordKBRetriever, ReferenceStore
+from plivo_mirror_v5.engine import (
+    EngineConfig,
+    KeywordKBRetriever,
+    PolicyPack,
+    ReferenceStore,
+)
 from plivo_mirror_v5.integrations import attach_mirror
 
 load_dotenv(Path(__file__).resolve().parents[3] / ".env")
@@ -44,6 +49,24 @@ DATA_DIR = Path(__file__).resolve().parents[2] / "eval" / "fixtures"
 # The agent's GROUND TRUTH (what mirror checks against) ...
 REFERENCE = ReferenceStore.from_file(DATA_DIR / "reference_aurora.json")
 KB = KeywordKBRetriever.from_file(DATA_DIR / "kb_aurora.json")
+
+# ... plus the L2 POLICY PACK (the v4-style deterministic defenses).
+# Try it live: ask for "a discount" or "a free month" — the model will
+# promise it (commitment, unauthorized), or get it to talk about cancelling
+# without saying "effective ..." (disclosure gap).
+POLICY = PolicyPack.from_dict({
+    "commitments": [{
+        "id": "no_unapproved_credits",
+        "pattern": r"\b(?:i'?ll|i will|we'?ll|you'?ll get|happy to)\b[^.?!]*"
+                   r"\b(?:refund|discount|credit|free month)\b",
+        "allowed_if": "session.auth.credit_approved",
+    }],
+    "disclosures": [{
+        "id": "cancel_effective_date",
+        "when": r"\bcancel(?:led|ling)?\b",
+        "must_include": r"\beffective\b",
+    }],
+})
 
 # ... and a prompt SEEDED WITH WRONG FACTS so you can hear mirror catch
 # them live. (Real deployments obviously don't do this on purpose — but
@@ -127,6 +150,7 @@ async def entrypoint(ctx: JobContext) -> None:
         agent_id="aurora-support",
         agent_version="1.1.0-live",
         mode="shadow",
+        config=EngineConfig(mode="shadow", policy=POLICY),
         action_verbs={
             "cancel_service": ["cancelled", "canceled"],
             "schedule_visit": ["scheduled", "booked"],

@@ -68,3 +68,13 @@ h1 { font-size: 20px; margin: 0; }
 .evidence-table th { text-align: right; padding-right: 10px; color: #6b6f76; font-weight: 500; vertical-align: top; }
 .evidence-table td.spoken { color: var(--high); font-weight: 600; }
 .evidence-table td.truth { color: #2f9e44; font-weight: 600; }
+
+.audit-panel { margin-top: 18px; background: white; border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
+.audit-head { display: flex; gap: 10px; align-items: baseline; }
+.audit-head button { margin-left: auto; }
+.audit-title { font-weight: 600; }
+.audit-clean { color: #2f9e44; margin: 8px 0 0; }
+.audit-finding { margin-top: 10px; padding: 8px; border: 1px solid var(--line); border-radius: 6px; }
+.audit-finding.kind-missed_failure { border-left: 4px solid var(--high); }
+.audit-finding.kind-false_alarm { border-left: 4px solid var(--info); }
+.audit-rationale { margin-top: 4px; }

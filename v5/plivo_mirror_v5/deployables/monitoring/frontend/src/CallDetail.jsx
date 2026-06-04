@@ -71,6 +71,50 @@ function Turn({ turn, onReplay, hasAudio }) {
   )
 }
 
+// Post-call LLM analysis — optional, fully OUTSIDE the engine: the stored
+// transcript goes to the offline judge after the call ends.
+function PostCallAnalysis({ call, onDone }) {
+  const [running, setRunning] = useState(false)
+  const [error, setError] = useState(null)
+  const audit = call.audit || { analyzed: false, findings: [] }
+
+  const run = async () => {
+    setRunning(true); setError(null)
+    try {
+      const res = await fetch(`/api/calls/${encodeURIComponent(call.call_id)}/analyze`, { method: 'POST' })
+      if (!res.ok) throw new Error((await res.json()).detail || res.status)
+      onDone()
+    } catch (err) { setError(String(err.message || err)) }
+    setRunning(false)
+  }
+
+  return (
+    <div className="audit-panel">
+      <div className="audit-head">
+        <span className="audit-title">🔎 post-call AI analysis</span>
+        <span className="dim">offline LLM judge over the transcript — never in the live path</span>
+        <button onClick={run} disabled={running || call.outcome === 'in_progress'}>
+          {running ? 'analyzing…' : audit.analyzed ? 're-run' : 'run analysis'}
+        </button>
+      </div>
+      {error && <p className="error">{error}</p>}
+      {audit.analyzed && audit.findings.length === 0 && (
+        <p className="audit-clean">✓ judge agrees with the inline layers — no missed failures, no false alarms.</p>
+      )}
+      {audit.findings.map((f) => (
+        <div key={f.id} className={`audit-finding kind-${f.kind}`}>
+          <span className={`badge ${f.kind === 'missed_failure' ? 'flag' : 'suppressed'}`}>
+            {f.kind === 'missed_failure' ? 'missed by inline' : 'inline false alarm'}
+          </span>
+          {f.category && <span className="badge layer">{f.category}</span>}
+          <span className="mono dim">{f.turn_id}</span>
+          <div className="audit-rationale">{f.rationale}</div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 export default function CallDetail({ callId, onBack }) {
   const [call, setCall] = useState(null)
   const [error, setError] = useState(null)
@@ -142,6 +186,8 @@ export default function CallDetail({ callId, onBack }) {
         ))}
         <div ref={bottomRef} />
       </div>
+      <PostCallAnalysis call={call}
+        onDone={() => fetchCall(callId).then(setCall).catch(() => {})} />
     </div>
   )
 }

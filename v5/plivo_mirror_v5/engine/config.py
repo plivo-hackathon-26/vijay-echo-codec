@@ -11,13 +11,22 @@ changes detection behaviour:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from plivo_mirror_v5.engine.policy import PolicyPack
 
 Mode = str  # "shadow" | "intervene"
 
 # Default severity assigned to a firing L2 mismatch, by claim type.
 _DEFAULT_SEVERITY_BY_CLAIM_TYPE = {
     "price": "high",
-    "action": "high",      # speech-vs-action divergence
+    "action": "high",       # speech-vs-action divergence
+    "action_args": "high",  # tool args vs validated state
+    "authorization": "high",  # tool fired without authorizing state fact
+    "commitment": "high",   # unauthorized verbal commitment
+    "disclosure": "med",    # required disclosure missing
+    "persona": "med",       # persona drift / prompt leakage
     "policy": "med",
     "hours": "med",
     "fact": "med",
@@ -57,6 +66,10 @@ class EngineConfig:
     # Data sources (paths to per-agent structured reference / prose KB).
     reference_path: str | None = None
     kb_path: str | None = None
+
+    # L2 policy checks (arg bindings, authorization separation, commitments,
+    # disclosures, persona). None → only the claims diff runs.
+    policy: "PolicyPack | None" = None
 
     def severity_for(self, claim_type: str) -> str:
         return self.severity_by_claim_type.get(claim_type, self.default_severity)
