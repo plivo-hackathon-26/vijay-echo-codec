@@ -3,12 +3,12 @@ import { fetchCalls } from './api.js'
 
 const POLL_MS = 3000
 
-function SeverityBadge({ severity }) {
-  if (!severity) return <span className="badge clean">clean</span>
-  return <span className={`badge sev-${severity}`}>{severity}</span>
+function SevDot({ severity }) {
+  if (!severity) return <span className="sev-dot clean" title="clean" />
+  return <span className={`sev-dot ${severity}`} title={`max severity: ${severity}`} />
 }
 
-export default function CallList({ onSelect }) {
+export default function CallList({ selected, onSelect }) {
   const [calls, setCalls] = useState(null)
   const [error, setError] = useState(null)
 
@@ -23,35 +23,44 @@ export default function CallList({ onSelect }) {
     return () => { alive = false; clearInterval(timer) }
   }, [])
 
-  if (error) return <p className="error">backend unreachable: {error}</p>
-  if (calls === null) return <p>loading…</p>
-  if (calls.length === 0) return <p>No calls yet — replay a fixture or attach the observer.</p>
-
   return (
-    <table className="call-list">
-      <thead>
-        <tr>
-          <th>call</th><th>agent</th><th>status</th>
-          <th>flags</th><th>max severity</th><th>interventions</th>
-        </tr>
-      </thead>
-      <tbody>
-        {calls.map((c) => (
-          <tr key={c.call_id} onClick={() => onSelect(c.call_id)}>
-            <td className="mono">{c.call_id}</td>
-            <td>{c.agent_id} <span className="dim">v{c.agent_version}</span></td>
-            <td>{c.outcome}</td>
-            <td>
+    <div className="call-list">
+      <div className="call-list-head">
+        <span>calls</span>
+        {calls && <span className="dim">{calls.length}</span>}
+      </div>
+      {error && <p className="error">backend unreachable: {error}</p>}
+      {calls === null && !error && <p className="dim pad">loading…</p>}
+      {calls && calls.length === 0 && (
+        <p className="dim pad">No calls yet — attach the observer, run the
+          simulator, or analyze a recording.</p>
+      )}
+      {calls?.map((c) => {
+        const live = c.outcome === 'in_progress'
+        return (
+          <div key={c.call_id}
+               className={`call-item ${selected === c.call_id ? 'active' : ''}`}
+               onClick={() => onSelect(c.call_id)}>
+            <div className="call-item-top">
+              <SevDot severity={c.max_severity} />
+              <span className="mono call-item-id">{c.call_id}</span>
+              {live && <span className="live-pill">● live</span>}
+            </div>
+            <div className="call-item-sub">
+              <span className="dim">{c.agent_id} · v{c.agent_version}</span>
+            </div>
+            <div className="call-item-badges">
               {Object.entries(c.flags_by_layer || {}).map(([layer, n]) => (
-                <span key={layer} className="badge layer">{layer}×{n}</span>
+                <span key={layer} className="chip layer">{layer}×{n}</span>
               ))}
-              {c.flag_count === 0 && <span className="dim">0</span>}
-            </td>
-            <td><SeverityBadge severity={c.max_severity} /></td>
-            <td>{c.intervention_count}</td>
-          </tr>
-        ))}
-      </tbody>
-    </table>
+              {c.flag_count === 0 && <span className="chip clean">clean</span>}
+              {c.intervention_count > 0 && (
+                <span className="chip action">⚡ {c.intervention_count}</span>
+              )}
+            </div>
+          </div>
+        )
+      })}
+    </div>
   )
 }

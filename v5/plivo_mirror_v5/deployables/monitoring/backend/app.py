@@ -26,6 +26,13 @@ from fastapi.responses import FileResponse
 
 from plivo_mirror_v5.deployables.monitoring.backend.store import CallStore
 
+try:  # repo-root .env supplies the judge creds for post-call analysis
+    from dotenv import load_dotenv
+
+    load_dotenv()
+except ImportError:  # pragma: no cover — dotenv is optional
+    pass
+
 # Call recordings live here as <call_id>.<ext>; the analyzer drops uploaded
 # files in, and LiveKit egress output can be pointed here later.
 _AUDIO_EXTS = (".wav", ".mp3", ".ogg", ".m4a")

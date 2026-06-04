@@ -8,15 +8,31 @@ export default function App() {
 
   return (
     <div className="app">
-      <header>
-        <h1>plivo-mirror</h1>
-        <span className="subtitle">agent output verification — live &amp; recent calls</span>
-      </header>
-      {selectedCallId === null ? (
-        <CallList onSelect={setSelectedCallId} />
-      ) : (
-        <CallDetail callId={selectedCallId} onBack={() => setSelectedCallId(null)} />
-      )}
+      <aside className="sidebar">
+        <div className="brand">
+          <span className="brand-mark">◈</span>
+          <div>
+            <div className="brand-name">plivo-mirror</div>
+            <div className="brand-sub">agent output verification</div>
+          </div>
+        </div>
+        <CallList selected={selectedCallId} onSelect={setSelectedCallId} />
+      </aside>
+      <main className="main">
+        {selectedCallId === null ? (
+          <div className="empty-state">
+            <div className="empty-mark">◈</div>
+            <h2>Select a call</h2>
+            <p className="dim">
+              Live calls stream in on the left with a pulsing dot.<br />
+              Flagged turns show spoken-vs-truth evidence; ended calls can be<br />
+              replayed and audited with the post-call AI analysis.
+            </p>
+          </div>
+        ) : (
+          <CallDetail callId={selectedCallId} />
+        )}
+      </main>
     </div>
   )
 }
