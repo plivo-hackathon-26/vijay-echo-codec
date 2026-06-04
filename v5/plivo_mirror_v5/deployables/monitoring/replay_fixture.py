@@ -25,7 +25,6 @@ from plivo_mirror_v5.deployables.monitoring.backend.store import CallStore  # no
 from plivo_mirror_v5.engine import (  # noqa: E402
     Engine,
     EngineConfig,
-    KeywordKBRetriever,
     ReferenceStore,
 )
 from plivo_mirror_v5.integrations import (  # noqa: E402
@@ -42,8 +41,7 @@ TURN_AUDIO_MS = 4000
 
 async def replay_call(call: dict, sink, fixtures_dir: Path) -> None:
     reference = ReferenceStore.from_file(fixtures_dir / call["reference"])
-    kb = KeywordKBRetriever.from_file(fixtures_dir / call["kb"]) if call.get("kb") else None
-    engine = Engine(EngineConfig(mode="shadow"), reference=reference, kb=kb)
+    engine = Engine(EngineConfig(mode="shadow"), reference=reference)
     emitter = TelemetryEmitter(sink)
     observer = MirrorObserver(
         engine, emitter,

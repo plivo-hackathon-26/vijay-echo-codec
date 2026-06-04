@@ -11,7 +11,6 @@ the dashboard's ▶ links seek the actual recording.
     venv/bin/python v5/plivo_mirror_v5/deployables/monitoring/analyze_recording.py \
         path/to/call.wav \
         --reference v5/eval/fixtures/reference_aurora.json \
-        --kb v5/eval/fixtures/kb_aurora.json \
         --db v5/mirror_monitoring.db          # or --url http://localhost:8500
 
 Role mapping: voice agents speak first, so the first utterance's speaker
@@ -36,7 +35,7 @@ from typing import Protocol, runtime_checkable
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
 from plivo_mirror_v5.deployables.monitoring.backend.store import CallStore  # noqa: E402
-from plivo_mirror_v5.engine import KeywordKBRetriever, ReferenceStore  # noqa: E402
+from plivo_mirror_v5.engine import ReferenceStore  # noqa: E402
 from plivo_mirror_v5.integrations import ConversationItem, attach_mirror  # noqa: E402
 from plivo_mirror_v5.integrations.audio_levels import rms_levels  # noqa: E402
 from plivo_mirror_v5.telemetry import HTTPSink  # noqa: E402
@@ -119,7 +118,7 @@ def wav_levels_for(path: Path, start_s: float, end_s: float) -> list[float] | No
         return None
 
 
-async def analyze(path: Path, *, reference: ReferenceStore, kb, sink,
+async def analyze(path: Path, *, reference: ReferenceStore, sink,
                   recordings_dir: Path, agent_speaker: int | None,
                   agent_id: str, action_verbs: dict | None,
                   transcriber: Transcriber) -> str:
@@ -131,7 +130,7 @@ async def analyze(path: Path, *, reference: ReferenceStore, kb, sink,
     call_id = re.sub(r"[^A-Za-z0-9._-]", "-", path.stem)
     session = _NullSession()
     observer = attach_mirror(
-        session, room_id=call_id, reference=reference, kb=kb, sink=sink,
+        session, room_id=call_id, reference=reference, sink=sink,
         agent_id=agent_id, agent_version="recording", mode="shadow",
         action_verbs=action_verbs,
     )
@@ -172,7 +171,6 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("audio", type=Path)
     parser.add_argument("--reference", type=Path, required=True)
-    parser.add_argument("--kb", type=Path, default=None)
     parser.add_argument("--db", default="v5/mirror_monitoring.db")
     parser.add_argument("--url", default=None, help="POST to a running backend")
     parser.add_argument("--recordings-dir", type=Path,
@@ -188,7 +186,6 @@ def main() -> int:
     asyncio.run(analyze(
         args.audio,
         reference=ReferenceStore.from_file(args.reference),
-        kb=KeywordKBRetriever.from_file(args.kb) if args.kb else None,
         sink=sink,
         recordings_dir=args.recordings_dir,
         agent_speaker=args.agent_speaker,

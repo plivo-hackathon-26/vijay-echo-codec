@@ -90,16 +90,25 @@ def create_app(store: CallStore | None = None,
     def _run_judge(call: dict) -> list[dict]:
         from plivo_mirror_v5.auditor import LLMPostCallJudge  # noqa: PLC0415
 
-        facts, policies = {}, []
-        facts_path = os.environ.get("MIRROR_FACTS")
-        if facts_path:
+        # Grounding priority: the call's REGISTERED agent (system prompt +
+        # facts + policies from the registry) → env-var files → ungrounded.
+        facts, policies, system_prompt = {}, [], None
+        registered = app.state.store.get_agent(call.get("agent_id") or "")
+        if registered:
+            facts = {k: str(v) for k, v in (registered["facts"] or {}).items()}
+            policies = [s.strip() for s in (registered["policies"] or "").splitlines()
+                        if s.strip()]
+            system_prompt = registered["system_prompt"] or None
+        if not facts and os.environ.get("MIRROR_FACTS"):
             facts = {k: str(v) for k, v in json.loads(
-                Path(facts_path).read_text()).items() if not k.startswith("_")}
-        policies_path = os.environ.get("MIRROR_POLICIES")
-        if policies_path:
-            policies = [s.strip() for s in Path(policies_path).read_text().splitlines()
+                Path(os.environ["MIRROR_FACTS"]).read_text()).items()
+                if not k.startswith("_")}
+        if not policies and os.environ.get("MIRROR_POLICIES"):
+            policies = [s.strip()
+                        for s in Path(os.environ["MIRROR_POLICIES"]).read_text().splitlines()
                         if s.strip() and not s.startswith("#")]
-        judge = LLMPostCallJudge(facts=facts, policies=policies)
+        judge = LLMPostCallJudge(facts=facts, policies=policies,
+                                 system_prompt=system_prompt)
         return [
             {"turn_id": f.turn_id, "kind": f.kind, "rationale": f.rationale,
              "verdict_id": f.verdict_id, "category": f.extra.get("category")}
@@ -115,6 +124,64 @@ def create_app(store: CallStore | None = None,
         except Exception:  # noqa: BLE001
             logging.getLogger("plivo_mirror_v5.backend").exception(
                 "auto-audit failed for %s", call_id)
+
+    # -- agent registry: the "connect any LiveKit agent" window --------------
+
+    @app.post("/agents")
+    def register_agent(agent: dict):
+        agent_id = (agent.get("agent_id") or "").strip()
+        if not agent_id or not _SAFE_CALL_ID.match(agent_id):
+            raise HTTPException(status_code=422,
+                                detail="agent_id required: letters, digits, . _ - only")
+        mode = agent.get("mode") or "shadow"
+        if mode not in ("shadow", "intervene"):
+            raise HTTPException(status_code=422, detail="mode: shadow | intervene")
+        if agent.get("facts") is not None and not isinstance(agent["facts"], dict):
+            raise HTTPException(status_code=422, detail="facts must be a JSON object")
+        return app.state.store.upsert_agent(agent, t=time.time())
+
+    @app.get("/agents")
+    def list_agents():
+        return app.state.store.list_agents()
+
+    @app.get("/agents/{agent_id}")
+    def get_agent(agent_id: str):
+        agent = app.state.store.get_agent(agent_id)
+        if agent is None:
+            raise HTTPException(status_code=404, detail="unknown agent_id")
+        return agent
+
+    @app.patch("/agents/{agent_id}")
+    def patch_agent(agent_id: str, body: dict):
+        mode = body.get("mode")
+        if mode not in ("shadow", "intervene"):
+            raise HTTPException(status_code=422, detail="mode: shadow | intervene")
+        agent = app.state.store.set_agent_mode(agent_id, mode, t=time.time())
+        if agent is None:
+            raise HTTPException(status_code=404, detail="unknown agent_id")
+        return agent
+
+    @app.get("/agents/{agent_id}/config")
+    def agent_config(agent_id: str):
+        """What attach_mirror pulls at call start: mode + judge grounding.
+        Unregistered ids get shadow defaults, so connecting never fails."""
+        agent = app.state.store.get_agent(agent_id)
+        if agent is None:
+            return {"agent_id": agent_id, "registered": False, "mode": "shadow",
+                    "facts": {}, "policies": "", "system_prompt": ""}
+        return {"agent_id": agent_id, "registered": True, "mode": agent["mode"],
+                "facts": agent["facts"], "policies": agent["policies"],
+                "system_prompt": agent["system_prompt"]}
+
+    @app.get("/stats/overview")
+    def stats_overview(days: int = 14):
+        """Fleet rollups: KPIs, per-day trend, categories, version compare."""
+        return app.state.store.stats_overview(days=max(1, min(days, 90)))
+
+    @app.get("/stats/patterns")
+    def stats_patterns(min_calls: int = 2):
+        """Cross-call failure clusters with call-id receipts."""
+        return app.state.store.systemic_patterns(min_calls=max(1, min_calls))
 
     @app.get("/calls")
     def list_calls():
@@ -143,6 +210,17 @@ def create_app(store: CallStore | None = None,
             if path.is_file():
                 return path
         return None
+
+    # Single-URL deployment: serve the built frontend (vite dist/) from the
+    # backend itself. API routes are matched first; the static mount catches
+    # the rest. Skipped when no build exists (dev mode uses the vite proxy).
+    dist = Path(os.environ.get(
+        "MIRROR_FRONTEND_DIST",
+        Path(__file__).resolve().parents[1] / "frontend" / "dist"))
+    if dist.is_dir():
+        from fastapi.staticfiles import StaticFiles  # noqa: PLC0415
+
+        app.mount("/", StaticFiles(directory=dist, html=True), name="frontend")
 
     return app
 

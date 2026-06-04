@@ -60,6 +60,16 @@ CREATE TABLE IF NOT EXISTS actions (
     correction_text TEXT,
     t REAL
 );
+CREATE TABLE IF NOT EXISTS agents (
+    agent_id TEXT PRIMARY KEY,
+    name TEXT,
+    system_prompt TEXT,
+    facts TEXT,
+    policies TEXT,
+    mode TEXT DEFAULT 'shadow',
+    created_at REAL,
+    updated_at REAL
+);
 CREATE TABLE IF NOT EXISTS audit_findings (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     call_id TEXT NOT NULL,
@@ -200,6 +210,182 @@ class CallStore:
                 "SELECT * FROM audit_findings WHERE call_id = ?", (call_id,))]
         findings = [r for r in rows if r["kind"] != "_analyzed"]
         return {"analyzed": bool(rows), "findings": findings}
+
+    # -- agent registry -------------------------------------------------------
+    # The dashboard's "connect any LiveKit agent" flow: register an agent_id
+    # (any stable name the host also passes to attach_mirror), store its
+    # system prompt + facts + policies (the judge's grounding), and flip
+    # ``mode`` to turn live intervention on/off from the dashboard.
+
+    def upsert_agent(self, agent: dict, *, t: float) -> dict:
+        agent_id = agent["agent_id"]
+        with self._lock:
+            existing = self._conn.execute(
+                "SELECT created_at FROM agents WHERE agent_id = ?",
+                (agent_id,)).fetchone()
+            self._conn.execute(
+                "INSERT OR REPLACE INTO agents (agent_id, name, system_prompt,"
+                " facts, policies, mode, created_at, updated_at)"
+                " VALUES (?,?,?,?,?,?,?,?)",
+                (agent_id,
+                 agent.get("name") or agent_id,
+                 agent.get("system_prompt") or "",
+                 json.dumps(agent.get("facts") or {}),
+                 agent.get("policies") or "",
+                 agent.get("mode") or "shadow",
+                 existing["created_at"] if existing else t,
+                 t))
+            self._conn.commit()
+        return self.get_agent(agent_id)
+
+    def set_agent_mode(self, agent_id: str, mode: str, *, t: float) -> dict | None:
+        with self._lock:
+            cur = self._conn.execute(
+                "UPDATE agents SET mode = ?, updated_at = ? WHERE agent_id = ?",
+                (mode, t, agent_id))
+            self._conn.commit()
+        return self.get_agent(agent_id) if cur.rowcount else None
+
+    def get_agent(self, agent_id: str) -> dict | None:
+        with self._lock:
+            row = self._conn.execute(
+                "SELECT * FROM agents WHERE agent_id = ?", (agent_id,)).fetchone()
+        if row is None:
+            return None
+        agent = dict(row)
+        agent["facts"] = json.loads(agent["facts"] or "{}")
+        return agent
+
+    def list_agents(self) -> list[dict]:
+        """Registry view with per-agent call rollups (incl. unregistered
+        agent_ids seen in calls, so nothing that connected is invisible)."""
+        with self._lock:
+            registered = {r["agent_id"]: dict(r) for r in self._conn.execute(
+                "SELECT * FROM agents ORDER BY created_at")}
+            seen = [dict(r) for r in self._conn.execute(
+                "SELECT agent_id, COUNT(*) AS calls, MAX(started_at) AS last_seen,"
+                " SUM(EXISTS(SELECT 1 FROM verdicts v WHERE v.call_id = c.call_id"
+                "            AND v.fired = 1 AND v.severity != 'info')) AS flagged"
+                " FROM calls c GROUP BY agent_id")]
+        rollups = {s["agent_id"]: s for s in seen}
+        agents = []
+        for agent_id, agent in registered.items():
+            agent["facts"] = json.loads(agent["facts"] or "{}")
+            roll = rollups.pop(agent_id, {})
+            agent.update(calls=roll.get("calls", 0),
+                         flagged=roll.get("flagged", 0) or 0,
+                         last_seen=roll.get("last_seen"),
+                         registered=True)
+            agents.append(agent)
+        for agent_id, roll in rollups.items():  # connected but never registered
+            if agent_id:
+                agents.append({"agent_id": agent_id, "name": agent_id,
+                               "mode": "shadow", "registered": False,
+                               "calls": roll["calls"],
+                               "flagged": roll["flagged"] or 0,
+                               "last_seen": roll["last_seen"]})
+        return agents
+
+    # -- fleet stats ---------------------------------------------------------
+
+    def stats_overview(self, days: int = 14, *, now: float | None = None) -> dict:
+        """Fleet rollups for the dashboard home: KPIs, per-day trend,
+        failure-category breakdown, and per-agent-version comparison.
+        "Flagged" everywhere means: ≥1 fired, non-info verdict."""
+        import time as _time
+
+        now = now or _time.time()
+        since = now - days * 86400
+        with self._lock:
+            kpi = self._conn.execute(
+                "SELECT COUNT(*) AS calls,"
+                " SUM(EXISTS(SELECT 1 FROM verdicts v WHERE v.call_id = c.call_id"
+                "            AND v.fired = 1 AND v.severity != 'info')) AS flagged,"
+                " SUM(EXISTS(SELECT 1 FROM audit_findings f"
+                "            WHERE f.call_id = c.call_id)) AS audited,"
+                " SUM(EXISTS(SELECT 1 FROM audit_findings f"
+                "            WHERE f.call_id = c.call_id"
+                "            AND f.kind = 'missed_failure')) AS judge_flagged"
+                " FROM calls c WHERE c.started_at >= ?", (since,)).fetchone()
+            interventions = self._conn.execute(
+                "SELECT COUNT(*) AS n FROM actions a JOIN calls c USING (call_id)"
+                " WHERE c.started_at >= ? AND a.taken != 'none'", (since,),
+            ).fetchone()["n"]
+            daily = [dict(r) for r in self._conn.execute(
+                "SELECT strftime('%Y-%m-%d', c.started_at, 'unixepoch') AS day,"
+                " COUNT(*) AS calls,"
+                " SUM(EXISTS(SELECT 1 FROM verdicts v WHERE v.call_id = c.call_id"
+                "            AND v.fired = 1 AND v.severity != 'info')) AS flagged"
+                " FROM calls c WHERE c.started_at >= ?"
+                " GROUP BY day ORDER BY day", (since,))]
+            categories = [dict(r) for r in self._conn.execute(
+                "SELECT json_extract(v.evidence, '$.claim_type') AS category,"
+                " v.detector AS detector, COUNT(*) AS hits,"
+                " COUNT(DISTINCT v.call_id) AS calls"
+                " FROM verdicts v JOIN calls c USING (call_id)"
+                " WHERE c.started_at >= ? AND v.fired = 1 AND v.severity != 'info'"
+                " GROUP BY category, detector ORDER BY hits DESC", (since,))]
+            judge_categories = [dict(r) for r in self._conn.execute(
+                "SELECT f.category AS category, 'JUDGE' AS detector,"
+                " COUNT(*) AS hits, COUNT(DISTINCT f.call_id) AS calls"
+                " FROM audit_findings f JOIN calls c USING (call_id)"
+                " WHERE c.started_at >= ? AND f.kind = 'missed_failure'"
+                " AND f.category IS NOT NULL"
+                " GROUP BY f.category ORDER BY hits DESC", (since,))]
+            versions = [dict(r) for r in self._conn.execute(
+                "SELECT c.agent_id, c.agent_version, COUNT(*) AS calls,"
+                " SUM(EXISTS(SELECT 1 FROM verdicts v WHERE v.call_id = c.call_id"
+                "            AND v.fired = 1 AND v.severity != 'info')) AS flagged"
+                " FROM calls c WHERE c.started_at >= ?"
+                " GROUP BY c.agent_id, c.agent_version"
+                " ORDER BY c.agent_id, c.agent_version", (since,))]
+        calls_n = kpi["calls"] or 0
+        flagged_n = kpi["flagged"] or 0
+        for v in versions:
+            v["flag_rate"] = (v["flagged"] or 0) / v["calls"] if v["calls"] else 0.0
+        return {
+            "window_days": days,
+            "calls": calls_n,
+            "flagged_calls": flagged_n,
+            "flag_rate": flagged_n / calls_n if calls_n else 0.0,
+            "interventions": interventions,
+            "audited_calls": kpi["audited"] or 0,
+            "judge_flagged_calls": kpi["judge_flagged"] or 0,
+            "daily": daily,
+            "categories": categories + judge_categories,
+            "versions": versions,
+        }
+
+    def systemic_patterns(self, min_calls: int = 2) -> dict:
+        """Cross-call failure clustering — the grounded-evidence superpower:
+        the SAME wrong value, against the SAME truth source, across many
+        calls is a prompt/config bug, not a one-off. Receipts included."""
+        with self._lock:
+            facts = [dict(r) for r in self._conn.execute(
+                "SELECT json_extract(evidence, '$.source') AS source,"
+                " json_extract(evidence, '$.spoken_value') AS spoken_value,"
+                " json_extract(evidence, '$.truth_value') AS truth_value,"
+                " json_extract(evidence, '$.claim_type') AS claim_type,"
+                " COUNT(*) AS hits, COUNT(DISTINCT call_id) AS calls,"
+                " MIN(t) AS first_seen, MAX(t) AS last_seen,"
+                " GROUP_CONCAT(DISTINCT call_id) AS call_ids"
+                " FROM verdicts WHERE fired = 1 AND severity != 'info'"
+                " AND source IS NOT NULL"
+                " GROUP BY source, spoken_value"
+                " HAVING COUNT(DISTINCT call_id) >= ?"
+                " ORDER BY calls DESC, hits DESC", (min_calls,))]
+            judge = [dict(r) for r in self._conn.execute(
+                "SELECT category, COUNT(*) AS hits,"
+                " COUNT(DISTINCT call_id) AS calls,"
+                " MIN(t) AS first_seen, MAX(t) AS last_seen,"
+                " GROUP_CONCAT(DISTINCT call_id) AS call_ids"
+                " FROM audit_findings WHERE kind = 'missed_failure'"
+                " AND category IS NOT NULL GROUP BY category"
+                " HAVING COUNT(DISTINCT call_id) >= ?"
+                " ORDER BY calls DESC", (min_calls,))]
+        for row in (*facts, *judge):
+            row["call_ids"] = (row["call_ids"] or "").split(",")
+        return {"fact_patterns": facts, "judge_clusters": judge}
 
     # -- queries ------------------------------------------------------------
 

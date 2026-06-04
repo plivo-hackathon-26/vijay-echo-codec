@@ -1,0 +1,26 @@
+# Render blueprint — deploys the plivo-mirror v5 monitoring dashboard as a
+# single web service: the FastAPI backend serves both the API and the built
+# React frontend (committed at v5/.../frontend/dist).
+#
+# One-time setup on render.com: New + → Blueprint → pick this repo → Apply.
+# Then (optional, enables the LLM judge) add env vars in the dashboard:
+#   OPENAI_API_KEY, OPENAI_BASE_URL, OPENAI_MODEL   (values from repo .env)
+#   MIRROR_AUTO_AUDIT=1                              (judge every call end)
+#
+# Free-tier notes: the instance sleeps after ~15 min idle (first request
+# then takes ~30-60s) and the SQLite db is EPHEMERAL — it resets on every
+# deploy/restart. Fine for testing; not a system of record.
+
+services:
+  - type: web
+    name: plivo-mirror
+    runtime: python
+    plan: free
+    buildCommand: pip install -e 'v5[monitoring]' openai
+    startCommand: uvicorn plivo_mirror_v5.deployables.monitoring.backend.app:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /calls
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: MIRROR_DB
+        value: /tmp/mirror.db

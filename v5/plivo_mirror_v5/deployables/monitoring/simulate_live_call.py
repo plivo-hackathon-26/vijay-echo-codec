@@ -30,7 +30,7 @@ from types import SimpleNamespace
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[3]))
 
-from plivo_mirror_v5.engine import KeywordKBRetriever, ReferenceStore  # noqa: E402
+from plivo_mirror_v5.engine import ReferenceStore  # noqa: E402
 from plivo_mirror_v5.integrations import attach_mirror  # noqa: E402
 
 FIXTURES_DIR = Path(__file__).resolve().parents[3] / "eval" / "fixtures"
@@ -84,7 +84,6 @@ async def run(url: str, fast: bool) -> None:
         session,
         room_id=call_id,
         reference=ReferenceStore.from_file(FIXTURES_DIR / "reference_aurora.json"),
-        kb=KeywordKBRetriever.from_file(FIXTURES_DIR / "kb_aurora.json"),
         backend_url=url,
         agent_id="aurora-support",
         agent_version="1.1.0-live",
