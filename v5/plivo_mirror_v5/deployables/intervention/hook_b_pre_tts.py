@@ -158,6 +158,11 @@ class JudgedPreTTSGate(StubPreTTSGate):
             turn["tool_calls"] = tool_calls
         self._history.append(turn)
 
+    def set_history(self, turns: list[dict]) -> None:
+        """Replace the judge's conversation context wholesale — the live
+        gate rebuilds it from the LLM chat context on every gating."""
+        self._history = list(turns)
+
     def _judge_window(self, pending_text: str) -> tuple[list[dict], int]:
         keep = self.engine.config.inline_judge_history_turns
         window = self._history[-keep:] if keep else []

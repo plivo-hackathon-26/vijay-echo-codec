@@ -119,6 +119,21 @@ class SkylineAgent(Agent):
         self.store = seeded_store()
         self._last_results: dict[str, dict] = {}
 
+    # >>> mirror pre-TTS gate: the flagged draft NEVER reaches the speaker.
+    # attach_mirror sets self._mirror_pre_tts in intervene mode; in shadow
+    # (or if wiring failed) this is a zero-cost passthrough.
+    async def llm_node(self, chat_ctx, tools, model_settings):
+        gate = getattr(self, "_mirror_pre_tts", None)
+        def default(ctx):
+            return Agent.default.llm_node(self, ctx, tools, model_settings)
+        if gate is None:
+            async for chunk in default(chat_ctx):
+                yield chunk
+            return
+        async for out in gate.gate_stream(chat_ctx, default):
+            yield out
+    # >>> end mirror pre-TTS gate
+
     @function_tool
     async def search_flights(self, origin: str, destination: str, date: str) -> dict:
         """Search available flights for a route and date.

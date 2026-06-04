@@ -98,16 +98,45 @@ def check_tool_authorization(turn: TurnInput, ctx: LayerContext,
     return verdicts
 
 
+# A commitment-word match preceded by negation/limitation language is a
+# RETRACTION or a statement of requirements, not a promise ("I cannot waive
+# the fee", "unless the system has fee-waiver authorization"). Live finding:
+# without this, the agent's own correction re-flags and corrections cascade.
+_NEGATION_BEFORE_RE = re.compile(
+    r"\b(?:not|n't|never|cannot|can'?t|won'?t|unable to|no longer|unless|"
+    r"without|requires?|would need|isn'?t able|not able|only(?:\s+\w+){0,2}\s+"
+    r"standard)\b[^.?!]{0,40}$",
+    re.IGNORECASE,
+)
+# ... or follows it: "a full refund REQUIRES verified authorization",
+# "the fee cannot be waived". Limitation after the phrase, same exemption.
+_NEGATION_AFTER_RE = re.compile(
+    r"^[^.?!]{0,50}?\b(?:requires?|would need|needs?|is not|isn'?t|cannot|"
+    r"can'?t|won'?t|not (?:allowed|permitted|possible|available))\b",
+    re.IGNORECASE,
+)
+
+
+def _negated_context(text: str, match_start: int, match_end: int) -> bool:
+    before = text[max(0, match_start - 60):match_start]
+    after = text[match_end:match_end + 60]
+    return (_NEGATION_BEFORE_RE.search(before) is not None
+            or _NEGATION_AFTER_RE.search(after) is not None)
+
+
 def check_commitments(turn: TurnInput, ctx: LayerContext,
                       pack: PolicyPack, detector: str) -> list[Verdict]:
     """Unauthorized verbal commitments: commitment language must be backed
     by an authorizing state fact ('refund'/'waive'/'guarantee' are cheap to
-    say and expensive to honor)."""
+    say and expensive to honor). Negated/limitation contexts are exempt —
+    retracting a promise must never re-flag as making one."""
     verdicts = []
     for rule in pack.commitments:
         m = rule.compiled().search(turn.transcript)
         if m is None:
             continue
+        if _negated_context(turn.transcript, m.start(), m.end()):
+            continue  # "I cannot waive…" / "unless authorized…" — not a promise
         authorized = bool(ctx.snapshot.get(rule.allowed_if.removeprefix("session."))) \
             if rule.allowed_if else False
         verdicts.append(_verdict(

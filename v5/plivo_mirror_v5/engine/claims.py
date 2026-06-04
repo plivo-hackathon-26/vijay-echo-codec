@@ -144,6 +144,7 @@ class LexiconClaimExtractor:
         *,
         action_verbs: dict[str, list[str]] | None = None,
     ) -> None:
+        self._reference = reference
         self._patterns = [
             _Pattern(key, _tokens(key.replace(".", " ").replace("_", " ")),
                      truth_value=reference.get(key))
@@ -168,17 +169,19 @@ class LexiconClaimExtractor:
         claims: list[dict] = []
         for sentence in filter(None, map(str.strip, _SENTENCE_SPLIT_RE.split(text))):
             sentence_tokens = _tokens(sentence)
+            sentence_claims: list[dict] = []
             for pattern in self._patterns:
                 value = pattern.match(sentence, sentence_tokens)
                 if value is None:
                     continue
-                claims.append({
-                    "claim_id": f"x{len(claims) + 1}",
+                sentence_claims.append({
+                    "claim_id": f"x{len(claims) + len(sentence_claims) + 1}",
                     "claim_type": pattern.claim_type,
                     "spoken_value": value,
                     "ref": f"reference.{pattern.key}",
                     "text": sentence,
                 })
+            claims += self._drop_ambiguous(sentence_claims)
             for tool, verb_re in self._action_patterns:
                 m = verb_re.search(sentence)
                 if m is not None:
@@ -190,6 +193,34 @@ class LexiconClaimExtractor:
                         "text": sentence,
                     })
         return [c for c in claims if _claim_is_well_formed(c)]
+
+    def _drop_ambiguous(self, sentence_claims: list[dict]) -> list[dict]:
+        """Same-sentence cross-key disambiguation. One sentence, two sibling
+        keys, one captured value ("the standard cancellation refund is 80%
+        of the fare" triggers BOTH refund_percent[80] and fee_percent[20]):
+        a claim that MISMATCHES its key while its value exactly matches a
+        sibling key's truth belongs to the sibling — keeping it would flag a
+        correct statement. Live false-positive, fixed deterministically."""
+        if len(sentence_claims) < 2:
+            return sentence_claims
+        from plivo_mirror_v5.engine.layers.l2_deterministic import values_match
+        truths = {}
+        for c in sentence_claims:
+            value, found = self._reference.lookup(c["ref"].removeprefix("reference."))
+            truths[c["claim_id"]] = (value, found)
+        kept = []
+        for c in sentence_claims:
+            truth, found = truths[c["claim_id"]]
+            if found and not values_match(c["spoken_value"], truth):
+                stolen = any(
+                    o is not c and truths[o["claim_id"]][1]
+                    and values_match(c["spoken_value"], truths[o["claim_id"]][0])
+                    for o in sentence_claims
+                )
+                if stolen:
+                    continue  # the value belongs to the sibling key
+            kept.append(c)
+        return kept
 
 
 # A "done-action" claim is only real when the agent asserts completion —

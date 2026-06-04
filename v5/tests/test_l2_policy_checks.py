@@ -207,3 +207,30 @@ def test_commitment_span_tolerates_words_between_full_and_refund():
                    "refund is being issued."), state)
     assert [v for v in result.fired_verdicts
             if v.evidence.claim_type == "commitment"]
+
+
+def test_commitment_negated_context_is_not_a_promise():
+    """Live cascade bug: the agent's own RETRACTION ('I cannot waive…',
+    'unless the system has fee-waiver authorization') re-flagged as a new
+    commitment and corrections looped. Negated/limitation contexts exempt."""
+    pack = PolicyPack.from_dict({"commitments": [{
+        "id": "no_waiver", "pattern": r"\bwaiv\w+\b|\bfull refund\b",
+        "allowed_if": "session.auth.fee_waiver_authorized"}]})
+    engine = Engine(EngineConfig(policy=pack), reference=REFERENCE)
+    clean = [
+        "I cannot waive the cancellation fee on this call.",
+        "I'm not able to waive that fee, sorry.",
+        "A full refund requires verified authorization in the system.",
+        "I can only process the standard refund here, unless the system has "
+        "separate fee-waiver authorization.",
+    ]
+    for text in clean:
+        result = engine.evaluate_turn(make_turn(transcript=text), SessionState("c"))
+        assert not [v for v in result.fired_verdicts
+                    if v.evidence.claim_type == "commitment"], text
+    # an actual promise still flags
+    result = engine.evaluate_turn(
+        make_turn(transcript="Sure — I'll waive the fee right now."),
+        SessionState("c"))
+    assert [v for v in result.fired_verdicts
+            if v.evidence.claim_type == "commitment"]

@@ -124,7 +124,9 @@ def attach_mirror(
         # reply, instead of waiting for the caller's next utterance.
         intervention_handler = HookANextTurn(agent, config, session=session)
 
-    engine = Engine(config or EngineConfig(mode=mode), reference=reference)
+    engine_config = config or EngineConfig(mode=mode)
+
+    engine = Engine(engine_config, reference=reference)
     sink = sink or ThreadedSink(HTTPSink(backend_url))
     emitter = TelemetryEmitter(sink)
     observer = MirrorObserver(
@@ -205,6 +207,47 @@ def attach_mirror(
     session.on("conversation_item_added", _on_conversation_item)
     session.on("function_tools_executed", _on_tools_executed)
     session.on("close", _on_close)
+
+    # >>> pre-TTS gate (Hook B live): in intervene mode, the flagged draft
+    # NEVER reaches the speaker. The agent opts in with a 2-line llm_node
+    # override that routes its stream through agent._mirror_pre_tts.
+    if mode == "intervene" and agent is not None:
+        try:
+            from plivo_mirror_v5.auditor import LLMPostCallJudge  # noqa: PLC0415
+            from plivo_mirror_v5.deployables.intervention import (  # noqa: PLC0415
+                JudgedPreTTSGate,
+            )
+            from plivo_mirror_v5.integrations.pre_tts import (  # noqa: PLC0415
+                PreTTSGateRunner,
+            )
+
+            facts_store = ReferenceStore(registered.get("facts") or {})
+            judge = LLMPostCallJudge(
+                facts={k: facts_store.get(k) for k in facts_store.keys()},
+                policies=[s.strip() for s in
+                          (registered.get("policies") or "").splitlines()
+                          if s.strip()],
+                system_prompt=registered.get("system_prompt") or None,
+            )
+            gate = JudgedPreTTSGate(engine, judge, call_id=room_id)
+            agent._mirror_pre_tts = PreTTSGateRunner(
+                gate, observer.state,
+                claim_extractor or LexiconClaimExtractor(
+                    reference, action_verbs=action_verbs))
+            # The gate already corrects BEFORE speech — Hook A degrades to
+            # silent context injection (no spoken double-correction); its
+            # verdicts/actions still land in the dashboard.
+            from plivo_mirror_v5.deployables.intervention import (  # noqa: PLC0415
+                HookANextTurn as _HookA,
+            )
+            if isinstance(intervention_handler, _HookA):
+                intervention_handler.session = None
+        except Exception:  # noqa: BLE001 — gate wiring must never kill attach
+            import logging  # noqa: PLC0415
+            logging.getLogger("plivo_mirror_v5.adapter").exception(
+                "pre-TTS gate wiring failed; falling back to Hook A only")
+    # >>> end pre-TTS gate
+
     return observer
 
 

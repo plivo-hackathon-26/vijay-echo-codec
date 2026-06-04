@@ -107,3 +107,22 @@ def test_percent_value_spoken_word_matches():
     ex = _skyline_extractor()
     [claim] = ex.extract_from_text("The cancellation fee is 35 percent of the fare.")
     assert claim["spoken_value"] == "35"
+
+
+def test_same_sentence_sibling_key_disambiguation():
+    """Live FP: 'the standard cancellation refund is 80% of the fare'
+    triggered BOTH refund_percent(80, match) and fee_percent(20, mismatch)
+    — the mismatching claim's value belongs to the sibling and must drop."""
+    from plivo_mirror_v5.engine.reference import ReferenceStore
+    ex = LexiconClaimExtractor(ReferenceStore({"policy": {
+        "cancellation_fee_percent": 20, "standard_refund_percent": 80}}))
+    claims = ex.extract_from_text(
+        "I can only process the standard cancellation refund, "
+        "which is 80% of the fare.")
+    refs = [(c["ref"], c["spoken_value"]) for c in claims]
+    assert ("reference.policy.standard_refund_percent", "80") in refs
+    assert not any("fee_percent" in r for r, _ in refs)   # ambiguity dropped
+    # an unambiguous WRONG fee still extracts and flags
+    [claim] = ex.extract_from_text("The cancellation fee is 35% of the fare.")
+    assert claim["ref"].endswith("cancellation_fee_percent")
+    assert claim["spoken_value"] == "35"
