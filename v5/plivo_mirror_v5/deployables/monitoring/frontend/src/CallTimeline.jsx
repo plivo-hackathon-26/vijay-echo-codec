@@ -8,8 +8,10 @@ import React from 'react'
 // (e.g. LiveKit console mode exposes no room tracks) we render an
 // ESTIMATED signal derived deterministically from the transcript — the
 // legend says which one you're looking at. Flagged turns glow.
-const SEV_COLOR = { high: '#ff4d5e', med: '#ffa23e', low: '#e3c54b' }
-const ROLE_COLOR = { agent: '#5b8cff', user: '#8b93a7' }
+// Plivo palette: indigo #323dfe/#5b63ff for the agent, neutral gray for the
+// caller, warm reds/ambers for flags — on the navy display strip.
+const SEV_COLOR = { high: '#ff5f57', med: '#febc2e', low: '#e3c54b' }
+const ROLE_COLOR = { agent: '#5b63ff', user: '#8696a0' }
 
 function turnSeverity(turn) {
   const fired = turn.verdicts.filter((v) => v.fired && v.severity !== 'info')
