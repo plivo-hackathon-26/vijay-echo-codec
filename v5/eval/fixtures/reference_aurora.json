@@ -1,0 +1,14 @@
+{
+  "plan": {
+    "basic": { "price_per_month": 49.99 },
+    "turbo": { "price_per_month": 79.99 }
+  },
+  "policy": {
+    "refund_window_days": 30,
+    "cancellation_fee": 0
+  },
+  "hours": {
+    "weekday": "8am-8pm",
+    "weekend": "9am-5pm"
+  }
+}

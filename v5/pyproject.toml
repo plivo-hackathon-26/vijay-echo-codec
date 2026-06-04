@@ -1,0 +1,29 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "plivo-mirror-v5"
+version = "0.5.0"
+description = "Real-time firewall that verifies a voice agent's output against ground truth."
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+# The engine core is stdlib-only: it must run with no network and no API keys.
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "pytest-asyncio>=0.23", "httpx>=0.27"]
+# Deployable 1 — monitoring backend (FastAPI ingest + query API).
+monitoring = ["fastapi>=0.110", "uvicorn>=0.29"]
+# Real OTLP export. Without it the emitter uses a local sink.
+otel = ["opentelemetry-sdk>=1.25", "opentelemetry-exporter-otlp>=1.25"]
+# Reference transport. Only needed by the real LiveKit observer wiring.
+livekit = ["livekit-agents>=1.0"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["plivo_mirror_v5"]
+
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]

@@ -1,0 +1,190 @@
+{
+  "call_id": "call-induced-01",
+  "agent_id": "aurora-support",
+  "agent_version": "1.0.0",
+  "kind": "induced",
+  "reference": "reference_aurora.json",
+  "kb": "kb_aurora.json",
+  "turns": [
+    {
+      "turn_index": 0,
+      "role": "user",
+      "transcript": "Hi, how much is the turbo plan per month?",
+      "asr_confidence": 0.96
+    },
+    {
+      "turn_index": 1,
+      "role": "agent",
+      "transcript": "The Turbo plan is $59.99 a month.",
+      "claims": [
+        {
+          "claim_id": "c1",
+          "claim_type": "price",
+          "spoken_value": "$59.99",
+          "ref": "reference.plan.turbo.price_per_month",
+          "text": "The Turbo plan is $59.99 a month"
+        }
+      ],
+      "expected_fired": [
+        { "detector": "L2", "claim_id": "c1", "severity": "high" }
+      ]
+    },
+    {
+      "turn_index": 2,
+      "role": "user",
+      "transcript": "Please cancel my service effective today.",
+      "asr_confidence": 0.94
+    },
+    {
+      "turn_index": 3,
+      "role": "agent",
+      "transcript": "Done — I've cancelled your service.",
+      "claims": [
+        {
+          "claim_id": "c2",
+          "claim_type": "action",
+          "spoken_value": "cancelled",
+          "ref": "tool.cancel_service",
+          "text": "I've cancelled your service"
+        }
+      ],
+      "tool_calls": [],
+      "expected_fired": [
+        { "detector": "L2", "claim_id": "c2", "severity": "high" }
+      ]
+    },
+    {
+      "turn_index": 4,
+      "role": "user",
+      "transcript": "What's your refund policy?",
+      "asr_confidence": 0.97
+    },
+    {
+      "turn_index": 5,
+      "role": "agent",
+      "transcript": "You can get a full refund within 60 days of payment.",
+      "claims": [
+        {
+          "claim_id": "c3",
+          "claim_type": "policy",
+          "spoken_value": "60",
+          "ref": "reference.policy.refund_window_days",
+          "text": "full refund within 60 days of payment"
+        }
+      ],
+      "expected_fired": [
+        { "detector": "L2", "claim_id": "c3", "severity": "med" }
+      ]
+    },
+    {
+      "turn_index": 6,
+      "role": "user",
+      "transcript": "Will the router cover my whole house?",
+      "asr_confidence": 0.95
+    },
+    {
+      "turn_index": 7,
+      "role": "agent",
+      "transcript": "Absolutely — the Aurora router covers up to 5000 square feet.",
+      "claims": [
+        {
+          "claim_id": "c4",
+          "claim_type": "fact",
+          "spoken_value": null,
+          "ref": null,
+          "text": "The Aurora router covers up to 5000 square feet"
+        }
+      ],
+      "expected_fired": [
+        { "detector": "L3", "claim_id": "c4", "severity": "med" }
+      ]
+    },
+    {
+      "turn_index": 8,
+      "role": "user",
+      "transcript": "Is the router certified for anything?",
+      "asr_confidence": 0.9
+    },
+    {
+      "turn_index": 9,
+      "role": "agent",
+      "transcript": "Our routers are certified by NASA and used on the space station.",
+      "claims": [
+        {
+          "claim_id": "c5",
+          "claim_type": "fact",
+          "spoken_value": null,
+          "ref": null,
+          "text": "Our routers are certified by NASA and used on the space station"
+        }
+      ],
+      "expected_fired": [
+        { "detector": "L3", "claim_id": "c5", "severity": "low" }
+      ]
+    },
+    {
+      "turn_index": 10,
+      "role": "user",
+      "transcript": "Sign me up for the turbo plan.",
+      "asr_confidence": 0.93
+    },
+    {
+      "turn_index": 11,
+      "role": "agent",
+      "transcript": "You're all set — your total today is $96.39.",
+      "state_updates": { "order.plan": "turbo", "order.total": 86.39 },
+      "tool_calls": [
+        {
+          "name": "create_order",
+          "args": { "plan": "turbo" },
+          "result": { "order_id": "ord-883", "total": 86.39 },
+          "t_result": 1200
+        }
+      ],
+      "claims": [
+        {
+          "claim_id": "c6",
+          "claim_type": "price",
+          "spoken_value": "$96.39",
+          "ref": "session.order.total",
+          "text": "your total today is $96.39"
+        }
+      ],
+      "expected_fired": [
+        { "detector": "L2", "claim_id": "c6", "severity": "high" }
+      ]
+    },
+    {
+      "turn_index": 12,
+      "role": "user",
+      "transcript": "I want to switch to the ... basic plan?",
+      "asr_confidence": 0.32,
+      "expected_fired": [
+        { "detector": "L1", "claim_type": "untrusted_input", "severity": "info" }
+      ]
+    },
+    {
+      "turn_index": 13,
+      "role": "agent",
+      "transcript": "The Basic plan is $39.99 a month.",
+      "claims": [
+        {
+          "claim_id": "c7",
+          "claim_type": "price",
+          "spoken_value": "$39.99",
+          "ref": "reference.plan.basic.price_per_month",
+          "text": "The Basic plan is $39.99 a month"
+        }
+      ],
+      "expected_fired": [
+        { "detector": "L2", "claim_id": "c7", "severity": "info" }
+      ]
+    },
+    {
+      "turn_index": 14,
+      "role": "user",
+      "transcript": "Yes, the basic plan please.",
+      "asr_confidence": 0.95
+    }
+  ]
+}
