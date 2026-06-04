@@ -4,3 +4,5 @@ venv/
 mirror_monitoring.db
 plivo_mirror_v5/deployables/monitoring/frontend/node_modules/
 plivo_mirror_v5/deployables/monitoring/frontend/dist/
+eval/.v4set_cache.json
+recordings/

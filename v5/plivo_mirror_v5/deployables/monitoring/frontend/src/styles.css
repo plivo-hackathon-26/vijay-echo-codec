@@ -28,6 +28,24 @@ h1 { font-size: 20px; margin: 0; }
 .badge.sev-low { background: var(--low); }
 .badge.sev-info { background: var(--info); }
 
+.badge.live { background: var(--high); margin-left: 10px; animation: pulse 1.2s infinite; vertical-align: middle; }
+@keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.45; } }
+
+/* call-signal timeline strip */
+.timeline-strip { position: relative; height: 96px; background: #0f1422; border-radius: 8px; margin: 10px 0 18px; overflow: hidden; }
+.tl-axis { position: absolute; top: 50%; left: 0; right: 0; height: 1px; background: #2c3550; }
+.tl-turn { position: absolute; height: 38%; cursor: pointer; }
+.tl-turn.role-user { bottom: 52%; }
+.tl-turn.role-agent { top: 52%; }
+.tl-turn .tl-bar { position: absolute; bottom: 0; border-radius: 1px; opacity: 0.9; }
+.tl-turn.role-user .tl-bar { bottom: auto; top: 0; }
+.tl-turn .tl-solid { position: absolute; inset: 30% 0; border-radius: 2px; opacity: 0.85; }
+.tl-turn.tl-flagged { filter: drop-shadow(0 0 4px var(--tl-color)); }
+.tl-flag-dot { position: absolute; width: 7px; height: 7px; border-radius: 50%; left: 50%; transform: translateX(-50%); }
+.tl-turn.role-agent .tl-flag-dot { bottom: -10px; }
+.tl-turn.role-user .tl-flag-dot { top: -10px; }
+.tl-times { position: absolute; bottom: 2px; left: 6px; right: 6px; display: flex; justify-content: space-between; color: #5b6478; font-size: 10px; }
+
 .back { margin-bottom: 12px; }
 .timeline { display: flex; flex-direction: column; gap: 6px; }
 .turn { background: white; border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px; }
@@ -37,7 +55,9 @@ h1 { font-size: 20px; margin: 0; }
 .turn-head { display: flex; gap: 8px; align-items: baseline; cursor: pointer; flex-wrap: wrap; }
 .turn-head .role { font-weight: 600; min-width: 44px; }
 .turn-head .transcript { flex: 1; }
-.replay { text-decoration: none; color: #3b5bdb; white-space: nowrap; }
+.replay { text-decoration: none; color: #3b5bdb; white-space: nowrap; cursor: pointer; }
+.replay-disabled { color: #b9bec7; cursor: default; }
+.call-audio { width: 100%; height: 34px; margin-bottom: 8px; }
 .turn-meta { margin-top: 6px; font-size: 12px; }
 
 .evidence { margin-top: 8px; border: 1px solid var(--line); border-radius: 6px; padding: 8px; background: #fff8f8; }

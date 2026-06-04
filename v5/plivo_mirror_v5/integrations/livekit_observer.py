@@ -50,6 +50,8 @@ class ConversationItem:
     claims: list[dict] = field(default_factory=list)
     tool_calls: list[dict] = field(default_factory=list)
     audio_offset_ms: float | None = None
+    audio_duration_ms: float | None = None
+    audio_levels: list[float] | None = None   # 0..1 RMS samples (signal view)
 
 
 @runtime_checkable
@@ -149,7 +151,12 @@ class MirrorObserver:
         result = await asyncio.to_thread(self.engine.evaluate_turn, turn, self.state)
         result.action = await self._route(result)
         self.results.append(result)
-        self.emitter.turn_span(result, audio_offset_ms=item.audio_offset_ms)
+        self.emitter.turn_span(
+            result,
+            audio_offset_ms=item.audio_offset_ms,
+            audio_duration_ms=item.audio_duration_ms,
+            audio_levels=item.audio_levels,
+        )
 
     async def _route(self, result: TurnResult) -> Action:
         """Mode selects routing ONLY — detection already happened."""

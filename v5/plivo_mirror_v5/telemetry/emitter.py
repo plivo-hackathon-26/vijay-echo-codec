@@ -49,7 +49,10 @@ class InMemorySink:
 
 
 class HTTPSink:
-    """POSTs each record to the monitoring backend's ``/ingest``."""
+    """POSTs each record to the monitoring backend's ``/ingest``.
+
+    NOTE: blocking I/O — never use it bare on a live call's event loop;
+    wrap it in ``ThreadedSink`` (``attach_mirror`` does this for you)."""
 
     def __init__(self, base_url: str) -> None:
         self.ingest_url = base_url.rstrip("/") + "/ingest"
@@ -62,6 +65,42 @@ class HTTPSink:
             method="POST",
         )
         urllib.request.urlopen(req, timeout=5).read()
+
+
+class ThreadedSink:
+    """Decorator sink: hands records to a daemon thread so ``emit`` returns
+    in microseconds — the live-call path must never wait on telemetry I/O.
+    Records are delivered in order; failures are logged and dropped (the
+    call always outranks its telemetry)."""
+
+    def __init__(self, inner: "TelemetrySink") -> None:
+        import logging
+        import queue
+
+        self.inner = inner
+        self._queue: "queue.Queue[dict | None]" = queue.Queue()
+        self._log = logging.getLogger("plivo_mirror_v5.telemetry")
+        self._thread = threading.Thread(target=self._drain, daemon=True,
+                                        name="mirror-telemetry")
+        self._thread.start()
+
+    def emit(self, record: dict) -> None:
+        self._queue.put(record)
+
+    def _drain(self) -> None:
+        while True:
+            record = self._queue.get()
+            if record is None:
+                return
+            try:
+                self.inner.emit(record)
+            except Exception:  # noqa: BLE001 — telemetry must never kill the call
+                self._log.exception("telemetry emit failed; record dropped")
+
+    def close(self, timeout: float = 5.0) -> None:
+        """Flush and stop the worker (call teardown / tests)."""
+        self._queue.put(None)
+        self._thread.join(timeout=timeout)
 
 
 def verdict_to_dict(verdict: Verdict) -> dict:
@@ -138,7 +177,14 @@ class TelemetryEmitter:
 
     # -- turns ----------------------------------------------------------------
 
-    def turn_span(self, result: TurnResult, *, audio_offset_ms: float | None = None) -> None:
+    def turn_span(
+        self,
+        result: TurnResult,
+        *,
+        audio_offset_ms: float | None = None,
+        audio_duration_ms: float | None = None,
+        audio_levels: list[float] | None = None,
+    ) -> None:
         """Emit one turn span + its verdict/action events + metrics."""
         self.sink.emit(self._redact({
             "type": S.REC_TURN,
@@ -150,6 +196,8 @@ class TelemetryEmitter:
             S.ATTR_TRANSCRIPT: result.transcript,
             S.ATTR_ASR_CONFIDENCE: result.asr_confidence,
             S.ATTR_AUDIO_OFFSET_MS: audio_offset_ms,
+            S.ATTR_AUDIO_DURATION_MS: audio_duration_ms,
+            S.ATTR_AUDIO_LEVELS: audio_levels,
             S.ATTR_STATE_SNAPSHOT_ID: result.state_snapshot_id,
             "t": time.time(),
         }))

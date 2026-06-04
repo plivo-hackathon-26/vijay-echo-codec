@@ -73,6 +73,15 @@ class CallStore:
         self._lock = threading.Lock()
         with self._lock:
             self._conn.executescript(_SCHEMA)
+            # Idempotent column migrations for pre-existing db files.
+            for ddl in (
+                "ALTER TABLE turns ADD COLUMN audio_duration_ms REAL",
+                "ALTER TABLE turns ADD COLUMN audio_levels TEXT",
+            ):
+                try:
+                    self._conn.execute(ddl)
+                except sqlite3.OperationalError:
+                    pass  # column already exists
             self._conn.commit()
 
     # -- TelemetrySink ------------------------------------------------------
@@ -110,13 +119,17 @@ class CallStore:
         )
 
     def _ingest_turn(self, r: dict) -> None:
+        levels = r.get(S.ATTR_AUDIO_LEVELS)
         self._conn.execute(
             "INSERT OR REPLACE INTO turns (turn_id, call_id, turn_index, role,"
-            " transcript, asr_confidence, audio_offset_ms, state_snapshot_id, t)"
-            " VALUES (?,?,?,?,?,?,?,?,?)",
+            " transcript, asr_confidence, audio_offset_ms, audio_duration_ms,"
+            " audio_levels, state_snapshot_id, t)"
+            " VALUES (?,?,?,?,?,?,?,?,?,?,?)",
             (r[S.ATTR_TURN_ID], r[S.ATTR_CALL_ID], r.get(S.ATTR_TURN_INDEX),
              r.get(S.ATTR_ROLE), r.get(S.ATTR_TRANSCRIPT),
              r.get(S.ATTR_ASR_CONFIDENCE), r.get(S.ATTR_AUDIO_OFFSET_MS),
+             r.get(S.ATTR_AUDIO_DURATION_MS),
+             json.dumps(levels) if levels is not None else None,
              r.get(S.ATTR_STATE_SNAPSHOT_ID), r.get("t")),
         )
 
@@ -200,5 +213,7 @@ class CallStore:
         for turn in turns:
             turn["verdicts"] = verdicts_by_turn.get(turn["turn_id"], [])
             turn["actions"] = actions_by_turn.get(turn["turn_id"], [])
+            if turn.get("audio_levels"):
+                turn["audio_levels"] = json.loads(turn["audio_levels"])
         call["turns"] = turns
         return call

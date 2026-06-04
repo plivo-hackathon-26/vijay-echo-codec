@@ -4,6 +4,7 @@ from plivo_mirror_v5.telemetry.emitter import (
     OTelSink,
     TelemetryEmitter,
     TelemetrySink,
+    ThreadedSink,
     action_to_dict,
     verdict_to_dict,
 )
@@ -14,6 +15,7 @@ __all__ = [
     "OTelSink",
     "TelemetryEmitter",
     "TelemetrySink",
+    "ThreadedSink",
     "action_to_dict",
     "verdict_to_dict",
 ]

@@ -46,12 +46,22 @@ def _norm_text(value: Any) -> str:
     return re.sub(r"\s+", " ", str(value)).strip().casefold()
 
 
+_TRUTH_NUMBER_RE = re.compile(r"-?\d+(?:\.\d+)?")
+
+
 def values_match(spoken: Any, truth: Any) -> bool:
     """Deterministic comparison: numeric when both sides parse as numbers
-    (so "$79.99" == 79.99), case/whitespace-insensitive text otherwise."""
+    (so "$79.99" == 79.99); a numeric spoken value also matches a prose
+    truth containing exactly ONE number ("6" vs "6 wings per order") —
+    ambiguous multi-number truths fall through to exact text. Otherwise
+    case/whitespace-insensitive text."""
     s_num, t_num = _as_number(spoken), _as_number(truth)
     if s_num is not None and t_num is not None:
         return abs(s_num - t_num) < 1e-9
+    if s_num is not None and isinstance(truth, str):
+        nums = _TRUTH_NUMBER_RE.findall(truth.replace(",", ""))
+        if len(nums) == 1:
+            return abs(s_num - float(nums[0])) < 1e-9
     return _norm_text(spoken) == _norm_text(truth)
 
 
