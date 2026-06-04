@@ -143,3 +143,67 @@ def test_policy_pack_from_dict_roundtrip():
     assert pack.commitments[0].severity == "high"
     assert any("system prompt" in p for p in pack.persona_forbidden)  # defaults kept
     assert r"\bcompetitor\b" in pack.persona_forbidden
+
+
+# -- conditional tool authorization (live SkyLine fix) ------------------------
+# {tool: {"requires": ..., "when_arg_truthy": ...}} — authorization is only
+# demanded when the gating arg is truthy, so the tool's normal use never
+# flags. Reads the EXECUTED call's args: phrasing-proof.
+
+def _waiver_engine():
+    pack = PolicyPack.from_dict({
+        "tool_authorization": {
+            "cancel_booking": {"requires": "session.auth.fee_waiver_authorized",
+                               "when_arg_truthy": "waive_fee"},
+        },
+    })
+    return Engine(EngineConfig(policy=pack), reference=REFERENCE)
+
+
+def _cancel_turn(waive_fee):
+    return make_turn(transcript="Done — that's cancelled.",
+                     tool_calls=[{"name": "cancel_booking",
+                                  "args": {"pnr": "JT4R9X", "waive_fee": waive_fee},
+                                  "result": {"ok": True}}])
+
+
+def test_conditional_authz_fires_on_unauthorized_waiver():
+    engine, state = _waiver_engine(), SessionState("c")
+    result = engine.evaluate_turn(_cancel_turn(True), state)
+    [v] = [v for v in result.fired_verdicts
+           if v.evidence.claim_type == "authorization"]
+    assert v.severity == "high"
+    assert "waive_fee=true" in v.evidence.spoken_value
+
+
+def test_conditional_authz_normal_use_never_flags():
+    engine, state = _waiver_engine(), SessionState("c")
+    result = engine.evaluate_turn(_cancel_turn(False), state)
+    assert not [v for v in result.fired_verdicts
+                if v.evidence.claim_type == "authorization"]
+
+
+def test_conditional_authz_clean_when_host_authorized():
+    engine, state = _waiver_engine(), SessionState("c")
+    state.set_fact("auth.fee_waiver_authorized", True, source="host")
+    result = engine.evaluate_turn(_cancel_turn(True), state)
+    assert not [v for v in result.fired_verdicts
+                if v.evidence.claim_type == "authorization"]
+
+
+def test_commitment_span_tolerates_words_between_full_and_refund():
+    # Live miss: "the full $312 refund is being issued" dodged the
+    # adjacent-only pattern. The example agent's widened span must catch it.
+    pack = PolicyPack.from_dict({"commitments": [{
+        "id": "no_unverified_fee_waiver",
+        "pattern": r"\bwaiv\w+\b|\bfull(?:y)?\b[^.?!]{0,30}?\brefund\w*"
+                   r"|\b100\s*%[^.?!]{0,20}?\brefund\w*"
+                   r"|\brefund\w*[^.?!]{0,20}?\bin full\b",
+        "allowed_if": "session.auth.fee_waiver_authorized"}]})
+    engine = Engine(EngineConfig(policy=pack), reference=REFERENCE)
+    state = SessionState("c")
+    result = engine.evaluate_turn(make_turn(
+        transcript="Done — JT4R9X has been canceled, and the full $312 "
+                   "refund is being issued."), state)
+    assert [v for v in result.fired_verdicts
+            if v.evidence.claim_type == "commitment"]

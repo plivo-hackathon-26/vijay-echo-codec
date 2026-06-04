@@ -54,17 +54,35 @@ class HTTPSink:
     NOTE: blocking I/O — never use it bare on a live call's event loop;
     wrap it in ``ThreadedSink`` (``attach_mirror`` does this for you)."""
 
-    def __init__(self, base_url: str) -> None:
+    def __init__(self, base_url: str, *, api_key: str | None = None,
+                 retries: int = 1) -> None:
+        import os  # noqa: PLC0415
+
         self.ingest_url = base_url.rstrip("/") + "/ingest"
+        # Backend write-protection (MIRROR_API_KEY) applies to /ingest too —
+        # the sink picks the key up from the same env so a protected backend
+        # keeps receiving telemetry without per-agent wiring.
+        self.api_key = api_key or os.environ.get("MIRROR_API_KEY")
+        self.retries = retries
 
     def emit(self, record: dict) -> None:
+        headers = {"Content-Type": "application/json"}
+        if self.api_key:
+            headers["X-API-Key"] = self.api_key
         req = urllib.request.Request(
             self.ingest_url,
             data=json.dumps(record).encode(),
-            headers={"Content-Type": "application/json"},
+            headers=headers,
             method="POST",
         )
-        urllib.request.urlopen(req, timeout=5).read()
+        last_exc: Exception | None = None
+        for _attempt in range(1 + self.retries):
+            try:
+                urllib.request.urlopen(req, timeout=5).read()
+                return
+            except Exception as exc:  # noqa: BLE001 — one retry, then surface
+                last_exc = exc
+        raise last_exc
 
 
 class ThreadedSink:

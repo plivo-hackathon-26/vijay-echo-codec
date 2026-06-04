@@ -248,6 +248,18 @@ button.btn:disabled { background: #fff; border-color: var(--line); color: #c2c7c
 .ver-table td { padding: 7px 10px 7px 0; border-bottom: 1px solid var(--line-soft); }
 .ver-table tr:last-child td { border-bottom: 0; }
 
+/* ── review loop (✓/✗ → measured precision) ───────────────────────────── */
+.review-btns { display: inline-flex; gap: 5px; margin-left: auto; }
+.review-btn { font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .06em; padding: 2px 8px;
+  border: 1px solid var(--line); border-radius: 4px; background: var(--bg);
+  color: var(--dim); cursor: pointer; transition: all .12s; }
+.review-btn.ok:hover, .review-btn.ok.active { color: var(--ok);
+  border-color: var(--ok); background: #f0fbf6; }
+.review-btn.bad:hover, .review-btn.bad.active { color: var(--high);
+  border-color: var(--high); background: #fff5f5; }
+.btn-receipts { margin-left: auto; }
+
 /* ── agents window ────────────────────────────────────────────────────── */
 .agent-form { display: flex; flex-direction: column; gap: 6px; }
 .agent-form .mlabel { margin-top: 10px; }

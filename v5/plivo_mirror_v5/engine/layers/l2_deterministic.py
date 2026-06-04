@@ -26,6 +26,12 @@ from plivo_mirror_v5.engine.layers.base import LayerContext
 from plivo_mirror_v5.engine.session_state import SessionState
 from plivo_mirror_v5.engine.verdict import Evidence, TurnInput, Verdict, new_verdict_id
 
+# Currency symbols stripped when parsing spoken/stored values numerically.
+# One shared constant (also used by the pink-elephant echo check) so adding
+# a locale's symbol is a one-line change, not a hunt.
+CURRENCY_SYMBOLS = "$€£₹¥₩"
+
+
 def _as_number(value: Any) -> float | None:
     """Strict numeric parse: the WHOLE value must be one number (currency
     sign / thousands separators / %% allowed). "9am-6pm" must NOT compare
@@ -35,7 +41,7 @@ def _as_number(value: Any) -> float | None:
     if isinstance(value, (int, float)):
         return float(value)
     if isinstance(value, str):
-        s = value.strip().replace(",", "").lstrip("$€£").rstrip("%").strip()
+        s = value.strip().replace(",", "").lstrip(CURRENCY_SYMBOLS).rstrip("%").strip()
         try:
             return float(s)
         except ValueError:

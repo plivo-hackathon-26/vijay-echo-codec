@@ -68,17 +68,40 @@ def _tokens(text: str) -> set[str]:
 
 
 class _Pattern:
-    def __init__(self, key: str, key_tokens: set[str]) -> None:
+    def __init__(self, key: str, key_tokens: set[str], truth_value=None) -> None:
         self.key = key
-        self.claim_type = "fact"
-        for claim_type in ("price", "hours", "policy"):  # priority order
-            if key_tokens & {_stem(t) for t in _TYPE_VOCAB[claim_type]}:
-                self.claim_type = claim_type
-                break
+        unit = next((u for u in _POLICY_UNITS if _stem(u) in key_tokens), None)
+        # A "percent" key ALWAYS binds the % regex — `cancellation_fee_percent`
+        # must capture the "20%" in a sentence, never the "$249.60" beside it
+        # (the price vocab's "fee" would otherwise win and bind money).
+        # Other units (days/months) keep vocab priority: price_per_month is a
+        # price key, not a months-policy key.
+        if unit == "percent":
+            self.claim_type = "policy"
+        else:
+            self.claim_type = "fact"
+            for claim_type in ("price", "hours", "policy"):  # priority order
+                if key_tokens & {_stem(t) for t in _TYPE_VOCAB[claim_type]}:
+                    self.claim_type = claim_type
+                    break
         type_tokens = {_stem(t) for vocab in _TYPE_VOCAB.values() for t in vocab}
         self.triggers = key_tokens - type_tokens - {_stem(t) for t in _GENERIC_TOKENS}
-        unit = next((u for u in _POLICY_UNITS if _stem(u) in key_tokens), None)
         self.value_re = self._build_value_re(unit)
+        # Comparability gate: a pattern only exists when the stored truth is
+        # the same TYPE the regex captures (a number / an hours range).
+        # Prose-valued keys ("20% of the fare, fixed and non-waivable...")
+        # are judge grounding, NOT L2 diff targets — extracting against them
+        # guarantees a false alarm, which is the budget we protect.
+        if not self._truth_comparable(truth_value):
+            self.value_re = None
+
+    def _truth_comparable(self, truth_value) -> bool:
+        if truth_value is None:  # unknown (tests / direct use): keep old behavior
+            return True
+        if self.claim_type == "hours":
+            return _HOURS_RE.search(str(truth_value)) is not None
+        from plivo_mirror_v5.engine.layers.l2_deterministic import _as_number
+        return _as_number(truth_value) is not None
 
     def _build_value_re(self, unit: str | None) -> re.Pattern | None:
         if self.claim_type == "price":
@@ -87,8 +110,11 @@ class _Pattern:
             return _HOURS_RE
         if self.claim_type == "policy":
             if unit:
-                return re.compile(rf"\b(\d+(?:\.\d+)?)\s*{_POLICY_UNITS[unit]}\b",
-                                  re.IGNORECASE)
+                # (?!\w) instead of \b: "%" is a non-word char, so "5%"
+                # never satisfies a trailing \b — "60 days" still does.
+                return re.compile(
+                    rf"\b(\d+(?:\.\d+)?)\s*{_POLICY_UNITS[unit]}(?!\w)",
+                    re.IGNORECASE)
             return re.compile(r"\b(\d+(?:\.\d+)?)\b")
         return None  # bare "fact" keys: no typed value → never extracted
 
@@ -119,7 +145,8 @@ class LexiconClaimExtractor:
         action_verbs: dict[str, list[str]] | None = None,
     ) -> None:
         self._patterns = [
-            _Pattern(key, _tokens(key.replace(".", " ").replace("_", " ")))
+            _Pattern(key, _tokens(key.replace(".", " ").replace("_", " ")),
+                     truth_value=reference.get(key))
             for key in reference.keys()
         ]
         self._action_patterns: list[tuple[str, re.Pattern]] = [

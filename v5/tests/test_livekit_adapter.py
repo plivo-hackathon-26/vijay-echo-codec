@@ -182,3 +182,28 @@ async def test_explicit_args_beat_registry(monkeypatch):
                              mode="shadow", reference=REFERENCE)
     assert observer.mode == "shadow"                       # local arg wins
     assert observer.engine.reference.get("plan.turbo.price_per_month") == 79.99
+
+
+async def test_executed_tools_ride_the_next_agent_turn():
+    """Live fix: tools buffer until the agent's next utterance and arrive on
+    that TurnInput — the tool-side policy checks must SEE the args live."""
+    from plivo_mirror_v5.engine import EngineConfig, PolicyPack
+    pack = PolicyPack.from_dict({
+        "tool_authorization": {
+            "cancel_service": {"requires": "session.auth.fee_waiver_authorized",
+                               "when_arg_truthy": "waive_fee"}},
+    })
+    session, sink, observer = wire(config=EngineConfig(policy=pack))
+    session.emit("function_tools_executed",
+                 tools_event("cancel_service", {"pnr": "X1", "waive_fee": True},
+                             {"ok": True}))
+    session.emit("conversation_item_added",
+                 chat_item("assistant", "Done — fee waived and cancelled."))
+    await observer.drain()
+    [result] = observer.results
+    assert result.tool_calls if hasattr(result, "tool_calls") else True
+    authz = [v for v in result.fired_verdicts
+             if v.evidence.claim_type == "authorization"]
+    assert authz and "waive_fee=true" in authz[0].evidence.spoken_value
+    # and the tool is in the session log for later speech-vs-action diffs
+    assert observer.state.tool_log[0]["name"] == "cancel_service"

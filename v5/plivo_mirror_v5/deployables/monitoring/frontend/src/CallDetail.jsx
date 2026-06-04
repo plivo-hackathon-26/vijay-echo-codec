@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react'
-import { fetchCall } from './api.js'
+import { API_BASE, analyzeCall, fetchCall, fetchReceipts, saveLabel } from './api.js'
 import CallTimeline from './CallTimeline.jsx'
 
 const LIVE_POLL_MS = 1500
@@ -73,7 +73,27 @@ function Stats({ call }) {
 
 // ── evidence (rendered VERBATIM — the product differentiator) ─────────────
 
-function EvidenceCard({ verdict }) {
+// Review buttons: every flag gets a human ✓/✗ — the loop that feeds the
+// MEASURED production-precision metric on the fleet page. No competitor
+// exposes a live precision number; this is where ours comes from.
+function ReviewButtons({ current, onLabel }) {
+  return (
+    <span className="review-btns">
+      <button className={`review-btn ok ${current === 'confirmed' ? 'active' : ''}`}
+              title="confirm: this flag is a real violation"
+              onClick={(e) => { e.stopPropagation(); onLabel('confirmed') }}>
+        ✓ real
+      </button>
+      <button className={`review-btn bad ${current === 'rejected' ? 'active' : ''}`}
+              title="reject: this flag is a false alarm"
+              onClick={(e) => { e.stopPropagation(); onLabel('rejected') }}>
+        ✗ false alarm
+      </button>
+    </span>
+  )
+}
+
+function EvidenceCard({ verdict, review, onLabel }) {
   const ev = verdict.evidence
   if (!ev) return null
   return (
@@ -86,6 +106,7 @@ function EvidenceCard({ verdict }) {
         {verdict.arbitration?.suppressed?.length > 0 && (
           <span className="chip muted">suppressed by {verdict.arbitration.suppressed.join(', ')}</span>
         )}
+        {onLabel && <ReviewButtons current={review} onLabel={onLabel} />}
       </div>
       <table className="evidence-table">
         <tbody>
@@ -100,7 +121,7 @@ function EvidenceCard({ verdict }) {
 
 // ── one conversation turn ─────────────────────────────────────────────────
 
-function Turn({ turn, onReplay, hasAudio }) {
+function Turn({ turn, onReplay, hasAudio, labels, onLabel }) {
   const flagged = turn.verdicts.filter((v) => v.fired)
   const [open, setOpen] = useState(flagged.length > 0)
   const offset = fmtOffset(turn.audio_offset_ms)
@@ -124,7 +145,11 @@ function Turn({ turn, onReplay, hasAudio }) {
           >▶ {offset}</a>
         )}
       </div>
-      {open && flagged.map((v) => <EvidenceCard key={v.verdict_id} verdict={v} />)}
+      {open && flagged.map((v) => (
+        <EvidenceCard key={v.verdict_id} verdict={v}
+          review={labels?.[`verdict:${v.verdict_id}`]}
+          onLabel={onLabel && ((label) => onLabel('verdict', v.verdict_id, label))} />
+      ))}
       {open && (
         <div className="turn-meta dim">
           snapshot {turn.state_snapshot_id}
@@ -137,7 +162,7 @@ function Turn({ turn, onReplay, hasAudio }) {
 
 // ── post-call LLM analysis (optional; OUTSIDE the engine; offline only) ──
 
-function PostCallAnalysis({ call, onDone }) {
+function PostCallAnalysis({ call, onDone, labels, onLabel }) {
   const [running, setRunning] = useState(false)
   const [error, setError] = useState(null)
   const audit = call.audit || { analyzed: false, findings: [] }
@@ -146,8 +171,7 @@ function PostCallAnalysis({ call, onDone }) {
   const run = async () => {
     setRunning(true); setError(null)
     try {
-      const res = await fetch(`/api/calls/${encodeURIComponent(call.call_id)}/analyze`, { method: 'POST' })
-      if (!res.ok) throw new Error((await res.json()).detail || res.status)
+      await analyzeCall(call.call_id)
       onDone()
     } catch (err) { setError(String(err.message || err)) }
     setRunning(false)
@@ -176,6 +200,8 @@ function PostCallAnalysis({ call, onDone }) {
           <a className="mono dim turn-link" onClick={() =>
             document.getElementById(`turn-${f.turn_id}`)?.scrollIntoView(
               { behavior: 'smooth', block: 'center' })}>{f.turn_id}</a>
+          {onLabel && <ReviewButtons current={labels?.[`finding:${f.id}`]}
+            onLabel={(label) => onLabel('finding', String(f.id), label)} />}
           <div className="audit-rationale">{f.rationale}</div>
         </div>
       ))}
@@ -244,6 +270,22 @@ export default function CallDetail({ callId }) {
     audio.currentTime = (offsetMs || 0) / 1000
     audio.play()
   }
+  // ✓/✗ review → label saved → optimistic refresh (feeds /stats/precision)
+  const labelFlag = (kind, targetId, label) =>
+    saveLabel(call.call_id, kind, targetId, label)
+      .then(() => fetchCall(callId).then(setCall))
+      .catch((e) => setError(e.message))
+  // audit-grade evidence packet download (compliance receipt)
+  const downloadReceipts = () =>
+    fetchReceipts(call.call_id).then((data) => {
+      const blob = new Blob([JSON.stringify(data, null, 2)],
+                            { type: 'application/json' })
+      const a = document.createElement('a')
+      a.href = URL.createObjectURL(blob)
+      a.download = `mirror-receipts-${call.call_id}.json`
+      a.click()
+      URL.revokeObjectURL(a.href)
+    }).catch((e) => setError(e.message))
 
   return (
     <div className="detail">
@@ -252,6 +294,12 @@ export default function CallDetail({ callId }) {
         {live ? <span className="live-pill big">● LIVE</span>
           : <span className="chip muted">{call.outcome}</span>}
         <span className="dim">{call.channel}</span>
+        {!live && (
+          <button className="btn btn-receipts" onClick={downloadReceipts}
+                  title="audit-grade evidence packet: every violation with its spoken/truth/source receipt, reviews, and interventions">
+            ⬇ receipts
+          </button>
+        )}
       </div>
 
       <Stats call={call} />
@@ -261,7 +309,7 @@ export default function CallDetail({ callId }) {
           <SectionHead no="01" title="recording" side="▶ links seek the audio" />
           <div className="panel audio-panel">
             <audio ref={audioRef} controls preload="metadata" className="call-audio"
-                   src={`/api/calls/${encodeURIComponent(call.call_id)}/audio`} />
+                   src={`${API_BASE}/calls/${encodeURIComponent(call.call_id)}/audio`} />
           </div>
         </>
       )}
@@ -273,15 +321,16 @@ export default function CallDetail({ callId }) {
                    side={`${call.turns.length} turns`} />
       <div className="conversation">
         {call.turns.map((t) => (
-          <Turn key={t.turn_id} turn={t} onReplay={replayAt} hasAudio={!!call.has_audio} />
+          <Turn key={t.turn_id} turn={t} onReplay={replayAt} hasAudio={!!call.has_audio}
+                labels={call.labels} onLabel={labelFlag} />
         ))}
         <div ref={bottomRef} />
       </div>
 
       <SectionHead no={call.has_audio ? '04' : '03'} title="post-call analysis"
                    side="offline llm judge" />
-      <PostCallAnalysis call={call}
-        onDone={() => fetchCall(callId).then(setCall).catch(() => {})} />
+      <PostCallAnalysis call={call} labels={call.labels} onLabel={labelFlag}
+        onDone={() => fetchCall(callId).then(setCall).catch((e) => setError(e.message))} />
     </div>
   )
 }

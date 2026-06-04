@@ -80,6 +80,17 @@ CREATE TABLE IF NOT EXISTS audit_findings (
     category TEXT,
     t REAL
 );
+CREATE TABLE IF NOT EXISTS labels (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    call_id TEXT NOT NULL,
+    target_kind TEXT NOT NULL,
+    target_id TEXT NOT NULL,
+    label TEXT NOT NULL,
+    note TEXT,
+    t REAL,
+    UNIQUE(target_kind, target_id)
+);
+CREATE INDEX IF NOT EXISTS idx_labels_call ON labels(call_id);
 CREATE INDEX IF NOT EXISTS idx_audit_call ON audit_findings(call_id);
 CREATE INDEX IF NOT EXISTS idx_turns_call ON turns(call_id, turn_index);
 CREATE INDEX IF NOT EXISTS idx_verdicts_call ON verdicts(call_id);
@@ -93,6 +104,11 @@ class CallStore:
         self._conn.row_factory = sqlite3.Row
         self._lock = threading.Lock()
         with self._lock:
+            if path != ":memory:":
+                # WAL: readers never block the ingest writer; busy_timeout
+                # rides out writer contention instead of raising immediately.
+                self._conn.execute("PRAGMA journal_mode=WAL")
+                self._conn.execute("PRAGMA busy_timeout=5000")
             self._conn.executescript(_SCHEMA)
             # Idempotent column migrations for pre-existing db files.
             for ddl in (
@@ -210,6 +226,66 @@ class CallStore:
                 "SELECT * FROM audit_findings WHERE call_id = ?", (call_id,))]
         findings = [r for r in rows if r["kind"] != "_analyzed"]
         return {"analyzed": bool(rows), "findings": findings}
+
+    # -- review loop: human labels → measured production precision ------------
+    # The differentiator no ungrounded judge can copy: every flag carries a
+    # ✓/✗ review, and the dashboard reports the system's measured precision
+    # on YOUR traffic — not a benchmark claim, a live number.
+
+    def save_label(self, call_id: str, target_kind: str, target_id: str,
+                   label: str, *, note: str | None = None,
+                   t: float | None = None) -> dict:
+        with self._lock:
+            self._conn.execute(
+                "INSERT INTO labels (call_id, target_kind, target_id, label,"
+                " note, t) VALUES (?,?,?,?,?,?)"
+                " ON CONFLICT(target_kind, target_id) DO UPDATE SET"
+                " label = excluded.label, note = excluded.note, t = excluded.t",
+                (call_id, target_kind, target_id, label, note, t))
+            self._conn.commit()
+        return {"call_id": call_id, "target_kind": target_kind,
+                "target_id": target_id, "label": label}
+
+    def labels_for_call(self, call_id: str) -> dict:
+        """{(target_kind, target_id): label} flattened for the frontend."""
+        with self._lock:
+            rows = self._conn.execute(
+                "SELECT target_kind, target_id, label FROM labels"
+                " WHERE call_id = ?", (call_id,)).fetchall()
+        return {f"{r['target_kind']}:{r['target_id']}": r["label"] for r in rows}
+
+    def precision_stats(self) -> dict:
+        """Measured precision per detector from reviewer labels: of the
+        flags a human reviewed, how many were confirmed real."""
+        with self._lock:
+            verdict_rows = [dict(r) for r in self._conn.execute(
+                "SELECT v.detector AS detector, l.label AS label, COUNT(*) AS n"
+                " FROM labels l JOIN verdicts v ON l.target_id = v.verdict_id"
+                " WHERE l.target_kind = 'verdict'"
+                " GROUP BY v.detector, l.label")]
+            finding_rows = [dict(r) for r in self._conn.execute(
+                "SELECT 'JUDGE' AS detector, l.label AS label, COUNT(*) AS n"
+                " FROM labels l WHERE l.target_kind = 'finding'"
+                " GROUP BY l.label")]
+        by_detector: dict[str, dict] = {}
+        for row in (*verdict_rows, *finding_rows):
+            d = by_detector.setdefault(row["detector"],
+                                       {"confirmed": 0, "rejected": 0})
+            if row["label"] in d:
+                d[row["label"]] += row["n"]
+        total_c = sum(d["confirmed"] for d in by_detector.values())
+        total_r = sum(d["rejected"] for d in by_detector.values())
+        for d in by_detector.values():
+            n = d["confirmed"] + d["rejected"]
+            d["precision"] = d["confirmed"] / n if n else None
+        return {
+            "reviewed": total_c + total_r,
+            "confirmed": total_c,
+            "rejected": total_r,
+            "precision": (total_c / (total_c + total_r)
+                          if (total_c + total_r) else None),
+            "by_detector": by_detector,
+        }
 
     # -- agent registry -------------------------------------------------------
     # The dashboard's "connect any LiveKit agent" flow: register an agent_id
@@ -389,11 +465,14 @@ class CallStore:
 
     # -- queries ------------------------------------------------------------
 
-    def list_calls(self) -> list[dict]:
-        """Call-list view: one row per call with rollups for badges."""
+    def list_calls(self, limit: int = 200, offset: int = 0) -> list[dict]:
+        """Call-list view: one row per call with rollups for badges.
+        Paginated — an unbounded SELECT over months of traffic would melt
+        both the backend and the browser."""
         with self._lock:
             calls = [dict(row) for row in self._conn.execute(
-                "SELECT * FROM calls ORDER BY started_at DESC")]
+                "SELECT * FROM calls ORDER BY started_at DESC LIMIT ? OFFSET ?",
+                (limit, offset))]
             for call in calls:
                 call_id = call["call_id"]
                 # Suppressed verdicts arrive with fired=0 (arbitration runs
@@ -446,4 +525,5 @@ class CallStore:
                 turn["audio_levels"] = json.loads(turn["audio_levels"])
         call["turns"] = turns
         call["audit"] = self.get_audit_findings(call_id)
+        call["labels"] = self.labels_for_call(call_id)
         return call

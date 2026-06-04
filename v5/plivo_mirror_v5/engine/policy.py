@@ -65,8 +65,12 @@ class DisclosureRule:
 class PolicyPack:
     # {tool_name: {arg_name: "session.<key>"}}
     arg_bindings: dict[str, dict[str, str]] = field(default_factory=dict)
-    # {tool_name: "session.<key>"} — key must be truthy for the tool to fire
-    tool_authorization: dict[str, str] = field(default_factory=dict)
+    # {tool_name: "session.<key>"} — key must be truthy for the tool to fire.
+    # Conditional form: {tool_name: {"requires": "session.<key>",
+    # "when_arg_truthy": "<arg>"}} — authorization is demanded only when the
+    # named argument is truthy (e.g. cancel_booking is normally fine, but
+    # waive_fee=true needs a host-written authorization fact).
+    tool_authorization: dict[str, "str | dict"] = field(default_factory=dict)
     commitments: list[CommitmentRule] = field(default_factory=list)
     disclosures: list[DisclosureRule] = field(default_factory=list)
     persona_forbidden: list[str] = field(

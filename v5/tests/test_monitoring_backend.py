@@ -192,3 +192,79 @@ def test_agent_list_includes_unregistered_seen_agents(fleet_client):
     aurora = agents["aurora"]
     assert aurora["registered"] and aurora["mode"] == "intervene"
     assert aurora["calls"] == 3 and aurora["flagged"] == 2
+
+
+# -- review loop, precision, receipts, auth (production polish) ---------------
+
+def _first_verdict_id(client, call_id):
+    call = client.get(f"/calls/{call_id}").json()
+    for turn in call["turns"]:
+        for v in turn["verdicts"]:
+            if v["fired"]:
+                return v["verdict_id"]
+    return None
+
+
+def test_label_review_feeds_measured_precision(fleet_client):
+    vid1 = _first_verdict_id(fleet_client, "fleet-1")
+    vid2 = _first_verdict_id(fleet_client, "fleet-2")
+    r = fleet_client.post("/calls/fleet-1/labels", json={
+        "target_kind": "verdict", "target_id": vid1, "label": "confirmed"})
+    assert r.status_code == 200
+    fleet_client.post("/calls/fleet-2/labels", json={
+        "target_kind": "verdict", "target_id": vid2, "label": "rejected"})
+    p = fleet_client.get("/stats/precision").json()
+    assert p["reviewed"] == 2 and p["confirmed"] == 1
+    assert abs(p["precision"] - 0.5) < 1e-9
+    assert p["by_detector"]["L2"]["confirmed"] == 1
+    # re-labeling the same flag UPDATES (no double count)
+    fleet_client.post("/calls/fleet-2/labels", json={
+        "target_kind": "verdict", "target_id": vid2, "label": "confirmed"})
+    p = fleet_client.get("/stats/precision").json()
+    assert p["reviewed"] == 2 and p["precision"] == 1.0
+    # labels render back on the call
+    call = fleet_client.get("/calls/fleet-1").json()
+    assert call["labels"][f"verdict:{vid1}"] == "confirmed"
+    # validation
+    assert fleet_client.post("/calls/fleet-1/labels", json={
+        "target_kind": "verdict", "target_id": vid1,
+        "label": "maybe"}).status_code == 422
+
+
+def test_receipts_export_is_audit_grade(fleet_client):
+    vid = _first_verdict_id(fleet_client, "fleet-1")
+    fleet_client.post("/calls/fleet-1/labels", json={
+        "target_kind": "verdict", "target_id": vid, "label": "confirmed"})
+    r = fleet_client.get("/calls/fleet-1/receipts").json()
+    assert r["call_id"] == "fleet-1" and r["agent_id"] == "aurora"
+    [violation] = r["violations"]
+    # the defensible core: spoken vs truth vs source + the human review
+    assert violation["spoken_value"] == "$59.99"
+    assert violation["truth_value"] == "79.99"
+    assert violation["truth_source"] == "reference.plan.turbo.price_per_month"
+    assert violation["review"] == "confirmed"
+    assert r["summary"]["violation_count"] == 1
+    assert fleet_client.get("/calls/nope/receipts").status_code == 404
+
+
+def test_api_key_protects_writes_when_set(monkeypatch):
+    monkeypatch.setenv("MIRROR_API_KEY", "sekret")
+    client = TestClient(create_app(CallStore(":memory:")))
+    rec = {"type": "call_start", "mirror.call_id": "room-a", "t": 1.0}
+    # writes without the key → 401; with it → ok
+    assert client.post("/ingest", json=rec).status_code == 401
+    assert client.post("/agents", json={"agent_id": "a1"}).status_code == 401
+    assert client.post("/ingest", json=rec,
+                       headers={"X-API-Key": "sekret"}).status_code == 200
+    assert client.post("/agents", json={"agent_id": "a1"},
+                       headers={"Authorization": "Bearer sekret"}).status_code == 200
+    # reads stay open (view-only dashboard)
+    assert client.get("/calls").status_code == 200
+    assert client.get("/stats/overview").status_code == 200
+
+
+def test_ingest_batch_cap(monkeypatch):
+    client = TestClient(create_app(CallStore(":memory:")))
+    recs = [{"type": "call_start", "mirror.call_id": f"c{i}", "t": 1.0}
+            for i in range(501)]
+    assert client.post("/ingest", json=recs).status_code == 413

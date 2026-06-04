@@ -120,7 +120,9 @@ def attach_mirror(
         from plivo_mirror_v5.deployables.intervention import (  # noqa: PLC0415
             HookANextTurn,
         )
-        intervention_handler = HookANextTurn(agent, config)
+        # session= enables PROACTIVE delivery: filler + immediate corrected
+        # reply, instead of waiting for the caller's next utterance.
+        intervention_handler = HookANextTurn(agent, config, session=session)
 
     engine = Engine(config or EngineConfig(mode=mode), reference=reference)
     sink = sink or ThreadedSink(HTTPSink(backend_url))
@@ -147,6 +149,11 @@ def attach_mirror(
     # A conversation item lands when the utterance COMMITS, so the turn's
     # audio window is [previous item's commit, this commit].
     last_commit_ms = [0.0]
+    # Executed tools buffer until the agent's NEXT utterance and ride that
+    # TurnInput — so the tool-side policy checks (arg bindings, authorization
+    # separation) actually SEE the call's args live, and the engine commits
+    # them to the session tool log in turn order (speech-vs-action).
+    pending_tools: list[dict] = []
 
     def _on_conversation_item(ev) -> None:
         item = getattr(ev, "item", ev)
@@ -162,24 +169,33 @@ def attach_mirror(
         start_ms = last_commit_ms[0]
         last_commit_ms[0] = now_ms
         levels = tap.levels_for(role, start_ms, now_ms) if tap else None
+        tool_calls = []
+        if role == "agent" and pending_tools:
+            tool_calls = list(pending_tools)
+            pending_tools.clear()
         bridge.dispatch(ConversationItem(
             role=role,
             text=text,
             asr_confidence=getattr(item, "transcript_confidence", None),
+            tool_calls=tool_calls,
             audio_offset_ms=start_ms,
             audio_duration_ms=now_ms - start_ms,
             audio_levels=levels,
         ))
 
+    _MAX_PENDING_TOOLS = 50  # bound the buffer: a tool-looping agent that
+    # never speaks must not grow memory without limit; oldest are dropped
+    # (they'd be stale by the time the agent finally reports anyway).
+
     def _on_tools_executed(ev) -> None:
-        # Into the tool log BEFORE the agent's next utterance is evaluated.
         for call, output in ev.zipped():
-            observer.state.record_tool_call({
+            pending_tools.append({
                 "name": call.name,
                 "args": _parse_json(getattr(call, "arguments", None)),
                 "result": _tool_result(output),
                 "t_result": (time.monotonic() - t0) * 1000.0,
             })
+        del pending_tools[:-_MAX_PENDING_TOOLS]
 
     def _on_close(_ev=None) -> None:
         observer.close()

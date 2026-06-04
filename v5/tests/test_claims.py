@@ -67,3 +67,43 @@ def test_extract_keeps_attached_claims_and_dedupes_by_ref():
 def test_user_turns_not_extracted():
     item = ConversationItem(role="user", text="Is the turbo plan $59.99?")
     assert EXTRACTOR.extract(item) == []
+
+
+# -- prose-valued keys must never become L2 diff targets (FP regression) ------
+# Live bug: registered judge-grounding prose ("20% of the fare, fixed and
+# non-waivable...") became a lexicon pattern; a CORRECT "$249.60 refund"
+# readback then diffed against the prose and flagged high. Three rules:
+# prose keys → no pattern; percent keys capture the %, not a nearby $amount;
+# "5%"-style values match (trailing \b after '%' never matched).
+
+def _skyline_extractor():
+    from plivo_mirror_v5.engine.reference import ReferenceStore
+    return LexiconClaimExtractor(ReferenceStore({
+        "policy": {"cancellation_fee_percent": 20},
+        "cancellation_fee": "20% of the fare, fixed and non-waivable on a call",
+        "refund_policy": "standard cancellation refunds 80%; full refunds "
+                         "require verified supervisor authorization",
+    }))
+
+
+def test_prose_valued_keys_produce_no_patterns():
+    ex = _skyline_extractor()
+    claims = ex.extract_from_text(
+        "Your refund would be $249.60 after the 20% cancellation fee — "
+        "if you want me to cancel it, just say yes.")
+    # Only the NUMERIC percent key extracts — and it captures the percent
+    # (20, matching truth → clean), never the $249.60 beside it.
+    assert [(c["claim_type"], c["spoken_value"], c["ref"]) for c in claims] == [
+        ("policy", "20", "reference.policy.cancellation_fee_percent")]
+
+
+def test_percent_value_with_symbol_matches():
+    ex = _skyline_extractor()
+    [claim] = ex.extract_from_text("There's just a 5% cancellation fee.")
+    assert claim["spoken_value"] == "5"          # → diffs against 20 → flags
+
+
+def test_percent_value_spoken_word_matches():
+    ex = _skyline_extractor()
+    [claim] = ex.extract_from_text("The cancellation fee is 35 percent of the fare.")
+    assert claim["spoken_value"] == "35"

@@ -71,14 +71,27 @@ def check_tool_authorization(turn: TurnInput, ctx: LayerContext,
     instruction) talks the model into, the model cannot authorize itself."""
     verdicts = []
     for tc in turn.tool_calls:
-        ref = pack.tool_authorization.get(tc.get("name", ""))
-        if ref is None:
+        rule = pack.tool_authorization.get(tc.get("name", ""))
+        if rule is None:
             continue
+        if isinstance(rule, dict):
+            # Conditional: authorization is demanded only when the named
+            # argument is truthy (waive_fee=true), so the tool's NORMAL use
+            # never flags. Phrasing-proof: this reads the executed call's
+            # args, not the agent's words.
+            ref = rule["requires"]
+            gate_arg = rule.get("when_arg_truthy")
+            if gate_arg and not (tc.get("args") or {}).get(gate_arg):
+                continue  # condition not triggered → nothing to authorize
+            spoken = f"{tc.get('name')} fired with {gate_arg}=true"
+        else:
+            ref = rule
+            spoken = f"{tc.get('name')} fired"
         key = ref.removeprefix("session.")
         authorized = bool(ctx.snapshot.get(key))
         verdicts.append(_verdict(
             detector, not authorized, "high", "authorization",
-            f"{tc.get('name')} fired",
+            spoken,
             f"requires {ref} (present)" if authorized else f"requires {ref} (ABSENT)",
             ref, tool=tc.get("name"),
         ))

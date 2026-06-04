@@ -271,7 +271,8 @@ def _echoes_flagged(candidate: str, verdicts: list[Verdict]) -> bool:
     for v in verdicts:
         if not v.fired or v.evidence is None or v.detector == "JUDGE":
             continue
-        spoken = (v.evidence.spoken_value or "").casefold().lstrip("$€£")
+        from plivo_mirror_v5.engine.layers.l2_deterministic import CURRENCY_SYMBOLS
+        spoken = (v.evidence.spoken_value or "").casefold().lstrip(CURRENCY_SYMBOLS)
         if spoken and spoken in lowered:
             return True
     return False

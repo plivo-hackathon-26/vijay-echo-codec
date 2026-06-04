@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { fetchStatsOverview, fetchPatterns } from './api.js'
+import { fetchStatsOverview, fetchPatterns, fetchPrecision } from './api.js'
 
 const POLL_MS = 5000
 
@@ -75,13 +75,15 @@ function ago(t) {
 export default function FleetView({ onSelectCall }) {
   const [stats, setStats] = useState(null)
   const [patterns, setPatterns] = useState(null)
+  const [precision, setPrecision] = useState(null)
   const [error, setError] = useState(null)
 
   useEffect(() => {
     let alive = true
     const load = () =>
-      Promise.all([fetchStatsOverview(), fetchPatterns()])
-        .then(([s, p]) => alive && (setStats(s), setPatterns(p), setError(null)))
+      Promise.all([fetchStatsOverview(), fetchPatterns(), fetchPrecision()])
+        .then(([s, p, pr]) => alive && (
+          setStats(s), setPatterns(p), setPrecision(pr), setError(null)))
         .catch((err) => alive && setError(err.message))
     load()
     const timer = setInterval(load, POLL_MS)
@@ -115,6 +117,19 @@ export default function FleetView({ onSelectCall }) {
             <span className="dim stat-small">/ {stats.judge_flagged_calls} judge-flagged</span></div></div>
         <div className="stat"><div className="stat-label">systemic patterns</div>
           <div className="stat-value" style={{ color: sysCount ? 'var(--high)' : 'var(--ok)' }}>{sysCount}</div></div>
+        <div className="stat"
+             title="MEASURED on your traffic from reviewer ✓/✗ labels on flags — not a benchmark claim. Review flags in any call to feed it.">
+          <div className="stat-label">measured precision</div>
+          <div className="stat-value">
+            {precision?.precision != null
+              ? <span style={{ color: precision.precision >= 0.9 ? 'var(--ok)' : 'var(--med)' }}>
+                  {(precision.precision * 100).toFixed(0)}%</span>
+              : <span className="dim stat-small">review flags →</span>}
+            {precision?.reviewed > 0 && (
+              <span className="dim stat-small">{precision.confirmed}✓ {precision.rejected}✗</span>
+            )}
+          </div>
+        </div>
       </div>
 
       <SectionHead no="01" title="systemic failures" side="same wrong fact, many calls" />
