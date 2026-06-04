@@ -4,7 +4,14 @@ import CallDetail from './CallDetail.jsx'
 
 // TODO: auth + PII redaction — out of scope for v5.
 export default function App() {
-  const [selectedCallId, setSelectedCallId] = useState(null)
+  // deep link: ?call=<call_id> (PII rule: call_id is the only id in URLs)
+  const [selectedCallId, setSelectedCallId_] = useState(
+    () => new URLSearchParams(window.location.search).get('call'))
+  const setSelectedCallId = (id) => {
+    setSelectedCallId_(id)
+    const url = id ? `?call=${encodeURIComponent(id)}` : window.location.pathname
+    window.history.replaceState(null, '', url)
+  }
 
   return (
     <div className="app">

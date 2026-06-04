@@ -156,10 +156,9 @@ function PostCallAnalysis({ call, onDone }) {
   return (
     <div className="panel audit-panel">
       <div className="panel-head">
-        <span className="panel-title">🔎 post-call AI analysis</span>
-        <span className="dim">offline LLM judge over the transcript — never in the live path</span>
+        <span className="dim">LLM judge over the stored transcript — never in the live path</span>
         <button className="btn" onClick={run} disabled={running || live}>
-          {running ? 'analyzing…' : audit.analyzed ? 're-run' : 'run analysis'}
+          {running ? 'analyzing…' : audit.analyzed ? 're-run analysis' : 'run analysis →'}
         </button>
       </div>
       {live && <p className="dim">available once the call ends.</p>}
@@ -180,6 +179,18 @@ function PostCallAnalysis({ call, onDone }) {
           <div className="audit-rationale">{f.rationale}</div>
         </div>
       ))}
+    </div>
+  )
+}
+
+// plivo.com-style numbered section header: "02 ── SIGNAL ──────"
+function SectionHead({ no, title, side }) {
+  return (
+    <div className="section-head">
+      <span className="sec-no">{no}</span>
+      <span className="sec-title">{title}</span>
+      <span className="sec-rule" />
+      {side && <span className="sec-side">{side}</span>}
     </div>
   )
 }
@@ -246,18 +257,20 @@ export default function CallDetail({ callId }) {
       <Stats call={call} />
 
       {call.has_audio && (
-        <div className="panel audio-panel">
-          <div className="panel-head">
-            <span className="panel-title">🎧 recording</span>
-            <span className="dim">▶ links on each turn seek to that moment</span>
+        <>
+          <SectionHead no="01" title="recording" side="▶ links seek the audio" />
+          <div className="panel audio-panel">
+            <audio ref={audioRef} controls preload="metadata" className="call-audio"
+                   src={`/api/calls/${encodeURIComponent(call.call_id)}/audio`} />
           </div>
-          <audio ref={audioRef} controls preload="metadata" className="call-audio"
-                 src={`/api/calls/${encodeURIComponent(call.call_id)}/audio`} />
-        </div>
+        </>
       )}
 
+      <SectionHead no={call.has_audio ? '02' : '01'} title="signal" />
       <CallTimeline turns={call.turns} onJump={jump} />
 
+      <SectionHead no={call.has_audio ? '03' : '02'} title="transcript"
+                   side={`${call.turns.length} turns`} />
       <div className="conversation">
         {call.turns.map((t) => (
           <Turn key={t.turn_id} turn={t} onReplay={replayAt} hasAudio={!!call.has_audio} />
@@ -265,6 +278,8 @@ export default function CallDetail({ callId }) {
         <div ref={bottomRef} />
       </div>
 
+      <SectionHead no={call.has_audio ? '04' : '03'} title="post-call analysis"
+                   side="offline llm judge" />
       <PostCallAnalysis call={call}
         onDone={() => fetchCall(callId).then(setCall).catch(() => {})} />
     </div>
