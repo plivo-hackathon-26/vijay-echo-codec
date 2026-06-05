@@ -136,5 +136,6 @@ def test_judge_flags_inline_false_alarm():
 
 def test_judge_agreement_yields_no_findings():
     judge = LLMPostCallJudge(
-        FakeChat({"violation": True, "category": "x", "reason": "bad"}))
+        FakeChat({"violation": True, "category": "x", "reason": "bad"}),
+        facts={"price_turbo": "$79.99"})  # grounded, so the judge runs
     assert judge.audit_call(make_call(fired=True)) == []

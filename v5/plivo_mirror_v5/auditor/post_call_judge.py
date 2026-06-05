@@ -141,6 +141,13 @@ class LLMPostCallJudge:
     def judge_turn(self, turns: list[dict], agent_turn_index: int) -> dict:
         """``turns``: [{role, text, tool_calls?}], oldest first. Judges the
         agent turn at ``agent_turn_index`` in the context of the rest."""
+        # Anti-hallucination guardrail: with NO facts, NO policies, and NO
+        # system prompt there is nothing to ground against — an ungrounded
+        # judge would invent violations. Abstain instead of guessing. (An
+        # agent registered with any of the three is judged normally.)
+        if not self.facts and not self.policies and not self.system_prompt:
+            return {"violation": False, "category": None,
+                    "reason": "abstained — no facts/policies/prompt to ground on"}
         convo = []
         for i, t in enumerate(turns):
             marker = "  <-- TURN UNDER AUDIT" if i == agent_turn_index else ""

@@ -268,3 +268,55 @@ def test_ingest_batch_cap(monkeypatch):
     recs = [{"type": "call_start", "mirror.call_id": f"c{i}", "t": 1.0}
             for i in range(501)]
     assert client.post("/ingest", json=recs).status_code == 413
+
+
+# -- PII redaction + dataset export + judge grounding guardrail ---------------
+
+def test_pii_redaction_masks_transcript_and_evidence(monkeypatch):
+    monkeypatch.setenv("MIRROR_REDACT_PII", "1")
+    client = TestClient(create_app(CallStore(":memory:")))
+    client.post("/ingest", json={"type": "call_start", "mirror.call_id": "r",
+                                 "t": 1.0})
+    client.post("/ingest", json={
+        "type": "turn", "mirror.call_id": "r", "mirror.turn_id": "r-t1",
+        "mirror.turn_index": 0, "mirror.role": "user",
+        "mirror.transcript": "I'm at jane@acme.com, card 4111 1111 1111 1111, "
+                             "SSN 123-45-6789, call 415-555-0199.",
+        "t": 1.0})
+    turn = client.get("/calls/r").json()["turns"][0]
+    tx = turn["transcript"]
+    assert "jane@acme.com" not in tx and "[email]" in tx
+    assert "123-45-6789" not in tx and "[ssn]" in tx
+    assert "[card]" in tx and "[phone]" in tx
+
+
+def test_dataset_export_from_reviewer_labels(fleet_client):
+    vid = _first_verdict_id(fleet_client, "fleet-1")
+    fleet_client.post("/calls/fleet-1/labels", json={
+        "target_kind": "verdict", "target_id": vid, "label": "confirmed"})
+    # pull the same store the client uses and export
+    store = fleet_client.app.state.store
+    rows = store.export_labeled_dataset()
+    assert len(rows) == 1
+    row = rows[0]
+    assert row["label"] == "confirmed" and row["category"] == "price"
+    assert row["spoken_value"] == "$59.99" and row["truth_value"] == "79.99"
+    assert row["agent_text"]            # the agent turn is captured
+
+
+def test_judge_abstains_without_grounding():
+    from plivo_mirror_v5.auditor import LLMPostCallJudge
+
+    class BoomClient:  # must never be called when abstaining
+        def complete_json(self, system, user):
+            raise AssertionError("judge ran with nothing to ground on")
+
+    judge = LLMPostCallJudge(BoomClient())   # no facts/policies/system_prompt
+    out = judge.judge_turn([{"role": "agent", "text": "Your APR is 9%."}], 0)
+    assert out["violation"] is False and "abstain" in out["reason"]
+    # but WITH grounding it does call the judge
+    grounded = LLMPostCallJudge(
+        type("C", (), {"complete_json": lambda s, sy, u: {"violation": True,
+         "category": "fabricated_fact", "reason": "x"}})(),
+        facts={"apr": "19.99"})
+    assert grounded.judge_turn([{"role": "agent", "text": "APR is 9%"}], 0)["violation"]

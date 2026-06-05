@@ -247,6 +247,14 @@ def attach_mirror(
             )
             if isinstance(intervention_handler, _HookA):
                 intervention_handler.session = None
+
+            # Action-boundary block: a host tool calls agent._mirror_tool_gate
+            # .check(name, args, agent._mirror_state) BEFORE its side effect to
+            # STOP an unauthorized irreversible action (not just correct the
+            # speech after). Opt-in per tool; no policy → allows everything.
+            from plivo_mirror_v5.engine import ToolGate  # noqa: PLC0415
+            agent._mirror_tool_gate = ToolGate(engine_config.policy)
+            agent._mirror_state = observer.state
         except Exception:  # noqa: BLE001 — gate wiring must never kill attach
             import logging  # noqa: PLC0415
             logging.getLogger("plivo_mirror_v5.adapter").exception(

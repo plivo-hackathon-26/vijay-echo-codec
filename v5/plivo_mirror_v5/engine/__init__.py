@@ -18,6 +18,7 @@ from plivo_mirror_v5.engine.gate import AssertivenessGate, GateResult
 from plivo_mirror_v5.engine.policy import CommitmentRule, DisclosureRule, PolicyPack
 from plivo_mirror_v5.engine.reference import ReferenceStore
 from plivo_mirror_v5.engine.session_state import SessionState, StateSnapshot
+from plivo_mirror_v5.engine.tool_gate import ToolDecision, ToolGate
 from plivo_mirror_v5.engine.verdict import (
     Action,
     Evidence,
@@ -40,6 +41,8 @@ __all__ = [
     "ReferenceStore",
     "SessionState",
     "StateSnapshot",
+    "ToolDecision",
+    "ToolGate",
     "TurnInput",
     "TurnResult",
     "Verdict",

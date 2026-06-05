@@ -36,6 +36,10 @@ def test_analyze_endpoint_stores_and_returns_findings(monkeypatch):
                         lambda *a, **k: FakeJudgeClient())
     store = seeded_store()
     client = TestClient(create_app(store))
+    # register the agent with grounding so the judge runs (the anti-
+    # hallucination guardrail abstains on agents with no facts/policies).
+    client.post("/agents", json={"agent_id": "a", "name": "A",
+                                 "facts": {"price_turbo": "$79.99"}})
 
     out = client.post("/calls/c9/analyze").json()
     assert out["analyzed"] is True

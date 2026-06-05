@@ -25,6 +25,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
 
 from plivo_mirror_v5.deployables.monitoring.backend.store import CallStore
+from plivo_mirror_v5.telemetry import schema as S
 
 try:  # repo-root .env supplies the judge creds for post-call analysis
     from dotenv import load_dotenv
@@ -37,6 +38,44 @@ except ImportError:  # pragma: no cover — dotenv is optional
 # files in, and LiveKit egress output can be pointed here later.
 _AUDIO_EXTS = (".wav", ".mp3", ".ogg", ".m4a")
 _SAFE_CALL_ID = re.compile(r"^[A-Za-z0-9._-]+$")
+
+
+# PII redaction (opt-in via MIRROR_REDACT_PII=1). Masks the obvious direct
+# identifiers in stored transcripts/evidence so the dashboard + receipts are
+# safe to share. Deterministic regex — not a substitute for a full DLP pass.
+_PII_PATTERNS = [
+    (re.compile(r"\b[\w.+-]+@[\w-]+\.[\w.-]+\b"), "[email]"),
+    (re.compile(r"\b(?:\d[ -]?){13,16}\b"), "[card]"),          # card-ish
+    (re.compile(r"\b\d{3}-\d{2}-\d{4}\b"), "[ssn]"),
+    (re.compile(r"(?<!\d)(?:\+?1[ -.]?)?\(?\d{3}\)?[ -.]\d{3}[ -.]\d{4}(?!\d)"),
+     "[phone]"),
+]
+def _redaction_on() -> bool:
+    return os.environ.get("MIRROR_REDACT_PII") == "1"
+
+
+def _redact_text(value):
+    if not _redaction_on() or not isinstance(value, str):
+        return value
+    for pattern, repl in _PII_PATTERNS:
+        value = pattern.sub(repl, value)
+    return value
+
+
+def _redact_record(record: dict) -> dict:
+    """Mask PII in a telemetry record in place before it is stored."""
+    if not _redaction_on():
+        return record
+    if S.ATTR_TRANSCRIPT in record:
+        record[S.ATTR_TRANSCRIPT] = _redact_text(record[S.ATTR_TRANSCRIPT])
+    if S.ATTR_ACTION_CORRECTION in record:
+        record[S.ATTR_ACTION_CORRECTION] = _redact_text(record[S.ATTR_ACTION_CORRECTION])
+    ev = record.get(S.ATTR_EVIDENCE)
+    if isinstance(ev, dict):
+        for k in ("spoken_value", "truth_value"):
+            if k in ev:
+                ev[k] = _redact_text(ev[k])
+    return record
 
 
 def _post_webhook(payload: dict) -> None:
@@ -100,6 +139,7 @@ def create_app(store: CallStore | None = None,
             raise HTTPException(status_code=413,
                                 detail=f"batch too large (max {_MAX_BATCH})")
         for record in records:
+            _redact_record(record)
             try:
                 app.state.store.ingest(record)
             except ValueError as exc:

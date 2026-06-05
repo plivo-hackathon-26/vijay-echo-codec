@@ -195,6 +195,45 @@ class CallStore:
         # ignores them; rollups are computed from turns/verdicts at query.
         pass
 
+    # -- labeled-dataset export (Phase 1: seed corpus for a guard fine-tune) --
+
+    def export_labeled_dataset(self) -> list[dict]:
+        """Every reviewer-labeled verdict as a training row: the agent turn
+        under review, the prior turn for context, the verdict evidence, and
+        the human label (confirmed/rejected). This is the dataset the future
+        guard model trains on — produced for free by the review loop."""
+        with self._lock:
+            rows = [dict(r) for r in self._conn.execute(
+                "SELECT l.label AS label, l.call_id AS call_id,"
+                " v.detector AS detector, v.severity AS severity,"
+                " v.evidence AS evidence, t.transcript AS agent_text,"
+                " t.turn_index AS turn_index, c.agent_id AS agent_id"
+                " FROM labels l"
+                " JOIN verdicts v ON l.target_kind = 'verdict'"
+                "   AND l.target_id = v.verdict_id"
+                " JOIN turns t ON v.turn_id = t.turn_id"
+                " JOIN calls c ON v.call_id = c.call_id")]
+            out = []
+            for r in rows:
+                prev = self._conn.execute(
+                    "SELECT transcript FROM turns WHERE call_id = ?"
+                    " AND turn_index < ? ORDER BY turn_index DESC LIMIT 1",
+                    (r["call_id"], r["turn_index"])).fetchone()
+                ev = json.loads(r["evidence"]) if r["evidence"] else {}
+                out.append({
+                    "agent_id": r["agent_id"],
+                    "context": prev["transcript"] if prev else None,
+                    "agent_text": r["agent_text"],
+                    "detector": r["detector"],
+                    "severity": r["severity"],
+                    "category": ev.get("claim_type"),
+                    "spoken_value": ev.get("spoken_value"),
+                    "truth_value": ev.get("truth_value"),
+                    "source": ev.get("source"),
+                    "label": r["label"],            # confirmed | rejected
+                })
+        return out
+
     # -- post-call audit findings ------------------------------------------
 
     def save_audit_findings(self, call_id: str, findings: list[dict],
