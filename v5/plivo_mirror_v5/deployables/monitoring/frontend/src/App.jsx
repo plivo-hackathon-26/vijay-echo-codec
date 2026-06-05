@@ -45,8 +45,10 @@ export default function App() {
       </aside>
       <main className="main">
         <div className="sandbox-banner">
-          Shared sandbox — calls from all connected agents are visible here.
-          Don't send real customer PII. Per-tenant isolation is coming.
+          <span className="banner-lead">🌐 Public live demo — anyone can try it.</span>{' '}
+          Plug in your own LiveKit agent (see <b>📖 how to connect</b>). Shared
+          sandbox: all connected agents' calls are visible here, so don't send
+          real customer PII. Per-tenant isolation is coming.
         </div>
         {selectedCallId !== null ? (
           <CallDetail callId={selectedCallId} />

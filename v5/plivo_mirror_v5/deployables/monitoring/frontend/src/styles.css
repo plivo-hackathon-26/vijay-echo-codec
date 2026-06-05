@@ -259,6 +259,7 @@ button.btn:disabled { background: #fff; border-color: var(--line); color: #c2c7c
   letter-spacing: .03em; color: var(--med); background: #fffaf0;
   border: 1px solid #f0e0c0; border-radius: 5px; padding: 7px 12px;
   margin-bottom: 16px; }
+.banner-lead { color: var(--accent); font-weight: 600; }
 
 /* ── review loop (✓/✗ → measured precision) ───────────────────────────── */
 .review-btns { display: inline-flex; gap: 5px; margin-left: auto; }
