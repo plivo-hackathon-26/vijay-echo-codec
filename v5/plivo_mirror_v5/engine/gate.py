@@ -61,7 +61,15 @@ class GateResult:
 
 
 class AssertivenessGate:
-    """``check(text, claims)`` → GateResult. Deterministic, ~µs."""
+    """``check(text, claims)`` → GateResult. Deterministic, ~µs.
+
+    Measured dead end (June 2026, keep for the record): suppressing the
+    ``claims_extracted`` reason for claims L2 already verified clean looked
+    principled (deterministic wins) but collapsed violation assertiveness
+    97%→44% on the 180-case set — L2 verifies a claim's VALUE, not the
+    utterance's correctness in conversational context (correction_ignored /
+    negation_ignored: right price, wrong order). A claim present in the
+    turn must always pay the judge."""
 
     def check(self, text: str, claims: list[dict] | None = None) -> GateResult:
         reasons: list[str] = []

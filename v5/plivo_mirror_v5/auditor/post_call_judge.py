@@ -119,7 +119,42 @@ Output STRICT JSON:
  "reason": "<one sentence grounded in the evidence>"}"""
 
 
-class LLMPostCallJudge:
+class _TurnJudgeAuditor:
+    """Shared ``audit_call`` for anything that implements ``judge_turn`` —
+    the stored-call audit loop is identical regardless of how a single
+    turn is judged (one model, two-stage, fine-tune...)."""
+
+    def judge_turn(self, turns: list[dict], agent_turn_index: int) -> dict:
+        raise NotImplementedError
+
+    def audit_call(self, call: dict) -> list[AuditFinding]:
+        """``call`` as returned by ``CallStore.get_call``. Emits a finding
+        for every disagreement between the judge and the inline layers."""
+        turns = call.get("turns", [])
+        convo = [{"role": t["role"], "text": t["transcript"]} for t in turns]
+        findings: list[AuditFinding] = []
+        for i, turn in enumerate(turns):
+            if turn["role"] != "agent":
+                continue
+            judged = self.judge_turn(convo, i)
+            inline_fired = [v for v in turn.get("verdicts", [])
+                            if v.get("fired") and v.get("severity") != "info"]
+            if judged["violation"] and not inline_fired:
+                findings.append(AuditFinding(
+                    call_id=call["call_id"], turn_id=turn["turn_id"],
+                    kind="missed_failure", rationale=judged["reason"],
+                    extra={"category": judged["category"]},
+                ))
+            elif not judged["violation"] and inline_fired:
+                findings.append(AuditFinding(
+                    call_id=call["call_id"], turn_id=turn["turn_id"],
+                    kind="false_alarm", rationale=judged["reason"],
+                    verdict_id=inline_fired[0].get("verdict_id"),
+                ))
+        return findings
+
+
+class LLMPostCallJudge(_TurnJudgeAuditor):
     """Grounded-entailment judge over an OpenAI-compatible endpoint
     (Azure-quirk aware via ``llm_client.ChatClient``)."""
 
@@ -175,30 +210,70 @@ class LLMPostCallJudge:
             "reason": str(verdict.get("reason", "")),
         }
 
-    # -- audit a stored call (the monitoring-store shape) --------------------
+    # audit_call comes from _TurnJudgeAuditor.
 
-    def audit_call(self, call: dict) -> list[AuditFinding]:
-        """``call`` as returned by ``CallStore.get_call``. Emits a finding
-        for every disagreement between the judge and the inline layers."""
-        turns = call.get("turns", [])
-        convo = [{"role": t["role"], "text": t["transcript"]} for t in turns]
-        findings: list[AuditFinding] = []
-        for i, turn in enumerate(turns):
-            if turn["role"] != "agent":
-                continue
-            judged = self.judge_turn(convo, i)
-            inline_fired = [v for v in turn.get("verdicts", [])
-                            if v.get("fired") and v.get("severity") != "info"]
-            if judged["violation"] and not inline_fired:
-                findings.append(AuditFinding(
-                    call_id=call["call_id"], turn_id=turn["turn_id"],
-                    kind="missed_failure", rationale=judged["reason"],
-                    extra={"category": judged["category"]},
-                ))
-            elif not judged["violation"] and inline_fired:
-                findings.append(AuditFinding(
-                    call_id=call["call_id"], turn_id=turn["turn_id"],
-                    kind="false_alarm", rationale=judged["reason"],
-                    verdict_id=inline_fired[0].get("verdict_id"),
-                ))
-        return findings
+
+class TwoStageJudge(_TurnJudgeAuditor):
+    """Self-consistency + escalation, behind the same ``judge_turn`` /
+    ``audit_call`` surface:
+
+    1. ``votes`` independent calls to the FAST judge (run concurrently —
+       wall-clock stays ~one fast call).
+    2. Unanimous → that verdict stands; the strong model is never paid.
+    3. Split vote → escalate ONCE to the STRONG judge; its verdict wins.
+
+    Why: Azure deployments ignore ``temperature``, so borderline verdicts
+    flip run-to-run on a single judge. Voting turns that variance into a
+    detectable signal (the split) and spends the expensive model only on
+    the uncertain band — cheaper AND more stable than one strong call per
+    assertive turn."""
+
+    def __init__(self, fast, strong, *, votes: int = 3) -> None:
+        self.fast = fast
+        self.strong = strong
+        self.votes = max(1, votes)
+
+    def judge_turn(self, turns: list[dict], agent_turn_index: int) -> dict:
+        from concurrent.futures import ThreadPoolExecutor  # noqa: PLC0415
+
+        if self.votes == 1:
+            results = [self.fast.judge_turn(turns, agent_turn_index)]
+        else:
+            with ThreadPoolExecutor(max_workers=self.votes) as pool:
+                results = list(pool.map(
+                    lambda _: self.fast.judge_turn(turns, agent_turn_index),
+                    range(self.votes)))
+        flags = [bool(r.get("violation")) for r in results]
+        if all(flags) or not any(flags):
+            verdict = dict(results[0])
+            verdict["stage"] = "fast"
+            verdict["votes"] = f"{sum(flags)}/{len(flags)}"
+            return verdict
+        verdict = dict(self.strong.judge_turn(turns, agent_turn_index))
+        verdict["stage"] = "strong"
+        verdict["votes"] = f"{sum(flags)}/{len(flags)}"
+        return verdict
+
+
+def judge_from_env(*, facts: dict | None = None,
+                   policies: list[str] | None = None,
+                   system_prompt: str | None = None):
+    """Build the configured judge. ``MIRROR_JUDGE=two_stage`` selects
+    ``TwoStageJudge``: the fast judge uses ``OPENAI_MODEL_FAST`` (falls back
+    to the main model — still useful: pure self-consistency voting), vote
+    count from ``MIRROR_JUDGE_VOTES`` (default 3). Anything else → the
+    single ``LLMPostCallJudge``."""
+    import os  # noqa: PLC0415
+
+    if os.environ.get("MIRROR_JUDGE") != "two_stage":
+        return LLMPostCallJudge(facts=facts, policies=policies,
+                                system_prompt=system_prompt)
+    from plivo_mirror_v5.llm_client import ChatClient  # noqa: PLC0415
+
+    fast_model = os.environ.get("OPENAI_MODEL_FAST")
+    fast = LLMPostCallJudge(ChatClient(model=fast_model), facts=facts,
+                            policies=policies, system_prompt=system_prompt)
+    strong = LLMPostCallJudge(ChatClient(), facts=facts, policies=policies,
+                              system_prompt=system_prompt)
+    votes = int(os.environ.get("MIRROR_JUDGE_VOTES", "3"))
+    return TwoStageJudge(fast, strong, votes=votes)
