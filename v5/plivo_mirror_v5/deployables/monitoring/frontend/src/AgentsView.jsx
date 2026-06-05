@@ -13,8 +13,7 @@ from plivo_mirror_v5.integrations import attach_mirror
 attach_mirror(
     session,
     room_id=ctx.room.name,            # call_id == LiveKit room id
-    backend_url=os.getenv("MIRROR_BACKEND_URL",
-                          "${window.location.origin.replace(/:\d+$/, ':8500')}"),
+    backend_url=os.getenv("MIRROR_BACKEND_URL", "${window.location.origin}"),
     agent_id="${agentId}",            # ← must match this registration
     agent=my_agent,                   # enables dashboard-toggled intervene
 )

@@ -5,6 +5,9 @@ unauthorized actions / policy breaks against your own ground truth, and
 (optionally) corrects them live. Your agent runs wherever you host it; the
 dashboard is hosted — your agent just points at it over HTTPS.
 
+**Hosted dashboard:** https://plivo-mirror.onrender.com
+(first load after idle takes ~30–60s — the free tier sleeps.)
+
 ## 1. Register your agent (browser, ~1 min)
 
 Open the dashboard → **⚙ agents & intervene** → **register an agent**:
@@ -47,7 +50,7 @@ the ~8-line `llm_node` override from
 ## 3. Set env + run (~1 min)
 
 ```bash
-export MIRROR_BACKEND_URL="https://<your-dashboard-host>"
+export MIRROR_BACKEND_URL="https://plivo-mirror.onrender.com"   # the hosted dashboard
 # your usual: LIVEKIT_URL/API_KEY/API_SECRET, OPENAI_*, DEEPGRAM_*, ELEVEN_*
 python agent.py dev          # or `console` for local mic, or deploy to LiveKit Cloud
 ```
