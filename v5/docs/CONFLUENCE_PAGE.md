@@ -276,10 +276,14 @@ is just one adapter, and nothing voice-specific lives in the core.
 - **The end state: one observability + guardrail layer across an org's entire
   agent fleet** — voice, chat, and tool-using agents — with a single place to see
   every flagged claim, measure precision per channel, and flip intervention on.
-- **The data flywheel:** shadow over real traffic + the reviewer ✓/✗ loop
-  produces the first labeled voice-agent-failure dataset → trains a small,
-  fast (~100ms) guard model that drops into the existing judge slot → cheaper,
-  lower-latency, domain-tuned detection with no per-call LLM cost.
+- **The data flywheel → a fine-tuned guard model:** shadow over real traffic +
+  the reviewer ✓/✗ loop produces the first labeled voice-agent-failure dataset →
+  fine-tune a small guard model on it → drop it into the existing judge slot.
+  Because it's trained directly on these six failure types, it **catches them
+  more easily and more reliably** (especially the hard semantic ones — ignored
+  negations, conditionals, contradictions) while running at **~100ms and
+  near-zero per-call cost**. Same architecture, one-line swap — the expensive
+  general LLM becomes a fast specialist.
 
 **Roadmap to production (in order):** live-mic validation of the auto-wiring →
 real-traffic shadow pilot (measures the true base rate *and* builds the dataset)
@@ -296,8 +300,16 @@ deterministic gap-closers (math totals, repetition-loop) → fine-tuned guard mo
 - Auto-wiring validated against livekit-agents 1.5.x + 185 unit tests; live mic
   validation across all examples pending.
 - Single-tenant, SQLite, auth/PII-redaction opt-in today — hardening is scoped.
-- English-only lexicons; judge ~1.3s per assertive turn (two-stage + fine-tune are
-  the cost path).
+- English-only lexicons today (the regex machinery is generic; only the word
+  lists need a locale surface).
+- Today the grounded judge is a general LLM (~1.3s per assertive turn). The
+  designed end-state is a **fine-tuned guard model** dropped into the same judge
+  slot: trained on the shadow pilot's labeled traffic, it catches these six
+  failure types directly and natively — higher recall on the hard semantic
+  cases (ignored negations, conditionals, contradictions) — at **~100ms and
+  near-zero per-call cost**. The judge role never goes away; it just gets fast,
+  cheap, and domain-tuned. (Two-stage voting is the interim cost/variance cut
+  until that model exists.)
 - Hook A next-turn correction depends on the main LLM obeying the override; the
   pre-TTS gate is the stronger path.
 
