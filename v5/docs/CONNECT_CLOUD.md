@@ -18,14 +18,30 @@ locally. Three hosting options, same 4 steps each.
    agent_id="<your-registered-id>",
    agent=my_agent,                                  # dashboard-toggled intervene
    ```
-   For pre-TTS gating (flagged drafts never spoken), add the 8-line
-   `llm_node` override from `examples/skyline_flight_agent/agent.py`.
+   In intervene mode, pre-TTS gating (flagged drafts never spoken) and
+   the pre-execution ToolGate (unauthorized tools blocked BEFORE their
+   side effect) are **auto-wired at attach time** — no agent code changes.
+   If you already override `llm_node` yourself, your wiring is kept; the
+   manual 8-line pattern in `examples/skyline_flight_agent/agent.py`
+   remains the documented fallback.
 4. **Set env** where the agent runs:
    ```
    MIRROR_BACKEND_URL=https://<your-dashboard-host>
    MIRROR_API_KEY=...        # only if the backend sets one
    LIVEKIT_URL / LIVEKIT_API_KEY / LIVEKIT_API_SECRET
    OPENAI_* / DEEPGRAM_* / ELEVEN_*  (your agent's own stack)
+
+   # optional Mirror knobs (agent side):
+   MIRROR_SHADOW_JUDGE=1     # shadow mode: grounded judge flags factual
+                             # errors DURING the call (flag-only, fail-open;
+                             # ~1 judge call per assertive agent turn)
+   MIRROR_JUDGE=two_stage    # voting judge: k fast votes, split escalates
+   OPENAI_MODEL_FAST=...     #   to the strong model (damps Azure variance)
+   MIRROR_JUDGE_VOTES=3      #   vote count (default 3)
+   MIRROR_RECORD=1           # capture call audio for dashboard playback
+   MIRROR_TELEMETRY_QUEUE_MAX=10000   # bound on the async telemetry queue
+   MIRROR_TELEMETRY_SPOOL=/path.jsonl # park+replay telemetry across
+                                      # backend outages instead of dropping
    ```
 
 Calls appear in the dashboard the moment the worker takes a job —

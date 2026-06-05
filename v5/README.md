@@ -32,9 +32,11 @@ source}` — the frontend renders this evidence verbatim.
   verdict/action = span events) into a FastAPI backend and rendered in a
   call-ID-keyed React frontend. `call_id` == the LiveKit room id.
 - **Live intervention** (`deployables/intervention/`) — the same engine runs
-  inline; a firing verdict triggers Hook A (next-turn `[CORRECTION: …]`
-  injection / hold / handoff). Hook B (pre-TTS gate) is an experimental
-  interface stub.
+  inline. Hook B (pre-TTS gated hold) verifies each draft BEFORE it is
+  voiced and is auto-wired into the agent's `llm_node` at attach time;
+  the pre-execution ToolGate blocks unauthorized tools BEFORE their side
+  effect; Hook A (next-turn `[CORRECTION: …]` injection / hold / handoff)
+  is the containment fallback.
 
 Both are powered by the single observer in
 `plivo_mirror_v5/integrations/livekit_observer.py`; a `mode` config flag

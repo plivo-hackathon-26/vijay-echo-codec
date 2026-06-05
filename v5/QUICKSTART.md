@@ -5,8 +5,15 @@ unauthorized actions / policy breaks against your own ground truth, and
 (optionally) corrects them live. Your agent runs wherever you host it; the
 dashboard is hosted — your agent just points at it over HTTPS.
 
-**Hosted dashboard:** https://plivo-mirror.onrender.com
-(first load after idle takes ~30–60s — the free tier sleeps.)
+**Dashboard:** self-host it — one service, no config needed:
+
+```bash
+pip install "plivo-mirror-v5[monitoring]"
+uvicorn plivo_mirror_v5.deployables.monitoring.backend.app:app --port 8500
+```
+
+or deploy the included `render.yaml` blueprint. (The original hosted demo
+at plivo-mirror.onrender.com has been retired at project wrap.)
 
 ## 1. Register your agent (browser, ~1 min)
 
@@ -43,14 +50,20 @@ attach_mirror(
 await session.start(agent=my_agent, room=ctx.room)
 ```
 
-For pre-TTS gating (a flagged reply is corrected before it's spoken), add
-the ~8-line `llm_node` override from
-`examples/skyline_flight_agent/agent.py`.
+In intervene mode, pre-TTS gating (a flagged reply is corrected before
+it's spoken) and the pre-execution ToolGate (unauthorized tools blocked
+before their side effect) are **auto-wired** — no extra code. A manual
+`llm_node` override (examples/skyline_flight_agent/agent.py) is kept as
+the documented fallback and always wins over the auto-wiring.
+
+Optional: `MIRROR_SHADOW_JUDGE=1` in the agent's env makes shadow mode
+flag factual errors **during** the call (flag-only) instead of only in
+the post-call audit. See `docs/CONNECT_CLOUD.md` for all knobs.
 
 ## 3. Set env + run (~1 min)
 
 ```bash
-export MIRROR_BACKEND_URL="https://plivo-mirror.onrender.com"   # the hosted dashboard
+export MIRROR_BACKEND_URL="https://<your-dashboard-host>"   # where you host the backend
 # your usual: LIVEKIT_URL/API_KEY/API_SECRET, OPENAI_*, DEEPGRAM_*, ELEVEN_*
 python agent.py dev          # or `console` for local mic, or deploy to LiveKit Cloud
 ```
