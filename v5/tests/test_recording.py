@@ -130,3 +130,19 @@ async def test_session_recorder_tees_both_roles():
     assert wav and wav[:4] == b"RIFF"        # something was captured from both
     assert tap.levels_for("user", 0, 1000) is not None
     assert tap.levels_for("agent", 0, 1000) is not None
+
+
+def test_recorder_resamples_and_downmixes():
+    import wave, io
+    from array import array as _arr
+    rec = CallRecorder()
+    # 0.5s of 48 kHz STEREO (interleaved L=R=1000) → must become 16 kHz mono.
+    n = 24000  # 0.5s @ 48k, per channel
+    stereo = _arr("h", [1000, 1000] * n).tobytes()
+    rec.add("agent", stereo, 48_000, t_ms=0.0, num_channels=2)
+    wav = rec.render_wav()
+    with wave.open(io.BytesIO(wav), "rb") as w:
+        assert w.getframerate() == 16_000 and w.getnchannels() == 1
+        got = w.getnframes()
+    # ~0.5s at 16k ≈ 8000 frames (resampler adds a small tail); within 5%
+    assert abs(got - 8000) < 400, got

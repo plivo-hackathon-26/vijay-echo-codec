@@ -19,6 +19,11 @@ import io
 import logging
 import wave
 
+try:
+    import audioop  # stdlib (≤3.12): proper C downmix + anti-aliased resample
+except ImportError:  # pragma: no cover — 3.13 removed it; pure-python fallback
+    audioop = None
+
 log = logging.getLogger("plivo_mirror_v5.recording")
 
 TARGET_RATE = 16_000
@@ -26,17 +31,35 @@ _INT16_MAX = 32_767
 _INT16_MIN = -32_768
 
 
-def _to_int16(pcm) -> "array.array":
-    """Coerce a frame's data (bytes / memoryview / array) to an int16 array,
-    regardless of how LiveKit hands it over."""
-    if isinstance(pcm, array.array) and pcm.typecode == "h":
-        return pcm
-    a = array.array("h")
-    try:
-        a.frombytes(bytes(pcm))
-    except (TypeError, ValueError):
+def _to_mono16k(pcm, sample_rate: int, num_channels: int) -> "array.array":
+    """Coerce ONE frame to mono int16 at 16 kHz.
+
+    Frames arrive at the STT/TTS native rate (often 24 k / 48 k) and may be
+    multi-channel. We MUST down-mix and resample with anti-aliasing —
+    nearest-neighbor decimation (the old path) aliased speech into static.
+    """
+    raw = bytes(pcm)
+    if not raw:
         return array.array("h")
-    return a
+    if len(raw) % 2:                       # keep it int16-aligned
+        raw = raw[:-1]
+    if audioop is not None:
+        try:
+            if num_channels and num_channels > 1:
+                raw = audioop.tomono(raw, 2, 0.5, 0.5) if num_channels == 2 \
+                    else _downmix_py(raw, num_channels)
+            if sample_rate and sample_rate != TARGET_RATE:
+                raw, _ = audioop.ratecv(raw, 2, 1, sample_rate, TARGET_RATE, None)
+        except Exception:  # noqa: BLE001 — fall through to raw
+            log.debug("audioop conversion failed", exc_info=True)
+    else:  # pragma: no cover
+        if num_channels and num_channels > 1:
+            raw = _downmix_py(raw, num_channels)
+        if sample_rate and sample_rate != TARGET_RATE:
+            raw = _resample_py(raw, sample_rate, TARGET_RATE)
+    out = array.array("h")
+    out.frombytes(raw)
+    return out
 
 
 class CallRecorder:
@@ -48,16 +71,15 @@ class CallRecorder:
         self._max_samples = int(max_seconds * self.target_rate)
         self._dropped = False
 
-    def add(self, role: str, pcm, sample_rate: int, t_ms: float) -> None:
-        """Record one frame at its t0-relative offset. ``role`` is accepted
-        for symmetry with the tap but both roles share one mono timeline."""
+    def add(self, role: str, pcm, sample_rate: int, t_ms: float,
+            num_channels: int = 1) -> None:
+        """Record one frame at its t0-relative offset, down-mixed + resampled
+        to mono 16 kHz. ``role`` is accepted for symmetry with the tap; both
+        roles share one mono timeline."""
         try:
-            samples = _to_int16(pcm)
-            if not samples:
-                return
-            if sample_rate and sample_rate != self.target_rate:
-                samples = _resample(samples, sample_rate, self.target_rate)
-            self._frames.append((t_ms, samples))
+            samples = _to_mono16k(pcm, sample_rate, num_channels)
+            if samples:
+                self._frames.append((t_ms, samples))
         except Exception:  # noqa: BLE001 — recording is best-effort
             if not self._dropped:
                 log.debug("recorder dropped a frame", exc_info=True)
@@ -115,11 +137,11 @@ def install_session_recorder(agent, *, recorder, tap=None, now_ms) -> None:
     def _feed(role: str, frame) -> None:
         try:
             t = now_ms()
+            ch = getattr(frame, "num_channels", 1)
             if recorder is not None:
-                recorder.add(role, frame.data, frame.sample_rate, t)
+                recorder.add(role, frame.data, frame.sample_rate, t, num_channels=ch)
             if tap is not None:
-                tap.push_pcm(role, frame.data, frame.sample_rate,
-                             getattr(frame, "num_channels", 1), t_ms=t)
+                tap.push_pcm(role, frame.data, frame.sample_rate, ch, t_ms=t)
         except Exception:  # noqa: BLE001 — capture is cosmetic, never break audio
             log.debug("session recorder feed dropped a frame", exc_info=True)
 
@@ -150,14 +172,30 @@ def install_session_recorder(agent, *, recorder, tap=None, now_ms) -> None:
     agent.tts_node = tts_node
 
 
-def _resample(samples: "array.array", src_rate: int, dst_rate: int) -> "array.array":
-    """Cheap nearest-sample resample (only used if the tap ever delivers a
-    non-target rate; with a 16 kHz capture this is a no-op path)."""
-    if src_rate == dst_rate or not samples:
-        return samples
-    ratio = dst_rate / src_rate
-    out_len = int(len(samples) * ratio)
+# Pure-python fallbacks (only used if stdlib audioop is unavailable, e.g.
+# Python 3.13+). audioop is preferred — it anti-aliases on downsample.
+
+def _downmix_py(raw: bytes, channels: int) -> bytes:
+    """Average interleaved int16 channels down to mono."""
+    s = array.array("h"); s.frombytes(raw)
+    n = len(s) // channels
+    out = array.array("h", bytes(2 * n))
+    for i in range(n):
+        base = i * channels
+        out[i] = int(sum(s[base + c] for c in range(channels)) / channels)
+    return out.tobytes()
+
+
+def _resample_py(raw: bytes, src: int, dst: int) -> bytes:
+    """Linear-interpolation resample (no anti-alias; last-resort fallback)."""
+    s = array.array("h"); s.frombytes(raw)
+    if not s or src == dst:
+        return raw
+    ratio = dst / src
+    out_len = int(len(s) * ratio)
     out = array.array("h", bytes(2 * out_len))
     for i in range(out_len):
-        out[i] = samples[min(len(samples) - 1, int(i / ratio))]
-    return out
+        x = i / ratio
+        i0 = int(x); i1 = min(len(s) - 1, i0 + 1); f = x - i0
+        out[i] = int(s[i0] * (1 - f) + s[i1] * f)
+    return out.tobytes()
