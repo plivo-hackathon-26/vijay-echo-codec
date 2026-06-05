@@ -66,17 +66,23 @@ from plivo_mirror_v5.telemetry import (
 _ROLE_MAP = {"assistant": "agent", "user": "user"}
 
 
-def _upload_recording(backend_url: str, call_id: str, recorder) -> None:
-    """Render the call's WAV and POST it to the backend on a daemon thread.
-    Best-effort: a failed render/upload just means no playback — it must
-    never block call teardown or raise."""
+def _upload_recording(backend_url: str, call_id: str, recorder):
+    """Render the call's WAV and POST it to the backend on a thread; returns
+    the thread so the caller can briefly join it at teardown (otherwise a
+    Ctrl-C in console mode kills the process before the upload finishes).
+    Best-effort: failure just means no playback — it never raises."""
+    import logging  # noqa: PLC0415
     import os  # noqa: PLC0415
     import threading  # noqa: PLC0415
+
+    log = logging.getLogger("plivo_mirror_v5.adapter")
 
     def _send() -> None:
         try:
             wav = recorder.render_wav()
             if not wav:
+                log.info("recording: nothing captured for %s (no audio frames)",
+                         call_id)
                 return
             import urllib.parse  # noqa: PLC0415
             import urllib.request  # noqa: PLC0415
@@ -90,10 +96,13 @@ def _upload_recording(backend_url: str, call_id: str, recorder) -> None:
             req = urllib.request.Request(url, data=wav, headers=headers,
                                          method="POST")
             urllib.request.urlopen(req, timeout=30)  # noqa: S310
+            log.info("recording: uploaded %d bytes for %s", len(wav), call_id)
         except Exception:  # noqa: BLE001
-            import logging  # noqa: PLC0415
-            logging.getLogger("plivo_mirror_v5.adapter").warning(
-                "recording upload failed for %s", call_id, exc_info=True)
+            log.warning("recording upload failed for %s", call_id, exc_info=True)
+
+    t = threading.Thread(target=_send, name="mirror-rec-upload")
+    t.start()
+    return t
 
     threading.Thread(target=_send, daemon=True, name="mirror-rec-upload").start()
 
@@ -248,7 +257,10 @@ def attach_mirror(
     def _on_close(_ev=None) -> None:
         observer.close()
         if recorder is not None:
-            _upload_recording(backend_url, room_id, recorder)
+            # Join briefly so the WAV finishes uploading before the worker
+            # process exits (matters for console mode + Ctrl-C). Capped so a
+            # slow/unreachable backend can't hang teardown.
+            _upload_recording(backend_url, room_id, recorder).join(timeout=20)
         if isinstance(sink, ThreadedSink):
             sink.close()
 
