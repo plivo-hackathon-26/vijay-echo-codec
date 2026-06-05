@@ -28,16 +28,24 @@ Vapi and Retell built-ins:
 Alert webhooks exist too — table stakes, but our payload carries the
 grounded receipt, not a judge guess.
 
-## Measured numbers (180 labeled cases; fresh judge runs)
+## Measured numbers (180 labeled cases; fresh `--no-cache` run, 2026-06-05)
+
+All-set weighted (81 violations / 99 clean across eval_v1 + eval_v2 +
+golden_v1); per-set splits in `eval/scorecard_v4set.json`:
 
 | layer | catch | false alarms |
 |---|---|---|
-| inline deterministic (µs) | low recall, by design | ~0 (golden set 0%) |
-| + inline judge, gated hold (measured, not yet wired to transport) | 81.5% | golden 0% |
-| post-call judge (production backstop) | 89.2% | 4.7% nominal / ~3% effective* |
-| combined | 90.8% | — |
+| inline deterministic (µs) | 7/81 (8.6%) — low recall, by design | 0% eval_v1 · 1.6% eval_v2 · 4.8% golden (1 case; extractor variance) |
+| + inline judge, gated hold | 65/81 (**80.2%**) — eval_v2 alone 81.5% | 0% eval_v1 · 6.2% eval_v2 · 4.8% golden |
+| post-call judge (production backstop) | 68/81 (**84.0%**) — eval_v2 alone 86.2% | 0% eval_v1 · 4.7%* eval_v2 · 0% golden |
+| combined | 70/81 (**86.4%**) | — |
 
 *one "false positive" is a dataset labeling error the judge got right.
+
+An earlier (partially cached) run measured 81.5 / 89.2 / 90.8 — the ±3-5pt
+spread between runs is exactly the Azure no-temperature judge variance
+described below; the numbers above are the reproducible fresh-run floor,
+not the best run.
 
 Dataset composition (the single number above hides it): 180 cases =
 eval_v1 + eval_v2 + golden_v1 → **81 labeled violations, 99 clean** calls;
