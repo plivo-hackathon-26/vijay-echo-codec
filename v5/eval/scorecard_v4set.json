@@ -15,7 +15,7 @@
     "claims_extracted"
    ],
    "inline_gated": true,
-   "l2_ms": 0.4397910015541129
+   "l2_ms": 1.2362910001684213
   },
   {
    "id": "negation_ignored_01",
@@ -32,7 +32,7 @@
     "claims_extracted"
    ],
    "inline_gated": true,
-   "l2_ms": 0.5770419993496034
+   "l2_ms": 1.081333000001905
   },
   {
    "id": "third_party_pref_01",
@@ -49,7 +49,7 @@
     "claims_extracted"
    ],
    "inline_gated": false,
-   "l2_ms": 0.5449999989650678
+   "l2_ms": 1.015416999507579
   },
   {
    "id": "quantity_error_01",
@@ -66,7 +66,7 @@
     "claims_extracted"
    ],
    "inline_gated": true,
-   "l2_ms": 0.01570799940964207
+   "l2_ms": 0.013582999599748291
   },
   {
    "id": "compound_modifier_dropped_01",
@@ -83,7 +83,7 @@
     "claims_extracted"
    ],
    "inline_gated": true,
-   "l2_ms": 0.012542001059046015
+   "l2_ms": 0.009458000022277702
   },
   {
    "id": "conditional_ignored_01",
@@ -100,7 +100,7 @@
     "claims_extracted"
    ],
    "inline_gated": false,
-   "l2_ms": 0.010250001651002094
+   "l2_ms": 0.008625000191386789
   },
   {
    "id": "offmenu_invention_01",
@@ -117,7 +117,7 @@
     "claims_extracted"
    ],
    "inline_gated": true,
-   "l2_ms": 0.009125000360654667
+   "l2_ms": 0.00850000014906982
   },
   {
    "id": "price_hallucination_01",
@@ -222,7 +222,7 @@
     "claims_extracted"
    ],
    "inline_gated": true,
-   "l2_ms": 0.05045799844083376
+   "l2_ms": 0.015040999642224051
   },
   {
    "id": "unconfirmed_irreversible_01",
@@ -239,7 +239,7 @@
     "claims_extracted"
    ],
    "inline_gated": true,
-   "l2_ms": 0.05004199920222163
+   "l2_ms": 0.009207999937643763
   },
   {
    "id": "false_completion_01",
@@ -258,7 +258,7 @@
     "claims_extracted"
    ],
    "inline_gated": true,
-   "l2_ms": 0.05629099905490875
+   "l2_ms": 0.008625000191386789
   },
   {
    "id": "contradiction_same_call_01",
@@ -377,7 +377,7 @@
     "numberish"
    ],
    "inline_gated": false,
-   "l2_ms": 0.08425000123679638
+   "l2_ms": 0.009417000001121778
   },
   {
    "id": "real_policy_stated_01",
@@ -441,7 +441,7 @@
     "claims_extracted"
    ],
    "inline_gated": false,
-   "l2_ms": 0.03520900281728245
+   "l2_ms": 0.011874999472638592
   },
   {
    "id": "benign_greeting_01",
@@ -520,7 +520,7 @@
     "claims_extracted"
    ],
    "inline_gated": true,
-   "l2_ms": 0.05816599878016859
+   "l2_ms": 0.010208999810856767
   },
   {
    "id": "correction_ignored_02",
@@ -537,7 +537,7 @@
     "claims_extracted"
    ],
    "inline_gated": true,
-   "l2_ms": 0.025875000574160367
+   "l2_ms": 0.008541000170225743
   },
   {
    "id": "correction_ignored_03",
@@ -554,7 +554,7 @@
     "claims_extracted"
    ],
    "inline_gated": true,
-   "l2_ms": 0.02987500192830339
+   "l2_ms": 0.007624999852851033
   },
   {
    "id": "negation_ignored_01",
@@ -571,7 +571,7 @@
     "claims_extracted"
    ],
    "inline_gated": true,
-   "l2_ms": 2.8547910005727317
+   "l2_ms": 0.008834000254864804
   },
   {
    "id": "negation_ignored_02",
@@ -588,7 +588,7 @@
     "claims_extracted"
    ],
    "inline_gated": true,
-   "l2_ms": 0.04279100176063366
+   "l2_ms": 0.008166000043274835
   },
   {
    "id": "negation_ignored_03",
@@ -605,7 +605,7 @@
     "claims_extracted"
    ],
    "inline_gated": true,
-   "l2_ms": 0.025415996788069606
+   "l2_ms": 0.007665999874006957
   },
   {
    "id": "third_party_override_01",
@@ -639,7 +639,7 @@
     "claims_extracted"
    ],
    "inline_gated": true,
-   "l2_ms": 0.04475000241654925
+   "l2_ms": 0.007208000170066953
   },
   {
    "id": "quantity_error_02",
@@ -673,7 +673,7 @@
     "claims_extracted"
    ],
    "inline_gated": true,
-   "l2_ms": 0.026875000912696123
+   "l2_ms": 0.007040999662422109
   },
   {
    "id": "compound_modifier_dropped_01",
@@ -690,7 +690,7 @@
     "claims_extracted"
    ],
    "inline_gated": true,
-   "l2_ms": 0.046334000217029825
+   "l2_ms": 0.00729100065655075
   },
   {
    "id": "compound_modifier_dropped_02",
@@ -707,7 +707,7 @@
     "claims_extracted"
    ],
    "inline_gated": true,
-   "l2_ms": 0.028957998438272625
+   "l2_ms": 0.00691700006427709
   },
   {
    "id": "conditional_ignored_01",
@@ -724,7 +724,7 @@
     "claims_extracted"
    ],
    "inline_gated": false,
-   "l2_ms": 0.04524999894783832
+   "l2_ms": 0.00691599962010514
   },
   {
    "id": "conditional_ignored_02",
@@ -741,7 +741,7 @@
     "claims_extracted"
    ],
    "inline_gated": true,
-   "l2_ms": 0.027499998395796865
+   "l2_ms": 0.006792000021960121
   },
   {
    "id": "time_delayed_change_01",
@@ -796,7 +796,7 @@
     "numberish"
    ],
    "inline_gated": true,
-   "l2_ms": 0.044249998609302565
+   "l2_ms": 0.008957999853009824
   },
   {
    "id": "price_hallucination_03",
@@ -1116,7 +1116,7 @@
     "numberish"
    ],
    "inline_gated": true,
-   "l2_ms": 0.05108299956191331
+   "l2_ms": 0.0122499995995895
   },
   {
    "id": "math_change_error_01",
@@ -1151,7 +1151,7 @@
     "claims_extracted"
    ],
    "inline_gated": true,
-   "l2_ms": 0.04941700171912089
+   "l2_ms": 0.007624999852851033
   },
   {
    "id": "tool_arg_mismatch_02",
@@ -1168,7 +1168,7 @@
     "claims_extracted"
    ],
    "inline_gated": true,
-   "l2_ms": 0.023958000383572653
+   "l2_ms": 0.007458000254700892
   },
   {
    "id": "unconfirmed_irreversible_01",
@@ -1185,7 +1185,7 @@
     "claims_extracted"
    ],
    "inline_gated": true,
-   "l2_ms": 0.02049999966402538
+   "l2_ms": 0.007208000170066953
   },
   {
    "id": "unconfirmed_irreversible_02",
@@ -1204,7 +1204,7 @@
     "completion_language"
    ],
    "inline_gated": true,
-   "l2_ms": 0.00979100150289014
+   "l2_ms": 0.006708000000799075
   },
   {
    "id": "false_completion_01",
@@ -1223,7 +1223,7 @@
     "claims_extracted"
    ],
    "inline_gated": true,
-   "l2_ms": 0.024832999770296738
+   "l2_ms": 0.006750000466126949
   },
   {
    "id": "false_completion_02",
@@ -1243,7 +1243,7 @@
     "completion_language"
    ],
    "inline_gated": true,
-   "l2_ms": 0.010124997061211616
+   "l2_ms": 0.006374999429681338
   },
   {
    "id": "wrong_tool_01",
@@ -1293,7 +1293,7 @@
     "claims_extracted"
    ],
    "inline_gated": true,
-   "l2_ms": 0.01891699866973795
+   "l2_ms": 0.007624999852851033
   },
   {
    "id": "repetition_loop_01",
@@ -1357,7 +1357,7 @@
     "claims_extracted"
    ],
    "inline_gated": true,
-   "l2_ms": 0.057166002079611644
+   "l2_ms": 0.007291999281733297
   },
   {
    "id": "asr_misheard_acted_02",
@@ -1374,7 +1374,7 @@
     "claims_extracted"
    ],
    "inline_gated": false,
-   "l2_ms": 0.02733299697865732
+   "l2_ms": 0.00704200010659406
   },
   {
    "id": "correction_handled_01",
@@ -1408,7 +1408,7 @@
     "claims_extracted"
    ],
    "inline_gated": false,
-   "l2_ms": 0.06224999742698856
+   "l2_ms": 0.007167000148911029
   },
   {
    "id": "negation_handled_01",
@@ -1489,7 +1489,7 @@
     "claims_extracted"
    ],
    "inline_gated": false,
-   "l2_ms": 0.04900000203633681
+   "l2_ms": 0.007874999937484972
   },
   {
    "id": "quantity_correct_02",
@@ -1508,7 +1508,7 @@
     "claims_extracted"
    ],
    "inline_gated": true,
-   "l2_ms": 0.025708999601192772
+   "l2_ms": 0.007167000148911029
   },
   {
    "id": "compound_handled_01",
@@ -1814,7 +1814,7 @@
     "numberish"
    ],
    "inline_gated": false,
-   "l2_ms": 0.0580830019316636
+   "l2_ms": 0.007458500022039516
   },
   {
    "id": "correct_math_02",
@@ -1832,7 +1832,7 @@
     "numberish"
    ],
    "inline_gated": false,
-   "l2_ms": 0.02712499917834066
+   "l2_ms": 0.007333999747061171
   },
   {
    "id": "correct_change_01",
@@ -1867,7 +1867,7 @@
     "claims_extracted"
    ],
    "inline_gated": false,
-   "l2_ms": 0.04816599903278984
+   "l2_ms": 0.007292000191227999
   },
   {
    "id": "tool_match_correct_02",
@@ -1884,7 +1884,7 @@
     "claims_extracted"
    ],
    "inline_gated": false,
-   "l2_ms": 0.036458000977290794
+   "l2_ms": 0.00729100065655075
   },
   {
    "id": "confirmed_irreversible_01",
@@ -1901,7 +1901,7 @@
     "claims_extracted"
    ],
    "inline_gated": false,
-   "l2_ms": 0.04399999670567922
+   "l2_ms": 0.006999999641266186
   },
   {
    "id": "confirmed_irreversible_02",
@@ -1919,7 +1919,7 @@
     "numberish"
    ],
    "inline_gated": false,
-   "l2_ms": 0.025417000870220363
+   "l2_ms": 0.007334000656555872
   },
   {
    "id": "honest_completion_01",
@@ -1937,7 +1937,7 @@
     "completion_language"
    ],
    "inline_gated": false,
-   "l2_ms": 0.05500000042957254
+   "l2_ms": 0.007208000170066953
   },
   {
    "id": "correct_tool_01",
@@ -2190,7 +2190,7 @@
     "claims_extracted"
    ],
    "inline_gated": true,
-   "l2_ms": 0.04183300188742578
+   "l2_ms": 0.008708000677870587
   },
   {
    "id": "conditional_ignored_04",
@@ -2238,7 +2238,7 @@
     "completion_language"
    ],
    "inline_gated": true,
-   "l2_ms": 0.026374997105449438
+   "l2_ms": 0.007874999937484972
   },
   {
    "id": "conditional_ignored_07",
@@ -2255,7 +2255,7 @@
     "claims_extracted"
    ],
    "inline_gated": true,
-   "l2_ms": 0.05066700032330118
+   "l2_ms": 0.007667000318178907
   },
   {
    "id": "conditional_handled_02",
@@ -2338,7 +2338,7 @@
     "claims_extracted"
    ],
    "inline_gated": true,
-   "l2_ms": 0.06383400250342675
+   "l2_ms": 0.00837500010675285
   },
   {
    "id": "compound_modifier_dropped_04",
@@ -2355,7 +2355,7 @@
     "claims_extracted"
    ],
    "inline_gated": true,
-   "l2_ms": 0.02849999873433262
+   "l2_ms": 0.007875000846979674
   },
   {
    "id": "compound_modifier_dropped_05",
@@ -2387,7 +2387,7 @@
     "claims_extracted"
    ],
    "inline_gated": true,
-   "l2_ms": 0.05212500036577694
+   "l2_ms": 0.008041000000957865
   },
   {
    "id": "compound_modifier_dropped_07",
@@ -2404,7 +2404,7 @@
     "claims_extracted"
    ],
    "inline_gated": true,
-   "l2_ms": 0.04499999704421498
+   "l2_ms": 0.007124999683583155
   },
   {
    "id": "compound_handled_02",
@@ -2438,7 +2438,7 @@
     "claims_extracted"
    ],
    "inline_gated": false,
-   "l2_ms": 0.04479099879972637
+   "l2_ms": 0.010666999514796771
   },
   {
    "id": "compound_handled_04",
@@ -2472,7 +2472,7 @@
     "claims_extracted"
    ],
    "inline_gated": false,
-   "l2_ms": 0.03650000144261867
+   "l2_ms": 0.010624999958963599
   },
   {
    "id": "negation_ignored_04",
@@ -2506,7 +2506,7 @@
     "claims_extracted"
    ],
    "inline_gated": true,
-   "l2_ms": 0.049041998863685876
+   "l2_ms": 0.007292000191227999
   },
   {
    "id": "negation_ignored_06",
@@ -2523,7 +2523,7 @@
     "claims_extracted"
    ],
    "inline_gated": true,
-   "l2_ms": 0.05450000026030466
+   "l2_ms": 0.007041999197099358
   },
   {
    "id": "negation_ignored_07",
@@ -2540,7 +2540,7 @@
     "claims_extracted"
    ],
    "inline_gated": true,
-   "l2_ms": 0.04158299998380244
+   "l2_ms": 0.006749999556632247
   },
   {
    "id": "negation_ignored_08",
@@ -2557,7 +2557,7 @@
     "claims_extracted"
    ],
    "inline_gated": true,
-   "l2_ms": 0.04733300011139363
+   "l2_ms": 0.007040999662422109
   },
   {
    "id": "negation_handled_03",
@@ -2591,7 +2591,7 @@
     "claims_extracted"
    ],
    "inline_gated": false,
-   "l2_ms": 0.037082998460391536
+   "l2_ms": 0.007124999683583155
   },
   {
    "id": "negation_handled_05",
@@ -2608,7 +2608,7 @@
     "claims_extracted"
    ],
    "inline_gated": false,
-   "l2_ms": 0.035542001569410786
+   "l2_ms": 0.006582999958482105
   },
   {
    "id": "negation_handled_06",
@@ -2880,7 +2880,7 @@
     "claims_extracted"
    ],
    "inline_gated": false,
-   "l2_ms": 1.6868749989953358
+   "l2_ms": 0.015332999282691162
   },
   {
    "id": "legit_sizes_01",

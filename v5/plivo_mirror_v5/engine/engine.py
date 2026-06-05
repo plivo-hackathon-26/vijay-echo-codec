@@ -80,6 +80,10 @@ class Engine:
         start = time.perf_counter()
         verdicts = layer.check(turn, state, ctx)
         elapsed_ms = (time.perf_counter() - start) * 1000.0
+        # Spread the layer's elapsed time across its verdicts so the
+        # per-verdict latency histogram SUMS to real layer time — stamping
+        # the full elapsed on every verdict over-reports N× for N verdicts.
+        per_verdict_ms = elapsed_ms / max(len(verdicts), 1)
         for v in verdicts:
-            v.latency_ms = elapsed_ms
+            v.latency_ms = per_verdict_ms
         return verdicts

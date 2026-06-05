@@ -13,9 +13,11 @@ facts + policies. Reported:
 
 Truth split mirrors v5's architecture: numeric facts (price_*, wings) →
 ReferenceStore (L2); prose facts (hours, menu, policies) ground the judge.
-LLM outputs are cached in eval/.v4set_cache.json — delete to re-run fresh.
+LLM outputs are cached in eval/.v4set_cache.json — pass --no-cache (or
+delete the file) to re-run fresh.
 
-    venv/bin/python v5/eval/run_v4_set.py [--limit N] [--workers 8] [--no-judge]
+    venv/bin/python v5/eval/run_v4_set.py [--limit N] [--workers 8]
+                                          [--no-judge] [--no-cache]
 """
 
 from __future__ import annotations
@@ -89,19 +91,24 @@ def load_truth() -> tuple[ReferenceStore, dict, list[str]]:
 # ── per-case evaluation ─────────────────────────────────────────────────────
 
 class CachedChat:
-    """ChatClient wrapper with a JSON disk cache keyed by (kind, case, text)."""
+    """ChatClient wrapper with a JSON disk cache keyed by (kind, case, text).
+    ``bypass_reads=True`` (--no-cache) forces fresh LLM calls — results are
+    still written, so the cache ends up refreshed rather than stale."""
 
-    def __init__(self, client: ChatClient, cache_path: Path) -> None:
+    def __init__(self, client: ChatClient, cache_path: Path,
+                 bypass_reads: bool = False) -> None:
         self.client = client
         self.cache_path = cache_path
         self.cache = json.loads(cache_path.read_text()) if cache_path.exists() else {}
+        self.bypass_reads = bypass_reads
         self.lock = threading.Lock()
         self.calls = 0
 
     def complete_json_cached(self, key: str, system: str, user: str) -> dict:
-        with self.lock:
-            if key in self.cache:
-                return self.cache[key]
+        if not self.bypass_reads:
+            with self.lock:
+                if key in self.cache:
+                    return self.cache[key]
         result = self.client.complete_json(system, user)
         with self.lock:
             self.calls += 1
@@ -214,6 +221,10 @@ def main() -> int:
     parser.add_argument("--limit", type=int, default=None)
     parser.add_argument("--workers", type=int, default=8)
     parser.add_argument("--no-judge", action="store_true")
+    parser.add_argument("--no-cache", action="store_true",
+                        help="bypass cache READS (fresh LLM calls for every "
+                             "case); results are still written back, so the "
+                             "cache is refreshed, not stale")
     parser.add_argument("--latency-probe", type=int, default=0, metavar="N",
                         help="time N FRESH inline-judge calls (no cache) on "
                              "assertive turns to measure real held-turn latency")
@@ -221,7 +232,7 @@ def main() -> int:
 
     load_dotenv(ROOT / ".env")
     reference, facts, policies = load_truth()
-    cached = CachedChat(ChatClient(), CACHE_PATH)
+    cached = CachedChat(ChatClient(), CACHE_PATH, bypass_reads=args.no_cache)
     run_judge = not args.no_judge
 
     cases = []

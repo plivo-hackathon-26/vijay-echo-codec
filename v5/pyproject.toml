@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "plivo-mirror-v5"
-version = "0.5.0"
+version = "0.5.1"
 description = "Real-time firewall that verifies a voice agent's output against ground truth."
 readme = "README.md"
 requires-python = ">=3.11"

@@ -110,6 +110,25 @@ def test_verdicts_carry_layer_latency():
     assert v.latency_ms > 0.0
 
 
+def test_layer_latency_spread_across_verdicts():
+    """N verdicts from one layer must share the layer's elapsed time —
+    stamping the full elapsed on each would over-report N× in the
+    detector-latency histogram (which sums per-verdict samples)."""
+    engine = make_engine()
+    state = SessionState("call-t")
+    turn = make_turn(claims=[
+        {"claim_id": f"c{i}", "claim_type": "price", "spoken_value": "$59.99",
+         "ref": "reference.plan.turbo.price_per_month"}
+        for i in range(4)
+    ])
+    verdicts = engine.evaluate_turn(turn, state).verdicts
+    assert len(verdicts) == 4
+    per = verdicts[0].latency_ms
+    assert per > 0.0
+    # All verdicts share the layer time equally; no single one carries 4×.
+    assert all(abs(v.latency_ms - per) < 1e-9 for v in verdicts)
+
+
 def test_l2_inline_latency_budget():
     """Direct L2 layer timing must stay well under the inline budget."""
     config = EngineConfig()
