@@ -63,58 +63,52 @@ def _to_mono16k(pcm, sample_rate: int, num_channels: int) -> "array.array":
 
 
 class CallRecorder:
-    """Buffers (offset_ms, int16 samples) and renders a mono 16 kHz WAV."""
+    """Concatenates frames into ONE continuous mono 16 kHz stream.
+
+    Earlier this placed each frame on a wall-clock timeline — but TTS frames
+    are generated FASTER than real time (a whole reply lands in a burst), so
+    offset-placement produced gaps + overlaps = rhythmic clicking, no voice.
+    Concatenating frames in arrival order keeps the waveform continuous and
+    actually listenable. Trade-off: inter-turn silences are removed, so the
+    recording is shorter than wall-clock and strip click-to-jump is
+    approximate — listenable audio is the priority.
+    """
 
     def __init__(self, *, max_seconds: float = 3600.0) -> None:
         self.target_rate = TARGET_RATE
-        self._frames: list[tuple[float, array.array]] = []
+        self._buf = array.array("h")
         self._max_samples = int(max_seconds * self.target_rate)
         self._dropped = False
 
-    def add(self, role: str, pcm, sample_rate: int, t_ms: float,
+    def add(self, role: str, pcm, sample_rate: int, t_ms: float | None = None,
             num_channels: int = 1) -> None:
-        """Record one frame at its t0-relative offset, down-mixed + resampled
-        to mono 16 kHz. ``role`` is accepted for symmetry with the tap; both
-        roles share one mono timeline."""
+        """Append one frame (down-mixed + resampled to mono 16 kHz) to the
+        continuous stream. ``role``/``t_ms`` accepted for call-site symmetry;
+        arrival order defines the timeline."""
         try:
+            if len(self._buf) >= self._max_samples:
+                return
             samples = _to_mono16k(pcm, sample_rate, num_channels)
             if samples:
-                self._frames.append((t_ms, samples))
+                self._buf.extend(samples)
         except Exception:  # noqa: BLE001 — recording is best-effort
             if not self._dropped:
                 log.debug("recorder dropped a frame", exc_info=True)
                 self._dropped = True
 
     def duration_ms(self) -> float:
-        if not self._frames:
-            return 0.0
-        last_off, last = self._frames[-1]
-        return last_off + len(last) / self.target_rate * 1000.0
+        return len(self._buf) / self.target_rate * 1000.0
 
     def render_wav(self) -> bytes | None:
-        """One mono 16 kHz WAV with each frame placed at its offset, overlaps
-        summed and clipped. None when nothing was captured."""
-        if not self._frames:
+        """The concatenated mono 16 kHz stream as a WAV. None if empty."""
+        if not self._buf:
             return None
-        total = min(self._max_samples,
-                    int(self.duration_ms() / 1000.0 * self.target_rate) + 1)
-        if total <= 0:
-            return None
-        mix = [0] * total
-        for t_ms, samples in self._frames:
-            pos = int(t_ms / 1000.0 * self.target_rate)
-            for i, s in enumerate(samples):
-                idx = pos + i
-                if 0 <= idx < total:
-                    v = mix[idx] + s
-                    mix[idx] = _INT16_MAX if v > _INT16_MAX else (
-                        _INT16_MIN if v < _INT16_MIN else v)
         buf = io.BytesIO()
         with wave.open(buf, "wb") as w:
             w.setnchannels(1)
             w.setsampwidth(2)
             w.setframerate(self.target_rate)
-            w.writeframes(array.array("h", mix).tobytes())
+            w.writeframes(self._buf.tobytes())
         return buf.getvalue()
 
 
