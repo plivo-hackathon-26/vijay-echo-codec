@@ -4,7 +4,8 @@ import { fetchAgents, registerAgent, setAgentMode } from './api.js'
 const POLL_MS = 5000
 
 function snippet(agentId) {
-  return `import os
+  return `# pip install "plivo-mirror-v5[agent]"
+import os
 from plivo_mirror_v5.integrations import attach_mirror
 
 # inside your LiveKit entrypoint, after ctx.connect() —

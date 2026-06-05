@@ -8,10 +8,9 @@ locally. Three hosting options, same 4 steps each.
 
 1. **Register** the agent in the dashboard (⚙ agents & intervene):
    agent id + system prompt + facts + policies. Copy the snippet.
-2. **Install** Mirror in the agent's environment:
+2. **Install** Mirror in the agent's environment (published on PyPI):
    ```bash
-   pip install "git+https://github.com/plivo-hackathon-26/vijay-echo-codec#subdirectory=v5"
-   # (or vendor the v5/plivo_mirror_v5 package into your image)
+   pip install "plivo-mirror-v5[agent]"
    ```
 3. **Wire** `attach_mirror(...)` in your entrypoint with:
    ```python
@@ -68,8 +67,10 @@ wiring.
   `uvicorn plivo_mirror_v5.deployables.monitoring.backend.app:app`.
 - Set `MIRROR_API_KEY` on the backend before sharing the URL beyond your
   team — otherwise anyone can register agents and read transcripts.
-- The repo is private: `pip install git+…` inside a Docker build needs a
-  GitHub token (`docker build --secret`), or vendor the package.
+- The package is on PyPI (`pip install "plivo-mirror-v5[agent]"`) — no token
+  needed. The Dockerfile installs it the same way.
+- Shared sandbox: until per-tenant isolation lands, every connected agent's
+  calls are visible on the one dashboard — don't send real customer PII.
 - Intervene toggle applies at CALL START (the worker fetches the
   registered config when each call attaches) — flips affect the next
   call, not in-flight ones.

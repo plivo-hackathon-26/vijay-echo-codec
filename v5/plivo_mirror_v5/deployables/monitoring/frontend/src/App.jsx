@@ -39,6 +39,10 @@ export default function App() {
         <CallList selected={selectedCallId} onSelect={setSelectedCallId} />
       </aside>
       <main className="main">
+        <div className="sandbox-banner">
+          Shared sandbox — calls from all connected agents are visible here.
+          Don't send real customer PII. Per-tenant isolation is coming.
+        </div>
         {selectedCallId !== null ? (
           <CallDetail callId={selectedCallId} />
         ) : view === 'agents' ? (

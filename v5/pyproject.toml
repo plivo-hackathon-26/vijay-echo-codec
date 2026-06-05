@@ -9,13 +9,21 @@ description = "Real-time firewall that verifies a voice agent's output against g
 readme = "README.md"
 requires-python = ">=3.11"
 license = { text = "MIT" }
+keywords = ["voice-agents", "llm", "guardrails", "observability", "livekit"]
 # The engine core is stdlib-only: it must run with no network and no API keys.
 dependencies = []
+
+[project.urls]
+Homepage = "https://github.com/plivo-hackathon-26/vijay-echo-codec"
 
 [project.optional-dependencies]
 dev = ["pytest>=8", "pytest-asyncio>=0.23", "httpx>=0.27"]
 # Deployable 1 — monitoring backend (FastAPI ingest + query API).
 monitoring = ["fastapi>=0.110", "uvicorn>=0.29"]
+# Live agent integration: attach_mirror itself is stdlib-only, but the
+# inline judge / claim extractor (intervene mode + post-call audit) call an
+# OpenAI-compatible endpoint. Install this on the agent worker.
+agent = ["openai>=1.0"]
 # Real OTLP export. Without it the emitter uses a local sink.
 otel = ["opentelemetry-sdk>=1.25", "opentelemetry-exporter-otlp>=1.25"]
 # Reference transport. Only needed by the real LiveKit observer wiring.
@@ -23,6 +31,28 @@ livekit = ["livekit-agents>=1.0"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["plivo_mirror_v5"]
+# Ship the built dashboard (non-Python assets) so a pip-installed backend can
+# serve the UI too. The JS/CSS sources stay out; only the compiled dist/.
+artifacts = [
+  "plivo_mirror_v5/deployables/monitoring/frontend/dist/**",
+]
+# Keep the wheel lean: ship dist/, not the React sources / vite config / npm
+# manifests (the dashboard is pre-built).
+exclude = [
+  "plivo_mirror_v5/deployables/monitoring/frontend/src/**",
+  "plivo_mirror_v5/deployables/monitoring/frontend/node_modules/**",
+  "plivo_mirror_v5/deployables/monitoring/frontend/index.html",
+  "plivo_mirror_v5/deployables/monitoring/frontend/vite.config.js",
+  "plivo_mirror_v5/deployables/monitoring/frontend/package*.json",
+]
+
+[tool.hatch.build.targets.sdist]
+# Keep the sdist lean and the source repo private-friendly: ship the package
+# + its built dashboard, not the frontend sources, tests, or datasets.
+include = ["plivo_mirror_v5", "README.md", "PRODUCTION.md"]
+artifacts = [
+  "plivo_mirror_v5/deployables/monitoring/frontend/dist/**",
+]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"

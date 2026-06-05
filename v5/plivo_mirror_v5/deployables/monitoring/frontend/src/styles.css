@@ -248,6 +248,12 @@ button.btn:disabled { background: #fff; border-color: var(--line); color: #c2c7c
 .ver-table td { padding: 7px 10px 7px 0; border-bottom: 1px solid var(--line-soft); }
 .ver-table tr:last-child td { border-bottom: 0; }
 
+/* ── shared-sandbox banner ────────────────────────────────────────────── */
+.sandbox-banner { font-family: var(--font-mono); font-size: 11px;
+  letter-spacing: .03em; color: var(--med); background: #fffaf0;
+  border: 1px solid #f0e0c0; border-radius: 5px; padding: 7px 12px;
+  margin-bottom: 16px; }
+
 /* ── review loop (✓/✗ → measured precision) ───────────────────────────── */
 .review-btns { display: inline-flex; gap: 5px; margin-left: auto; }
 .review-btn { font-family: var(--font-mono); font-size: 10px; font-weight: 600;

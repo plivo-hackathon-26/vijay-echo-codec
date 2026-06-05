@@ -6,3 +6,8 @@ plivo_mirror_v5/deployables/monitoring/frontend/node_modules/
 plivo_mirror_v5/deployables/monitoring/frontend/dist/
 eval/.v4set_cache.json
 recordings/
+
+# python build artifacts (/dist anchored to v5 root so it doesn't match the
+# committed frontend dist/)
+/dist/
+/build/
