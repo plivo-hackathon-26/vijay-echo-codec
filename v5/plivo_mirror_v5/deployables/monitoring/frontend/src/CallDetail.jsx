@@ -321,7 +321,8 @@ export default function CallDetail({ callId }) {
       )}
 
       <SectionHead no={call.has_audio ? '02' : '01'} title="signal" />
-      <CallTimeline turns={call.turns} onJump={jump} />
+      <CallTimeline turns={call.turns} onJump={jump}
+                    audioRef={audioRef} hasAudio={!!call.has_audio} />
 
       <SectionHead no={call.has_audio ? '03' : '02'} title="transcript"
                    side={`${call.turns.length} turns`} />

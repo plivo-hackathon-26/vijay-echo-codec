@@ -82,3 +82,51 @@ def test_audio_upload_respects_api_key(monkeypatch, tmp_path):
     assert client.post("/calls/c/audio", content=_wav_bytes()).status_code == 401
     assert client.post("/calls/c/audio", content=_wav_bytes(),
                        headers={"X-API-Key": "sekret"}).status_code == 200
+
+
+# -- session-level capture (makes console-mode calls recordable) --------------
+
+class _Frame:
+    def __init__(self, value, n=160):
+        self.data = array("h", [value] * n).tobytes()
+        self.sample_rate = 16_000
+        self.num_channels = 1
+
+
+async def _aiter(items):
+    for it in items:
+        yield it
+
+
+class _FakeAgent:
+    """Minimal agent with default-style stt/tts nodes to wrap."""
+    async def stt_node(self, audio, model_settings):
+        async for _frame in audio:          # default consumes mic frames
+            yield "speech-event"
+    async def tts_node(self, text, model_settings):
+        async for _t in text:               # produce one frame per text chunk
+            yield _Frame(3000)
+
+
+async def test_session_recorder_tees_both_roles():
+    from plivo_mirror_v5.integrations.recording import install_session_recorder
+    from plivo_mirror_v5.integrations.audio_levels import AudioLevelTap
+
+    agent = _FakeAgent()
+    rec = CallRecorder()
+    tap = AudioLevelTap()
+    clock = iter([0.0, 100.0, 200.0, 300.0, 400.0, 500.0])
+    install_session_recorder(agent, recorder=rec, tap=tap,
+                             now_ms=lambda: next(clock))
+
+    # user mic frames flow through stt_node → recorded as "user"
+    events = [e async for e in agent.stt_node(_aiter([_Frame(1000), _Frame(1200)]), None)]
+    assert events == ["speech-event", "speech-event"]   # pipeline unchanged
+    # agent TTS frames flow through tts_node → recorded as "agent", passed through
+    frames = [f async for f in agent.tts_node(_aiter(["hello", "there"]), None)]
+    assert len(frames) == 2 and all(isinstance(f, _Frame) for f in frames)
+
+    wav = rec.render_wav()
+    assert wav and wav[:4] == b"RIFF"        # something was captured from both
+    assert tap.levels_for("user", 0, 1000) is not None
+    assert tap.levels_for("agent", 0, 1000) is not None

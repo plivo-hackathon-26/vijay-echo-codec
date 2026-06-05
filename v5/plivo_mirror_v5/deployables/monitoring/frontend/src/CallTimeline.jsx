@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 
 // The call-signal view: every turn is a block on a shared time axis
 // (x = audio_offset_ms), user above the axis, agent below.
@@ -44,7 +44,29 @@ function Bars({ levels, color }) {
   ))
 }
 
-export default function CallTimeline({ turns, onJump }) {
+export default function CallTimeline({ turns, onJump, audioRef, hasAudio }) {
+  const [playing, setPlaying] = useState(false)
+  const [curMs, setCurMs] = useState(0)
+
+  // Drive a play/pause button + a moving playhead from the shared <audio>.
+  useEffect(() => {
+    const a = audioRef && audioRef.current
+    if (!a || !hasAudio) return undefined
+    const onTime = () => setCurMs((a.currentTime || 0) * 1000)
+    const onPlay = () => setPlaying(true)
+    const onStop = () => setPlaying(false)
+    a.addEventListener('timeupdate', onTime)
+    a.addEventListener('play', onPlay)
+    a.addEventListener('pause', onStop)
+    a.addEventListener('ended', onStop)
+    return () => {
+      a.removeEventListener('timeupdate', onTime)
+      a.removeEventListener('play', onPlay)
+      a.removeEventListener('pause', onStop)
+      a.removeEventListener('ended', onStop)
+    }
+  }, [audioRef, hasAudio])
+
   const placed = turns.filter((t) => t.audio_offset_ms != null)
   if (placed.length < 2) return null
 
@@ -53,19 +75,35 @@ export default function CallTimeline({ turns, onJump }) {
     (t) => t.audio_offset_ms + (t.audio_duration_ms || DEFAULT_MS)))
   const anyReal = placed.some((t) => t.audio_levels?.length)
 
+  const togglePlay = () => {
+    const a = audioRef && audioRef.current
+    if (!a) return
+    if (a.paused) a.play(); else a.pause()
+  }
+
   return (
     <div className="timeline-card">
       <div className="timeline-legend">
+        {hasAudio && (
+          <button className="tl-play" onClick={togglePlay}
+                  title={playing ? 'pause recording' : 'play recording'}>
+            {playing ? '❚❚ pause' : '▶ play'}
+          </button>
+        )}
         <span><i className="lg-swatch" style={{ background: ROLE_COLOR.user }} /> caller</span>
         <span><i className="lg-swatch" style={{ background: ROLE_COLOR.agent }} /> agent</span>
         <span><i className="lg-swatch" style={{ background: SEV_COLOR.high }} /> flagged</span>
         <span className="dim lg-note">
           signal: {anyReal ? 'live audio RMS' : 'estimated from transcript'}
-          {' '}· click a block to jump
+          {' '}· {hasAudio ? 'play, or click a block to jump' : 'click a block to jump'}
         </span>
       </div>
       <div className="timeline-strip">
         <div className="tl-axis" />
+        {hasAudio && (
+          <div className="tl-playhead"
+               style={{ left: `${Math.min(100, (curMs / total) * 100)}%` }} />
+        )}
         {placed.map((t) => {
           const sev = turnSeverity(t)
           const left = (t.audio_offset_ms / total) * 100

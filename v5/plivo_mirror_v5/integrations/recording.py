@@ -96,6 +96,60 @@ class CallRecorder:
         return buf.getvalue()
 
 
+def install_session_recorder(agent, *, recorder, tap=None, now_ms) -> None:
+    """Tee the agent's PIPELINE audio into the recorder (and the levels tap).
+
+    Unlike the room tap, the STT/TTS pipeline nodes carry audio in BOTH
+    ``console`` and ``dev`` modes (they're independent of the room
+    transport), so this is what makes a local console call recordable.
+    Wraps the agent's ``stt_node`` (the caller's mic frames → role "user")
+    and ``tts_node`` (the agent's spoken frames → role "agent") in place,
+    delegating to whatever the agent already had. Best-effort: a teeing
+    failure never breaks the audio pipeline.
+    """
+    import inspect  # noqa: PLC0415
+
+    orig_stt = agent.stt_node      # bound (class default or the agent's own)
+    orig_tts = agent.tts_node
+
+    def _feed(role: str, frame) -> None:
+        try:
+            t = now_ms()
+            if recorder is not None:
+                recorder.add(role, frame.data, frame.sample_rate, t)
+            if tap is not None:
+                tap.push_pcm(role, frame.data, frame.sample_rate,
+                             getattr(frame, "num_channels", 1), t_ms=t)
+        except Exception:  # noqa: BLE001 — capture is cosmetic, never break audio
+            log.debug("session recorder feed dropped a frame", exc_info=True)
+
+    async def stt_node(audio, model_settings):
+        async def teed():
+            async for frame in audio:
+                _feed("user", frame)
+                yield frame
+        result = orig_stt(teed(), model_settings)
+        if inspect.isawaitable(result):
+            result = await result
+        if result is None:
+            return
+        async for ev in result:
+            yield ev
+
+    async def tts_node(text, model_settings):
+        result = orig_tts(text, model_settings)
+        if inspect.isawaitable(result):
+            result = await result
+        if result is None:
+            return
+        async for frame in result:
+            _feed("agent", frame)
+            yield frame
+
+    agent.stt_node = stt_node
+    agent.tts_node = tts_node
+
+
 def _resample(samples: "array.array", src_rate: int, dst_rate: int) -> "array.array":
     """Cheap nearest-sample resample (only used if the tap ever delivers a
     non-target rate; with a 16 kHz capture this is a no-op path)."""

@@ -187,7 +187,10 @@ def attach_mirror(
     )
     bridge = _Bridge(room_id)
     observer.attach(bridge)  # registers observer._on_item on the bridge
-    t0 = time.monotonic()
+    t0 = time.monotonic()  # ONE clock: per-turn offsets AND the recording share it
+
+    def _now_ms() -> float:
+        return (time.monotonic() - t0) * 1000.0
 
     # Recording is opt-in (record=True or MIRROR_RECORD=1); a real call only.
     import os as _os  # noqa: PLC0415
@@ -195,12 +198,29 @@ def attach_mirror(
         "MIRROR_RECORD") == "1"
     recorder = None
 
+    from plivo_mirror_v5.integrations.audio_levels import AudioLevelTap  # noqa: PLC0415
+    if recording_on:
+        from plivo_mirror_v5.integrations.recording import CallRecorder  # noqa: PLC0415
+        recorder = CallRecorder()
+
     tap = audio_tap
+    if tap is None and recording_on and agent is not None:
+        # SESSION-LEVEL capture: tees the STT/TTS pipeline audio, so a local
+        # `console` call records too (the room tap only sees `dev`-mode tracks).
+        from plivo_mirror_v5.integrations.recording import (  # noqa: PLC0415
+            install_session_recorder,
+        )
+        tap = AudioLevelTap()
+        try:
+            install_session_recorder(agent, recorder=recorder, tap=tap,
+                                     now_ms=_now_ms)
+        except Exception:  # noqa: BLE001 — fall back to room tap below
+            import logging  # noqa: PLC0415
+            logging.getLogger("plivo_mirror_v5.adapter").warning(
+                "session recorder install failed; trying room tap", exc_info=True)
+            tap = None
     if tap is None and room is not None:
-        from plivo_mirror_v5.integrations.audio_levels import AudioLevelTap  # noqa: PLC0415
-        if recording_on:
-            from plivo_mirror_v5.integrations.recording import CallRecorder  # noqa: PLC0415
-            recorder = CallRecorder()
+        # Fallback / levels-only path: tap the room's audio tracks (dev mode).
         tap = AudioLevelTap(recorder=recorder)
         tap.tap_room(room)
     # A conversation item lands when the utterance COMMITS, so the turn's

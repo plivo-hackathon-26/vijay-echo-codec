@@ -158,6 +158,14 @@ button.btn:disabled { background: #fff; border-color: var(--line); color: #c2c7c
   /* ruler ticks along the strip top */
   background-image: repeating-linear-gradient(90deg, var(--line) 0 1px, transparent 1px 20px);
   background-size: 100% 5px; background-repeat: no-repeat; background-position: top; }
+.tl-play { font-family: var(--font-mono); font-size: 10.5px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: .06em; padding: 3px 10px;
+  border: 1px solid var(--accent); border-radius: 4px; background: var(--accent);
+  color: #fff; cursor: pointer; margin-right: 4px; }
+.tl-play:hover { filter: brightness(1.08); }
+.tl-playhead { position: absolute; top: 0; bottom: 18px; width: 2px;
+  background: var(--accent); opacity: .8; pointer-events: none; z-index: 3;
+  transition: left .12s linear; }
 .tl-axis { position: absolute; top: 50%; left: 0; right: 0; height: 0;
   border-top: 1px dashed var(--line); }
 .tl-turn { position: absolute; height: 38%; cursor: pointer; }
