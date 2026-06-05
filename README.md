@@ -1,10 +1,61 @@
 # plivo-mirror
 
-**A real-time policy firewall for LLM voice agents.** It sits between an agent's
-LLM and the outside world and stops bad output **before** it reaches the caller
-or fires an irreversible action — prevention, not post-call detection.
+**Catch your LLM voice agent lying — before the caller hears it, before the
+money moves.**
 
-`pip install plivo-mirror` · published on PyPI.
+Mirror is not just a library: it's a **monitoring + live-intervention
+product** for LLM voice agents. Every sentence the agent speaks is diffed
+against *your own ground truth* with an auditable receipt
+(`spoken: $59.99 | truth: $79.99 | source: plan.turbo.price_per_month`);
+flagged replies are corrected **before TTS**; unauthorized tool calls are
+**blocked before execution**; everything lands on a live dashboard with a
+reviewer loop that measures precision on *your* traffic.
+
+`pip install plivo-mirror-v5` · the engine + LiveKit adapter + dashboard,
+one package.
+
+---
+
+## ⭐ v5 — the current product (start here)
+
+| | |
+|---|---|
+| **What it is** | A grounded verification layer + dashboard: shadow-monitor any LiveKit voice agent in ~5 minutes, flip one toggle to live intervention. |
+| **The wedge** | Deterministic grounded **receipts** (a diff, not a judge's opinion) · **live in-call self-correction** (pre-TTS gate) · **pre-execution tool blocking** (the vishing defense) · **measured-on-your-traffic precision** (reviewer ✓/✗ loop). Verified absent in Hamming / Coval / Langfuse / Arize / Vapi / Retell. |
+| **Measured** | 180 labeled cases, fresh reproducible run: **80.2% of violations blocked before speech · 86.4% combined catch · ~0–6% false alarms · 0.1 ms deterministic layer**. (v4 on the same sets: 35.4% catch.) |
+| **Status** | Feature-complete (wrapped 2026-06-05) · 185 tests, all offline · `plivo-mirror-v5` on PyPI · production pickup planned. |
+
+**Read in this order:**
+
+1. **[`v5/DOCUMENTATION.md`](v5/DOCUMENTATION.md)** — the full product doc: idea, architecture, every layer, config, eval.
+2. **[`v5/QUICKSTART.md`](v5/QUICKSTART.md)** — connect your agent in 5 minutes.
+3. [`v5/README.md`](v5/README.md) — engine architecture (L1/L2/judge, two deployables).
+4. [`v5/PRODUCTION.md`](v5/PRODUCTION.md) — measured numbers + env-var reference.
+5. [`v5/docs/HANDOFF.md`](v5/docs/HANDOFF.md) — resume-here page for the production pickup.
+6. [`v5/docs/ROADMAP.md`](v5/docs/ROADMAP.md) — honest limitations + the phased plan.
+
+**Try it in 2 minutes, zero keys:**
+
+```bash
+pip install -e 'v5[monitoring]'
+python -m uvicorn plivo_mirror_v5.deployables.monitoring.backend.app:app --port 8500 &
+python v5/plivo_mirror_v5/deployables/monitoring/replay_fixture.py   # demo call → dashboard
+```
+
+**Wire a real agent (the whole integration):**
+
+```python
+from plivo_mirror_v5.integrations import attach_mirror
+
+attach_mirror(session, room_id=ctx.room.name,
+              backend_url=os.environ["MIRROR_BACKEND_URL"],
+              agent_id="support-bot-prod",      # registered in the dashboard
+              agent=my_agent)                   # dashboard-toggled intervene
+```
+
+In intervene mode the pre-TTS gate and the tool blocker **auto-wire** — zero
+agent code changes. Four demo agents (ISP · bank · clinic · airline) in
+[`v5/examples/`](v5/examples/) prove the engine is domain-generic.
 
 ---
 
@@ -12,89 +63,39 @@ or fires an irreversible action — prevention, not post-call detection.
 
 | Path | What it is | Status |
 |---|---|---|
-| **[`v4/`](v4/)** | **The dual-boundary firewall — current line.** A ground-up rebuild as a *firewall* (speech guard + action guard) over a validated session state. | **`0.4.0rc1`** (pre-release) |
-| [`v3/`](v3/) | The shipped three-tier scorer (Tier-0 regex → Tier-1 NLI → Tier-2 LLM judge) + LiveKit `SupervisedAgent`. | `0.3.x` (latest stable) |
-| [`v1/`](v1/), [`v2/`](v2/) | Original hackathon demo + the first library iteration. | Archaeology |
-| [`demo-frontend/`](demo-frontend/) | Demo UI. | — |
+| **[`v5/`](v5/)** | **THE PRODUCT** — grounded verification engine + monitoring dashboard + live intervention (pre-TTS gate, tool blocking) + post-call judge + eval harness. | **`plivo-mirror-v5` 0.5.x on PyPI** |
+| [`v4/`](v4/) | The dual-boundary firewall — proved the deterministic action-boundary defenses (ported into v5), but its risk-lexicon gating capped catch at 35%. | `0.4.0rc1` (superseded) |
+| [`v3/`](v3/) | The three-tier scorer (regex → NLI → LLM judge) + LiveKit `SupervisedAgent`. Its eval datasets are still v5's benchmark. | `plivo-mirror 0.3.x` (legacy stable) |
+| [`v1/`](v1/), [`v2/`](v2/) | Original hackathon demo + first library iteration. | Archaeology |
+| [`demo-frontend/`](demo-frontend/) | Early demo UI (pre-v5; v5 ships its own React dashboard). | — |
 
-> All four share the same PyPI package name. `pip install plivo-mirror` gives the
-> stable **0.3.x**; `pip install --pre plivo-mirror` (or `==0.4.0rc1`) gives **v4**.
-
----
-
-## v4 — the dual-boundary firewall
-
-### The six failures it targets
-fabricated facts · unauthorized commitments · wrong-action-vs-intent ·
-compliance/disclosure gaps · prompt injection · persona drift.
-
-### How it works
-The caller's committable values are validated and written to **`SessionState`** —
-the single source of truth, kept **outside the model's context**. Every turn, the
-agent's planned reply is buffered and run through two boundaries (the first guard
-to object wins):
-
-**① Speech guard** — what it's about to *say* (tokens → TTS):
-1. **Deterministic** — instant code check for forbidden / required phrases (`FORBID:` / `REQUIRE:`); hard-block on a hit.
-2. **Risk-span tagger** — flags risky spans (price · number · commitment · name); no span → ~0 ms pass.
-3. **NLI semantic tier** — does the reply contradict the customer *or* a known fact? (catches ignored negations, fabricated hours).
-4. **Grounded verifier** — a separate, stateless LLM-judge: is the claim supported by FACTS + POLICIES?
-
-**② Action guard** — what it's about to *do* (tool call → execution), deterministic ~0 ms:
-1. **False-completion** — claims "done" with no backing tool call.
-2. **Arg ↔ state** — tool arguments must match validated state (wrong item/amount → block).
-3. **Authorization** — a *separate* service decides what the caller may do (the model never authorizes itself — the prompt-injection defense).
-4. **Validators + zero-argument** — business rules live in code; tools fire with **zero arguments**, reading values straight from state.
-
-**Intervention** — on a violation, a **deflection filler** is spoken first (no LLM,
-covers latency), then the **same LLM** regenerates a correct reply from the facts —
-never restating the wrong value (avoids the "pink-elephant" trap) — and it's
-**re-verified** before being voiced.
-
-### Results (hard eval: 65 violations + 64 clean near-misses, live, gpt-5.4-mini)
-| metric | before (lexicon gate) | after (v4) |
-|---|---|---|
-| catch / recall | 35% | **68%** |
-| F1 | 0.47 | **0.73** |
-| precision | 0.70 | **0.80** |
-
-Latency: clean turns add ~0 ms guard compute; the grounded verifier runs only on
-flagged spans (a filler covers its latency). The NLI tier adds ~0.9 s on clean
-committal turns with the precise model — an opt-in **speculative mode** moves that
-off the first-audio path.
+> Lineage in one line each: v1 proved the demo → v2 showed judge-every-turn
+> kills voice latency → v3 shipped the tiered scorer to PyPI → v4 built the
+> right deterministic defenses but starved its verifier → **v5 kept v4's
+> deterministic floor, added the assertiveness-gated grounded judge, the
+> receipts dashboard, pre-TTS gating and pre-execution tool blocking — and
+> doubled catch while cutting false alarms.**
 
 ---
 
-## Quickstart (v4)
+## v4 — the dual-boundary firewall (superseded by v5)
 
-```bash
-cd v4 && pip install --pre -e ".[openai,livekit]"      # + [nli] for the semantic tier (torch/transformers)
-pytest tests/                                           # unit tests
-python -m plivo_mirror.eval --mode deterministic        # the eval harness (gate ceiling, no LLM)
-```
+Two boundaries over a validated `SessionState` kept outside the model's
+context: a **speech guard** (deterministic checks → risk-span tagger → NLI
+tier → grounded verifier) and an **action guard** (false-completion,
+arg↔state, authorization separation, zero-argument tools). Interventions
+spoke a filler, regenerated from facts, re-verified, never restated the
+wrong value.
 
-Drop-in LiveKit agent (~5 lines):
-
-```python
-from plivo_mirror import Firewall
-from plivo_mirror.adapters.livekit import SupervisedAgent
-
-firewall = Firewall.from_env(policies=POLICIES)          # 1
-class MyAgent(SupervisedAgent):                          # 2
-    def __init__(self): super().__init__(firewall=firewall, instructions=PROMPT)  # 3
-    @function_tool
-    async def place_order(self): ...                     # 4  (reads items from STATE, not args)
-# session.start(agent=MyAgent())                         # 5
-```
-
-A runnable example lives in [`v4/examples/livekit_quickstart/`](v4/examples/livekit_quickstart/).
-
-## Understand it visually
-- **[`v4/v4_overview.html`](v4/v4_overview.html)** — interactive explainer (Problems · Architecture · Eval tabs, with animated turns).
-- **[`v4/firewall_explorer.html`](v4/firewall_explorer.html)** — hands-on playground: type a turn, watch the verdict.
-- **[`v4/v4_flow.md`](v4/v4_flow.md)** / `v4_flow.excalidraw` — the full runtime flow.
+What survived into v5: the action-boundary defenses (now L2 policy checks +
+`ToolGate`), authorization separation, the session-state-as-truth principle,
+and the pink-elephant correction discipline. What didn't: the risk-lexicon
+router (35% catch) and the NLI tier. Details: [`v4/`](v4/) ·
+[`v4/v4_overview.html`](v4/v4_overview.html) (interactive explainer).
 
 ---
 
 ## License
-MIT (v4 — see `v4/pyproject.toml`). Earlier lines retain their own license files.
+
+MIT (see `v5/pyproject.toml` / `v4/pyproject.toml`). Earlier lines retain
+their own license files.

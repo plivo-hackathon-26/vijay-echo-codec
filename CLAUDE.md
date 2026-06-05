@@ -1,5 +1,32 @@
 # plivo-mirror — project context
 
+## ⚠️ READ THIS FIRST: v5 is the current product (2026-06)
+
+**`v5/` is the live line — a PRODUCT, not just a library**: a grounded
+verification + live-intervention layer for LLM voice agents WITH a
+monitoring dashboard. Every agent claim is diffed against ground truth
+with a `{spoken, truth, source}` receipt; in intervene mode flagged drafts
+are corrected BEFORE TTS and unauthorized tools are BLOCKED before
+execution (auto-wired at `attach_mirror`); shadow mode + reviewer ✓/✗
+measures precision on real traffic. PyPI: `plivo-mirror-v5` (0.5.x).
+
+- **Status: feature-complete, wrapped 2026-06-05; awaiting production
+  pickup.** 185 offline tests; fresh eval: 86.4% combined catch / 80.2%
+  blocked pre-speech / ~0–6% false alarms on 180 labeled cases.
+- **Source of truth for v5:** `v5/DOCUMENTATION.md` (full product doc),
+  `v5/docs/HANDOFF.md` (resume-here page + production to-do),
+  `v5/docs/ROADMAP.md` (honest limitations), `v5/PRODUCTION.md`
+  (numbers + env reference). Read those before touching v5.
+- v5 did NOT keep v4's risk-lexicon router (35% catch) or the NLI tier;
+  it kept v4's deterministic defenses (as L2 policy checks + ToolGate),
+  authorization separation, and session-state-as-truth.
+
+Everything below this section is the **v4-era context**, kept for history
+and because v4's principles (zero-argument tools, business logic in code,
+Azure quirks, eval sets) still inform v5.
+
+---
+
 **plivo-mirror** is a real-time **policy firewall for LLM voice agents**.
 It sits between an agent's LLM and the outside world and stops bad output
 *before* it reaches the caller or fires an irreversible action. Published
@@ -12,14 +39,15 @@ source of truth for v4. Re-read it before starting every build phase.
 
 ## Repo layout (READ FIRST)
 
+- **`v5/`** — **THE CURRENT PRODUCT** (see the section at the top of this
+  file). All new work happens here.
 - **`v1/`** — original hackathon code. Archaeology only. Do not modify.
-- **`v3/`** — the currently-shipped `plivo-mirror` package (0.3.x on PyPI):
+- **`v3/`** — the shipped `plivo-mirror` package (0.3.x on PyPI):
   a three-tier scorer (Tier 0 regex → Tier 1 HF NLI → Tier 2 LLM judge),
-  `Supervisor.from_env()`, LiveKit `SupervisedAgent`. **Reference v3 for
-  the public surface only — NOT for the scorer.** v4 does not copy or
-  reuse the three-tier scorer.
-- **`v4/`** — the new dual-boundary firewall. Built from scratch. All new
-  work happens here.
+  `Supervisor.from_env()`, LiveKit `SupervisedAgent`. Its eval datasets
+  (`v3/datasets/eval_v*.jsonl`) remain the benchmark for v4 AND v5.
+- **`v4/`** — the dual-boundary firewall (superseded by v5; its
+  deterministic defenses live on inside v5's L2 + ToolGate).
 
 Read **only** this v3 file for the integration *shape* we must preserve
 (the ~5-line LiveKit adapter), not its internals:
