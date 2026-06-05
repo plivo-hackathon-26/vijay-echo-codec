@@ -39,6 +39,19 @@ grounded receipt, not a judge guess.
 
 *one "false positive" is a dataset labeling error the judge got right.
 
+Dataset composition (the single number above hides it): 180 cases =
+eval_v1 + eval_v2 + golden_v1 → **81 labeled violations, 99 clean** calls;
+truth split mirrors the architecture (numeric facts → L2 ReferenceStore,
+prose facts ground the judge). These are static-set, attached-claims
+numbers, not live-traffic metrics. Reproduce fresh (live judge calls, costs
+API credits) with:
+
+    venv/bin/python v5/eval/run_v4_set.py --no-cache
+
+Judge verdicts vary run-to-run on Azure (no temperature control) — expect
+a few points of movement between fresh runs; `MIRROR_JUDGE=two_stage`
+exists precisely to damp that variance.
+
 ## Production configuration (all env vars, all optional)
 
 | var | effect |
@@ -50,16 +63,30 @@ grounded receipt, not a judge guess.
 | `MIRROR_AUTO_AUDIT=1` | judge every call automatically at call end |
 | `MIRROR_MAX_INGEST_BATCH` | ingest batch cap (default 500) |
 | `OPENAI_API_KEY/_BASE_URL/_MODEL` | judge + claim-extractor credentials |
+| `MIRROR_SHADOW_JUDGE=1` | shadow-mode inline judge, FLAG-ONLY: factual errors surface as `would_have` DURING the call, not only post-call (assertive agent turns only; fail-open; ~1 judge call per assertive turn) |
+| `MIRROR_JUDGE=two_stage` | self-consistency judge: k fast votes (concurrent), unanimous wins, a split escalates once to the strong model — mitigates Azure's no-temperature verdict flip |
+| `OPENAI_MODEL_FAST` / `MIRROR_JUDGE_VOTES` | the two-stage fast model + vote count (default 3) |
+| `MIRROR_TELEMETRY_QUEUE_MAX` | bound on the agent-side telemetry queue (default 10000; full → drop-oldest, counted) |
+| `MIRROR_TELEMETRY_SPOOL` | JSONL spool path: records the backend rejects are parked and replayed on reconnect instead of dropped |
 
 Deploy: single service — FastAPI serves API + built frontend
 (`render.yaml` blueprint included), or `uvicorn ...backend.app:app`.
 
 ## Known limitations (deliberate honesty — do not oversell)
 
-- **Intervention is catch-and-correct (~1s after the bad sentence), not
-  pre-speech blocking.** Pre-TTS gating (Hook B) is built and measured but
-  not yet wired into the LiveKit transport. Tool execution is flagged, not
-  blocked.
+- **Intervene mode now auto-wires both boundaries at attach time**
+  (best-effort, guarded; an unrecognized SDK shape degrades to the
+  documented manual patterns):
+  - *speech*: the pre-TTS gate (Hook B) routes through the agent's default
+    `llm_node` automatically — a host's own `llm_node` override is never
+    clobbered;
+  - *action*: tools named in the policy's `tool_authorization`/
+    `arg_bindings` are wrapped so `ToolGate.check` runs BEFORE the side
+    effect — the unauthorized $2,000 transfer is **blocked**, not just
+    corrected after the money moved. Blocked calls land in the tool log as
+    errors, so a later "I've done it" claim diffs dirty.
+  Live end-to-end mic validation of the auto-wiring across agents is still
+  pending (validated against livekit-agents 1.5.x surface + unit tests).
 - **English-only lexicons** in the claim extractor / assertiveness gate /
   L1 correction markers — non-English agents degrade to judge-only
   detection. Locale lexicon injection is the designed fix (regex machinery

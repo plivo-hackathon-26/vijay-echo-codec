@@ -104,7 +104,21 @@ def _upload_recording(backend_url: str, call_id: str, recorder):
     t.start()
     return t
 
-    threading.Thread(target=_send, daemon=True, name="mirror-rec-upload").start()
+
+def _registered_judge(registered: dict):
+    """Grounded judge from the dashboard-registered config (facts +
+    policies + system prompt). MIRROR_JUDGE=two_stage selects the voting
+    fast/strong judge. Shared by the pre-TTS gate and the shadow judge."""
+    from plivo_mirror_v5.auditor import judge_from_env  # noqa: PLC0415
+
+    facts_store = ReferenceStore(registered.get("facts") or {})
+    return judge_from_env(
+        facts={k: facts_store.get(k) for k in facts_store.keys()},
+        policies=[s.strip() for s in
+                  (registered.get("policies") or "").splitlines()
+                  if s.strip()],
+        system_prompt=registered.get("system_prompt") or None,
+    )
 
 
 def fetch_agent_config(backend_url: str, agent_id: str,
@@ -140,6 +154,7 @@ def attach_mirror(
     room=None,
     audio_tap=None,
     record: bool | None = None,
+    shadow_judge=None,
 ) -> MirrorObserver:
     """Build engine + emitter + observer and subscribe to the session.
     Returns the observer (handy for tests and graceful shutdown).
@@ -168,6 +183,20 @@ def attach_mirror(
 
     engine_config = config or EngineConfig(mode=mode)
 
+    # Shadow-mode inline judge (flag-only): closes the real-time factual-
+    # recall seam — a wrong price surfaces as would_have DURING the call,
+    # not only post-call. Opt-in (costs one judge call per assertive agent
+    # turn): pass shadow_judge= or set MIRROR_SHADOW_JUDGE=1.
+    import os as _os_judge  # noqa: PLC0415
+    if (shadow_judge is None and mode == "shadow"
+            and _os_judge.environ.get("MIRROR_SHADOW_JUDGE") == "1"):
+        try:
+            shadow_judge = _registered_judge(registered)
+        except Exception:  # noqa: BLE001 — judge wiring must never kill attach
+            import logging  # noqa: PLC0415
+            logging.getLogger("plivo_mirror_v5.adapter").exception(
+                "shadow judge wiring failed; continuing without it")
+
     engine = Engine(engine_config, reference=reference)
     sink = sink or ThreadedSink(HTTPSink(backend_url))
     emitter = TelemetryEmitter(sink)
@@ -184,6 +213,7 @@ def attach_mirror(
         or LexiconClaimExtractor(reference, action_verbs=action_verbs,
                                  fact_claims=False),
         intervention_handler=intervention_handler,
+        shadow_judge=shadow_judge,
     )
     bridge = _Bridge(room_id)
     observer.attach(bridge)  # registers observer._on_item on the bridge
@@ -293,7 +323,6 @@ def attach_mirror(
     # override that routes its stream through agent._mirror_pre_tts.
     if mode == "intervene" and agent is not None:
         try:
-            from plivo_mirror_v5.auditor import LLMPostCallJudge  # noqa: PLC0415
             from plivo_mirror_v5.deployables.intervention import (  # noqa: PLC0415
                 JudgedPreTTSGate,
             )
@@ -301,14 +330,8 @@ def attach_mirror(
                 PreTTSGateRunner,
             )
 
-            facts_store = ReferenceStore(registered.get("facts") or {})
-            judge = LLMPostCallJudge(
-                facts={k: facts_store.get(k) for k in facts_store.keys()},
-                policies=[s.strip() for s in
-                          (registered.get("policies") or "").splitlines()
-                          if s.strip()],
-                system_prompt=registered.get("system_prompt") or None,
-            )
+            # MIRROR_JUDGE=two_stage swaps in the voting fast/strong judge.
+            judge = _registered_judge(registered)
             gate = JudgedPreTTSGate(engine, judge, call_id=room_id)
             agent._mirror_pre_tts = PreTTSGateRunner(
                 gate, observer.state,
@@ -327,10 +350,32 @@ def attach_mirror(
             # Action-boundary block: a host tool calls agent._mirror_tool_gate
             # .check(name, args, agent._mirror_state) BEFORE its side effect to
             # STOP an unauthorized irreversible action (not just correct the
-            # speech after). Opt-in per tool; no policy → allows everything.
+            # speech after). No policy → allows everything.
             from plivo_mirror_v5.engine import ToolGate  # noqa: PLC0415
             agent._mirror_tool_gate = ToolGate(engine_config.policy)
             agent._mirror_state = observer.state
+
+            import logging as _logging  # noqa: PLC0415
+            _alog = _logging.getLogger("plivo_mirror_v5.adapter")
+            # DEFAULT-ON auto-wiring (each best-effort; a failure degrades
+            # to the documented manual pattern, never kills attach):
+            # 1. ToolGate wraps policy-named tools — block BEFORE execution.
+            try:
+                wrapped = _autowrap_tool_gate(
+                    agent, agent._mirror_tool_gate, observer.state)
+                if wrapped:
+                    _alog.info("tool gate auto-wrapped: %s", ", ".join(wrapped))
+            except Exception:  # noqa: BLE001
+                _alog.exception("tool-gate auto-wrap failed; call "
+                                "agent._mirror_tool_gate.check() manually")
+            # 2. Hook B: route the default llm_node through the pre-TTS gate
+            #    (skipped when the host already overrides llm_node).
+            try:
+                if _autowrap_llm_node(agent):
+                    _alog.info("pre-TTS gate auto-wired into llm_node")
+            except Exception:  # noqa: BLE001
+                _alog.exception("llm_node auto-wrap failed; add the 2-line "
+                                "llm_node override (see examples)")
         except Exception:  # noqa: BLE001 — gate wiring must never kill attach
             import logging  # noqa: PLC0415
             logging.getLogger("plivo_mirror_v5.adapter").exception(
@@ -338,6 +383,103 @@ def attach_mirror(
     # >>> end pre-TTS gate
 
     return observer
+
+
+# ── intervene-mode auto-wiring (best-effort, SDK-coupled) ───────────────────
+# Both helpers touch livekit-agents surface (lazy import; the adapter keeps
+# no hard livekit dependency). They are called inside a guarded try/except —
+# an unrecognized SDK shape degrades to the documented MANUAL patterns
+# (agent llm_node override / explicit _mirror_tool_gate.check()).
+
+
+def _autowrap_tool_gate(agent, gate, state) -> list[str]:
+    """ACTION-BOUNDARY default-on: wrap every ``@function_tool`` whose name
+    appears in the policy's ``tool_authorization`` / ``arg_bindings`` so
+    ``ToolGate.check`` runs BEFORE the tool body — an unauthorized
+    irreversible action is BLOCKED, not just flagged after the fact. The
+    blocked result carries ``{"error": ...}`` so the tool log records it as
+    failed (a later "I've done it" claim then diffs dirty) plus a
+    ``say`` line the model can voice. Returns the wrapped tool names."""
+    import inspect  # noqa: PLC0415
+
+    from livekit.agents import function_tool  # noqa: PLC0415 — lazy, guarded
+
+    guarded = set(gate.pack.tool_authorization) | set(gate.pack.arg_bindings)
+    if not guarded:
+        return []
+    tools = list(getattr(agent, "tools", None) or [])
+    new_tools, wrapped_names = [], []
+    for tool in tools:
+        info = getattr(tool, "info", None)
+        name = getattr(info, "name", None) or getattr(tool, "__name__", None)
+        if name not in guarded or not callable(tool):
+            new_tools.append(tool)
+            continue
+
+        def _make(tool=tool, name=name):
+            async def gated(*args, **kwargs):
+                decision = gate.check(name, kwargs, state)
+                if not decision.allow:
+                    import logging  # noqa: PLC0415
+                    logging.getLogger("plivo_mirror_v5.adapter").warning(
+                        "tool gate BLOCKED %s: %s", name, decision.reason)
+                    return {"error": decision.reason,
+                            "blocked_by": decision.policy_id,
+                            "say": decision.spoken_refusal}
+                return await tool(*args, **kwargs)
+
+            # The LLM-facing schema is rebuilt from the wrapper — copy the
+            # original surface so the schema is byte-identical.
+            gated.__signature__ = inspect.signature(tool)
+            gated.__name__ = getattr(tool, "__name__", name)
+            gated.__doc__ = tool.__doc__
+            gated.__annotations__ = dict(getattr(tool, "__annotations__", {}))
+            return function_tool(gated, name=name,
+                                 description=getattr(info, "description", None))
+
+        new_tools.append(_make())
+        wrapped_names.append(name)
+    if not wrapped_names:
+        return []
+    # Pre-start, Agent.update_tools completes synchronously (no awaits) —
+    # drive it to completion deterministically; if it suspends the agent is
+    # already live and we abort the wrap (manual pattern still applies).
+    coro = agent.update_tools(new_tools)
+    try:
+        coro.send(None)
+    except StopIteration:
+        return wrapped_names
+    coro.close()
+    raise RuntimeError("agent already started; tool auto-wrap skipped")
+
+
+def _autowrap_llm_node(agent) -> bool:
+    """Hook B default-on: route the agent's default ``llm_node`` stream
+    through ``agent._mirror_pre_tts`` (the judged pre-TTS gate) without the
+    per-agent override. Skipped (returns False) when the host already
+    overrode ``llm_node`` — their wiring stays canonical."""
+    from livekit.agents import Agent as _LKAgent  # noqa: PLC0415 — lazy, guarded
+
+    if type(agent).llm_node is not _LKAgent.llm_node:
+        return False  # host override (e.g. the documented 2-line pattern)
+    if "llm_node" in vars(agent):
+        return False  # instance-level override already installed
+
+    async def _gated_llm_node(chat_ctx, tools, model_settings):
+        runner = getattr(agent, "_mirror_pre_tts", None)
+
+        def default(ctx):
+            return _LKAgent.default.llm_node(agent, ctx, tools, model_settings)
+
+        if runner is None:  # gate gone → zero-cost passthrough
+            async for chunk in default(chat_ctx):
+                yield chunk
+            return
+        async for out in runner.gate_stream(chat_ctx, default):
+            yield out
+
+    agent.llm_node = _gated_llm_node
+    return True
 
 
 class _Bridge:
