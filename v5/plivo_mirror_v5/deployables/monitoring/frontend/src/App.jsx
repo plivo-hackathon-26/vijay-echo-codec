@@ -3,6 +3,7 @@ import CallList from './CallList.jsx'
 import CallDetail from './CallDetail.jsx'
 import FleetView from './FleetView.jsx'
 import AgentsView from './AgentsView.jsx'
+import DocsView from './DocsView.jsx'
 
 // TODO: auth + PII redaction — out of scope for v5.
 export default function App() {
@@ -36,6 +37,10 @@ export default function App() {
                 onClick={() => goHome('agents')}>
           ⚙ agents & intervene
         </button>
+        <button className={`fleet-link ${selectedCallId === null && view === 'docs' ? 'active' : ''}`}
+                onClick={() => goHome('docs')}>
+          📖 how to connect
+        </button>
         <CallList selected={selectedCallId} onSelect={setSelectedCallId} />
       </aside>
       <main className="main">
@@ -47,6 +52,8 @@ export default function App() {
           <CallDetail callId={selectedCallId} />
         ) : view === 'agents' ? (
           <AgentsView />
+        ) : view === 'docs' ? (
+          <DocsView />
         ) : (
           <FleetView onSelectCall={setSelectedCallId} />
         )}
