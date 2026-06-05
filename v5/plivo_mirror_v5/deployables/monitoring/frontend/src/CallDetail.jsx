@@ -262,13 +262,19 @@ export default function CallDetail({ callId }) {
   if (call === null) return <p className="dim pad">loading…</p>
 
   const live = call.outcome === 'in_progress'
-  const jump = (turnId) =>
-    document.getElementById(`turn-${turnId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
   const replayAt = (offsetMs) => {
     const audio = audioRef.current
     if (!audio) return
     audio.currentTime = (offsetMs || 0) / 1000
     audio.play()
+  }
+  // SIGNAL-strip click: seek the recording (when present) AND scroll to the
+  // turn. Accepts a turn object (from the strip) or a turn_id string.
+  const jump = (turn) => {
+    const turnId = typeof turn === 'string' ? turn : turn.turn_id
+    if (typeof turn === 'object' && call.has_audio && turn.audio_offset_ms != null)
+      replayAt(turn.audio_offset_ms)
+    document.getElementById(`turn-${turnId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
   }
   // ✓/✗ review → label saved → optimistic refresh (feeds /stats/precision)
   const labelFlag = (kind, targetId, label) =>

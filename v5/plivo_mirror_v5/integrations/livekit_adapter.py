@@ -66,6 +66,38 @@ from plivo_mirror_v5.telemetry import (
 _ROLE_MAP = {"assistant": "agent", "user": "user"}
 
 
+def _upload_recording(backend_url: str, call_id: str, recorder) -> None:
+    """Render the call's WAV and POST it to the backend on a daemon thread.
+    Best-effort: a failed render/upload just means no playback — it must
+    never block call teardown or raise."""
+    import os  # noqa: PLC0415
+    import threading  # noqa: PLC0415
+
+    def _send() -> None:
+        try:
+            wav = recorder.render_wav()
+            if not wav:
+                return
+            import urllib.parse  # noqa: PLC0415
+            import urllib.request  # noqa: PLC0415
+
+            url = (f"{backend_url.rstrip('/')}/calls/"
+                   f"{urllib.parse.quote(call_id)}/audio")
+            headers = {"Content-Type": "audio/wav"}
+            key = os.environ.get("MIRROR_API_KEY")
+            if key:
+                headers["X-API-Key"] = key
+            req = urllib.request.Request(url, data=wav, headers=headers,
+                                         method="POST")
+            urllib.request.urlopen(req, timeout=30)  # noqa: S310
+        except Exception:  # noqa: BLE001
+            import logging  # noqa: PLC0415
+            logging.getLogger("plivo_mirror_v5.adapter").warning(
+                "recording upload failed for %s", call_id, exc_info=True)
+
+    threading.Thread(target=_send, daemon=True, name="mirror-rec-upload").start()
+
+
 def fetch_agent_config(backend_url: str, agent_id: str,
                        timeout: float = 2.0) -> dict | None:
     """Best-effort pull of the dashboard-registered config. Never raises —
@@ -98,6 +130,7 @@ def attach_mirror(
     agent=None,
     room=None,
     audio_tap=None,
+    record: bool | None = None,
 ) -> MirrorObserver:
     """Build engine + emitter + observer and subscribe to the session.
     Returns the observer (handy for tests and graceful shutdown).
@@ -147,10 +180,19 @@ def attach_mirror(
     observer.attach(bridge)  # registers observer._on_item on the bridge
     t0 = time.monotonic()
 
+    # Recording is opt-in (record=True or MIRROR_RECORD=1); a real call only.
+    import os as _os  # noqa: PLC0415
+    recording_on = record if record is not None else _os.environ.get(
+        "MIRROR_RECORD") == "1"
+    recorder = None
+
     tap = audio_tap
     if tap is None and room is not None:
         from plivo_mirror_v5.integrations.audio_levels import AudioLevelTap  # noqa: PLC0415
-        tap = AudioLevelTap()
+        if recording_on:
+            from plivo_mirror_v5.integrations.recording import CallRecorder  # noqa: PLC0415
+            recorder = CallRecorder()
+        tap = AudioLevelTap(recorder=recorder)
         tap.tap_room(room)
     # A conversation item lands when the utterance COMMITS, so the turn's
     # audio window is [previous item's commit, this commit].
@@ -205,6 +247,8 @@ def attach_mirror(
 
     def _on_close(_ev=None) -> None:
         observer.close()
+        if recorder is not None:
+            _upload_recording(backend_url, room_id, recorder)
         if isinstance(sink, ThreadedSink):
             sink.close()
 

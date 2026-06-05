@@ -49,11 +49,14 @@ def rms_levels(pcm: "array.array | list[int]", sample_rate: int,
 
 
 class AudioLevelTap:
-    def __init__(self) -> None:
+    def __init__(self, recorder=None) -> None:
         # per role: parallel arrays (t_ms sorted, level)
         self._t: dict[str, list[float]] = {"user": [], "agent": []}
         self._lv: dict[str, list[float]] = {"user": [], "agent": []}
         self._t0 = time.monotonic()
+        # optional CallRecorder: when set, raw frames are also buffered into a
+        # playable WAV (same t0 as the levels, so it aligns with turn offsets).
+        self.recorder = recorder
 
     # -- feeding ---------------------------------------------------------
 
@@ -110,11 +113,18 @@ class AudioLevelTap:
             def _pump(track, role: str) -> None:
                 async def reader() -> None:
                     try:
-                        stream = rtc.AudioStream(track)
+                        # Fixed 16 kHz mono: uniform levels AND a clean,
+                        # resample-free recording timeline.
+                        stream = rtc.AudioStream(track, sample_rate=16_000,
+                                                 num_channels=1)
                         async for event in stream:
                             frame = event.frame
+                            t_ms = self.now_ms()
                             self.push_pcm(role, frame.data, frame.sample_rate,
-                                          frame.num_channels)
+                                          frame.num_channels, t_ms=t_ms)
+                            if self.recorder is not None:
+                                self.recorder.add(role, frame.data,
+                                                  frame.sample_rate, t_ms)
                     except Exception:  # noqa: BLE001
                         log.debug("audio tap reader ended", exc_info=True)
                 asyncio.create_task(reader())

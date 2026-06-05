@@ -301,6 +301,19 @@ button.btn:disabled { background: #fff; border-color: var(--line); color: #c2c7c
 .snippet-box pre { margin: 0 0 10px; font-size: 11.5px; line-height: 1.6;
   overflow-x: auto; }
 
+/* registered-agent configuration panel (what the judge is grounded on) */
+.config-box { margin-top: 10px; border: 1px solid var(--line); border-radius: 4px;
+  background: var(--surface); padding: 10px 12px; }
+.config-block { margin-bottom: 10px; }
+.config-block:last-child { margin-bottom: 0; }
+.config-block .mlabel { display: block; margin-bottom: 4px; }
+.config-pre { margin: 0; font-size: 11.5px; line-height: 1.55; white-space: pre-wrap;
+  word-break: break-word; max-height: 220px; overflow-y: auto;
+  background: var(--bg); border: 1px solid var(--line-soft); border-radius: 4px;
+  padding: 8px 10px; }
+.config-policies { margin: 0; padding-left: 18px; font-size: 12.5px; line-height: 1.6; }
+.config-policies li { margin-bottom: 3px; }
+
 /* ── post-call analysis ───────────────────────────────────────────────── */
 .audit-clean { color: var(--ok); margin: 10px 0 2px; font-family: var(--font-mono);
   font-size: 12.5px; }

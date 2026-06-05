@@ -80,7 +80,7 @@ export default function CallTimeline({ turns, onJump }) {
               className={`tl-turn role-${t.role} ${sev ? 'tl-flagged' : ''}`}
               style={{ left: `${left}%`, width: `${width}%`, '--tl-color': color }}
               title={`${t.role} @ ${(t.audio_offset_ms / 1000).toFixed(1)}s — ${t.transcript}`}
-              onClick={() => onJump && onJump(t.turn_id)}
+              onClick={() => onJump && onJump(t)}
             >
               <Bars levels={levels} color={color} />
               {sev && <div className="tl-flag-dot" style={{ background: SEV_COLOR[sev] }} />}

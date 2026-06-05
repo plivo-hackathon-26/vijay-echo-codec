@@ -149,6 +149,7 @@ async def entrypoint(ctx: JobContext) -> None:
         config=EngineConfig(policy=PolicyPack.from_dict(config.POLICY_DICT)),
         action_verbs=config.ACTION_VERBS,
         room=ctx.room,
+        record=True,  # capture call audio for dashboard playback
     )
     ctx.add_shutdown_callback(lambda: observer.close())
     logger.info("plivo-mirror v5 attached (mode=%s) — call %s",

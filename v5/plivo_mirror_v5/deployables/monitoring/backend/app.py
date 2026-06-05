@@ -404,6 +404,26 @@ def create_app(store: CallStore | None = None,
             raise HTTPException(status_code=404, detail="no recording for this call")
         return FileResponse(path)
 
+    _MAX_AUDIO_BYTES = int(os.environ.get("MIRROR_MAX_AUDIO_MB", "50")) * 1_000_000
+
+    @app.post("/calls/{call_id}/audio")
+    async def upload_audio(call_id: str, request: Request):
+        """Receive a call recording (raw WAV body) from the agent worker —
+        the worker and the backend are different hosts, so the file is
+        uploaded rather than read off a shared disk. Written to
+        recordings_dir/{call_id}.wav; then GET /audio + has_audio light up."""
+        _require_key(request)
+        if not _SAFE_CALL_ID.match(call_id):
+            raise HTTPException(status_code=422, detail="bad call_id")
+        body = await request.body()
+        if not body:
+            raise HTTPException(status_code=422, detail="empty body")
+        if len(body) > _MAX_AUDIO_BYTES:
+            raise HTTPException(status_code=413, detail="recording too large")
+        app.state.recordings_dir.mkdir(parents=True, exist_ok=True)
+        (app.state.recordings_dir / f"{call_id}.wav").write_bytes(body)
+        return {"stored": call_id, "bytes": len(body)}
+
     def _find_recording(call_id: str) -> Path | None:
         if not _SAFE_CALL_ID.match(call_id):  # path-traversal guard
             return None

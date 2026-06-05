@@ -274,6 +274,7 @@ async def entrypoint(ctx: JobContext) -> None:
             "book_flight": ["booked"],
         },
         room=ctx.room,
+        record=True,  # capture call audio for dashboard playback
     )
     ctx.add_shutdown_callback(lambda: observer.close())
     logger.info("plivo-mirror v5 attached (mode=%s) — call %s",

@@ -87,8 +87,13 @@ function RegisterForm({ onDone }) {
   )
 }
 
+function policyLines(policies) {
+  return (policies || '').split('\n').map((s) => s.trim()).filter(Boolean)
+}
+
 function AgentCard({ agent, onToggle }) {
   const [showSnippet, setShowSnippet] = useState(false)
+  const [showConfig, setShowConfig] = useState(false)
   const [copied, setCopied] = useState(false)
   const intervene = agent.mode === 'intervene'
 
@@ -96,6 +101,11 @@ function AgentCard({ agent, onToggle }) {
     navigator.clipboard.writeText(snippet(agent.agent_id))
     setCopied(true); setTimeout(() => setCopied(false), 1500)
   }
+
+  const facts = agent.facts && Object.keys(agent.facts).length ? agent.facts : null
+  const policies = policyLines(agent.policies)
+  const hasConfig = agent.registered &&
+    (agent.system_prompt || facts || policies.length)
 
   return (
     <div className="panel agent-card">
@@ -115,9 +125,41 @@ function AgentCard({ agent, onToggle }) {
                    onChange={() => onToggle(agent.agent_id, intervene ? 'shadow' : 'intervene')} />
             <span className="mode-label mono">{intervene ? 'INTERVENE ON' : 'shadow only'}</span>
           </label>
+          {hasConfig && (
+            <a className="replay" onClick={() => setShowConfig(!showConfig)}>
+              {showConfig ? 'hide config ▴' : 'configuration ▾'}
+            </a>
+          )}
           <a className="replay" onClick={() => setShowSnippet(!showSnippet)}>
             {showSnippet ? 'hide snippet ▴' : 'integration snippet ▾'}
           </a>
+        </div>
+      )}
+      {showConfig && (
+        <div className="config-box">
+          <div className="config-block">
+            <span className="mlabel">what the judge is grounded on</span>
+          </div>
+          {agent.system_prompt && (
+            <div className="config-block">
+              <span className="mlabel">system prompt</span>
+              <pre className="mono config-pre">{agent.system_prompt}</pre>
+            </div>
+          )}
+          {facts && (
+            <div className="config-block">
+              <span className="mlabel">facts (ground truth)</span>
+              <pre className="mono config-pre">{JSON.stringify(facts, null, 2)}</pre>
+            </div>
+          )}
+          {policies.length > 0 && (
+            <div className="config-block">
+              <span className="mlabel">policies</span>
+              <ul className="config-policies">
+                {policies.map((p, i) => <li key={i}>{p}</li>)}
+              </ul>
+            </div>
+          )}
         </div>
       )}
       {showSnippet && (
