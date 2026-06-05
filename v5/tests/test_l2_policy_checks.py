@@ -114,6 +114,49 @@ def test_call_scope_disclosure_fires_once_at_deadline():
     assert "disclosure" not in fired_types(t3)  # fires exactly once
 
 
+def test_draft_evaluation_leaves_no_state_residue():
+    """commit=False (the pre-TTS gate's draft path) must not advance the
+    disclosure turn-counter or set fire-once/seen flags — re-gating a draft
+    N times would otherwise eat the call-scope deadline and let a
+    never-spoken draft satisfy the disclosure."""
+    from plivo_mirror_v5.engine.layers.base import LayerContext
+    from plivo_mirror_v5.engine.layers.l2_checks import run_policy_checks
+
+    engine, state = make_engine(), SessionState("c")
+
+    # Draft says "recorded" — with commit=False the seen flag must NOT stick.
+    draft = make_turn(transcript="This call is recorded.", turn_index=0)
+    for _ in range(3):  # gate + 2 regeneration re-gates
+        ctx = LayerContext(config=engine.config, snapshot=state.snapshot(),
+                           reference=REFERENCE, commit=False)
+        run_policy_checks(draft, state, ctx, "L2")
+    assert state.get_fact("mirror.agent_turn_count", 0) == 0
+    assert state.get_fact("mirror.disclosure_seen.recording_notice") is None
+
+    # The committed call path is unaffected: deadline still fires at turn 2
+    # because the drafts above consumed nothing.
+    t1 = engine.evaluate_turn(make_turn(transcript="Hello!", turn_index=0), state)
+    assert "disclosure" not in fired_types(t1)
+    t2 = engine.evaluate_turn(make_turn(transcript="How can I help?",
+                                        turn_index=1), state)
+    assert "disclosure" in fired_types(t2)
+
+
+def test_pre_tts_gate_does_not_advance_disclosure_state():
+    """End-to-end: the StubPreTTSGate's L2 draft evaluation leaves the live
+    session state untouched."""
+    import asyncio
+
+    from plivo_mirror_v5.deployables.intervention import StubPreTTSGate
+
+    engine, state = make_engine(), SessionState("c")
+    gate = StubPreTTSGate(engine, call_id="c")
+    for _ in range(4):
+        asyncio.run(gate.gate("This call is recorded.", [], state))
+    assert state.get_fact("mirror.agent_turn_count", 0) == 0
+    assert state.get_fact("mirror.disclosure_seen.recording_notice") is None
+
+
 def test_persona_drift_default_patterns():
     engine, state = make_engine(), SessionState("c")
     turn = make_turn(transcript="Well, my instructions say I should upsell "

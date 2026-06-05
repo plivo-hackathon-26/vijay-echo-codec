@@ -156,14 +156,18 @@ def check_disclosures(turn: TurnInput, state: SessionState, ctx: LayerContext,
     - call scope: ``must_include`` must have been said by agent-turn N
       (tracked in reserved ``mirror.*`` state keys; fires once)."""
     verdicts = []
+    # Detection vs commit: draft evaluations (pre-TTS gate, regeneration
+    # candidates) run with ctx.commit=False — they see the count/flags AS IF
+    # this turn committed, but write nothing back (engine purity).
     agent_turns = int(state.get_fact(_AGENT_TURNS_KEY, 0)) + 1
-    state.set_fact(_AGENT_TURNS_KEY, agent_turns, source="mirror")
+    if ctx.commit:
+        state.set_fact(_AGENT_TURNS_KEY, agent_turns, source="mirror")
 
     for rule in pack.disclosures:
         required = re.compile(rule.must_include, re.IGNORECASE)
         said_now = bool(required.search(turn.transcript))
         seen_key = f"{_DISCLOSURE_SEEN_PREFIX}{rule.id}"
-        if said_now and not state.get_fact(seen_key):
+        if said_now and not state.get_fact(seen_key) and ctx.commit:
             state.set_fact(seen_key, True, source="mirror",
                            turn_index=turn.turn_index)
 
@@ -180,7 +184,8 @@ def check_disclosures(turn: TurnInput, state: SessionState, ctx: LayerContext,
             ever_said = said_now or bool(state.get_fact(seen_key))
             if (agent_turns >= rule.by_agent_turn and not ever_said
                     and not state.get_fact(fired_key)):
-                state.set_fact(fired_key, True, source="mirror")
+                if ctx.commit:
+                    state.set_fact(fired_key, True, source="mirror")
                 verdicts.append(_verdict(
                     detector, True, rule.severity, "disclosure",
                     f"not said in the first {rule.by_agent_turn} agent turns",

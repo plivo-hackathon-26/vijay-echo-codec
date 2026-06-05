@@ -104,12 +104,16 @@ class StubPreTTSGate:
             claims=claims,
         )
         # L2 only: build the ctx the engine would, but skip L1/L3 entirely.
+        # commit=False — this is a DRAFT evaluation: it must leave no
+        # residue in session state (disclosure counters / fire-once flags);
+        # the committed turn re-runs through the engine with commit=True.
         from plivo_mirror_v5.engine.layers.base import LayerContext  # noqa: PLC0415
 
         ctx = LayerContext(
             config=self.engine.config,
             snapshot=state.snapshot(),
             reference=self.engine.reference,
+            commit=False,
         )
         return self.engine.l2.check(turn, state, ctx)
 
