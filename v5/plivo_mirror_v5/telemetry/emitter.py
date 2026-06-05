@@ -88,22 +88,72 @@ class HTTPSink:
 class ThreadedSink:
     """Decorator sink: hands records to a daemon thread so ``emit`` returns
     in microseconds — the live-call path must never wait on telemetry I/O.
-    Records are delivered in order; failures are logged and dropped (the
-    call always outranks its telemetry)."""
+    Records are delivered in order; the call always outranks its telemetry.
 
-    def __init__(self, inner: "TelemetrySink") -> None:
+    Reliability (a backend outage must not cost memory or data silently):
+
+    - The queue is BOUNDED (``maxsize`` / ``MIRROR_TELEMETRY_QUEUE_MAX``,
+      default 10_000). When full, the OLDEST record is dropped (recency
+      wins for live dashboards) and ``self.dropped`` counts it.
+    - Optional JSONL SPOOL (``spool_path`` / ``MIRROR_TELEMETRY_SPOOL``):
+      a record the inner sink fails to deliver is appended to the spool
+      instead of dropped; on the next successful delivery the spool is
+      replayed and truncated. Off by default (no spool → failures are
+      logged and dropped, the pre-existing behavior)."""
+
+    def __init__(self, inner: "TelemetrySink", *,
+                 maxsize: int | None = None,
+                 spool_path: str | None = None) -> None:
         import logging
+        import os
         import queue
 
         self.inner = inner
-        self._queue: "queue.Queue[dict | None]" = queue.Queue()
+        if maxsize is None:
+            maxsize = int(os.environ.get("MIRROR_TELEMETRY_QUEUE_MAX", "10000"))
+        if spool_path is None:
+            spool_path = os.environ.get("MIRROR_TELEMETRY_SPOOL") or None
+        self.spool_path = spool_path
+        self.dropped = 0          # records lost to a full queue
+        self.spooled = 0          # records parked in the spool (not yet replayed)
+        if spool_path:            # pick up records left over from a prior run
+            try:
+                with open(spool_path, encoding="utf-8") as f:
+                    self.spooled = sum(1 for ln in f if ln.strip())
+            except OSError:
+                pass
+        self._queue: "queue.Queue[dict | None]" = queue.Queue(maxsize=maxsize)
         self._log = logging.getLogger("plivo_mirror_v5.telemetry")
+        self._last_drop_log = 0.0
         self._thread = threading.Thread(target=self._drain, daemon=True,
                                         name="mirror-telemetry")
         self._thread.start()
 
     def emit(self, record: dict) -> None:
-        self._queue.put(record)
+        import queue
+
+        try:
+            self._queue.put_nowait(record)
+            return
+        except queue.Full:
+            pass
+        # Full: drop the OLDEST queued record to make room for the newest.
+        try:
+            self._queue.get_nowait()
+        except queue.Empty:  # raced with the drain thread — retry the put
+            pass
+        try:
+            self._queue.put_nowait(record)
+        except queue.Full:
+            self.dropped += 1
+            return
+        self.dropped += 1
+        now = time.monotonic()
+        if now - self._last_drop_log > 10.0:  # throttled: once per 10s max
+            self._last_drop_log = now
+            self._log.warning(
+                "telemetry queue full; %d record(s) dropped so far "
+                "(backend slow/unreachable?)", self.dropped)
 
     def _drain(self) -> None:
         while True:
@@ -113,7 +163,50 @@ class ThreadedSink:
             try:
                 self.inner.emit(record)
             except Exception:  # noqa: BLE001 — telemetry must never kill the call
-                self._log.exception("telemetry emit failed; record dropped")
+                if self.spool_path:
+                    self._spool(record)
+                else:
+                    self._log.exception("telemetry emit failed; record dropped")
+                continue
+            if self.spooled:
+                self._replay_spool()
+
+    def _spool(self, record: dict) -> None:
+        try:
+            with open(self.spool_path, "a", encoding="utf-8") as f:
+                f.write(json.dumps(record) + "\n")
+            self.spooled += 1
+        except Exception:  # noqa: BLE001 — spool failure degrades to drop
+            self._log.exception("telemetry emit failed AND spool write failed; "
+                                "record dropped")
+
+    def _replay_spool(self) -> None:
+        """Backend is reachable again: deliver spooled records, truncate on
+        full success; on partial failure rewrite the remainder."""
+        import os
+
+        try:
+            with open(self.spool_path, encoding="utf-8") as f:
+                lines = [ln for ln in f.read().splitlines() if ln.strip()]
+        except FileNotFoundError:
+            self.spooled = 0
+            return
+        remaining: list[str] = []
+        for i, line in enumerate(lines):
+            try:
+                self.inner.emit(json.loads(line))
+            except Exception:  # noqa: BLE001 — keep the rest for next time
+                remaining = lines[i:]
+                break
+        try:
+            if remaining:
+                with open(self.spool_path, "w", encoding="utf-8") as f:
+                    f.write("\n".join(remaining) + "\n")
+            else:
+                os.remove(self.spool_path)
+        except Exception:  # noqa: BLE001
+            self._log.exception("telemetry spool rewrite failed")
+        self.spooled = len(remaining)
 
     def close(self, timeout: float = 5.0) -> None:
         """Flush and stop the worker (call teardown / tests)."""

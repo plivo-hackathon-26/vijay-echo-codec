@@ -1,5 +1,7 @@
+import threading
+
 from plivo_mirror_v5.engine.verdict import Action, Evidence, TurnResult, Verdict, new_verdict_id
-from plivo_mirror_v5.telemetry import InMemorySink, TelemetryEmitter
+from plivo_mirror_v5.telemetry import InMemorySink, TelemetryEmitter, ThreadedSink
 from plivo_mirror_v5.telemetry import schema as S
 
 
@@ -58,6 +60,75 @@ def test_non_firing_verdict_emits_latency_but_no_flag_counter():
     names = [m["name"] for m in sink.of_type(S.REC_METRIC)]
     assert S.METRIC_FLAGS_TOTAL not in names
     assert S.METRIC_DETECTOR_LATENCY_MS in names
+
+
+class FlakySink:
+    """Inner sink that fails the first ``fail_first`` emits, then succeeds.
+    ``gate`` (when set) blocks every emit until released — lets a test fill
+    the queue deterministically without sleeps."""
+
+    def __init__(self, fail_first: int = 0, gate: threading.Event | None = None):
+        self.fail_first = fail_first
+        self.gate = gate
+        self.records: list[dict] = []
+
+    def emit(self, record: dict) -> None:
+        if self.gate is not None:
+            self.gate.wait(timeout=5)
+        if self.fail_first > 0:
+            self.fail_first -= 1
+            raise ConnectionError("backend down")
+        self.records.append(record)
+
+
+def test_threaded_sink_delivers_in_order():
+    inner = FlakySink()
+    sink = ThreadedSink(inner, maxsize=100)
+    for i in range(10):
+        sink.emit({"i": i})
+    sink.close()
+    assert [r["i"] for r in inner.records] == list(range(10))
+    assert sink.dropped == 0
+
+
+def test_threaded_sink_bounded_queue_drops_oldest():
+    gate = threading.Event()
+    inner = FlakySink(gate=gate)
+    sink = ThreadedSink(inner, maxsize=3)
+    # The drain thread blocks on the gate holding record 0; fill past the cap.
+    for i in range(8):
+        sink.emit({"i": i})
+    assert sink.dropped > 0
+    gate.set()
+    sink.close()
+    # Newest records survive (drop-oldest); nothing duplicated.
+    delivered = [r["i"] for r in inner.records]
+    assert delivered[-1] == 7
+    assert delivered == sorted(delivered)
+    assert len(delivered) + sink.dropped == 8
+
+
+def test_threaded_sink_spool_recovers_failed_records(tmp_path):
+    spool = tmp_path / "spool.jsonl"
+    inner = FlakySink(fail_first=2)
+    sink = ThreadedSink(inner, maxsize=100, spool_path=str(spool))
+    for i in range(5):
+        sink.emit({"i": i})
+    sink.close()
+    # The 2 failed records were spooled, then replayed after recovery:
+    # nothing lost, spool truncated.
+    assert sorted(r["i"] for r in inner.records) == list(range(5))
+    assert sink.spooled == 0
+    assert not spool.exists()
+
+
+def test_threaded_sink_without_spool_drops_failed_records():
+    inner = FlakySink(fail_first=2)
+    sink = ThreadedSink(inner, maxsize=100)  # pre-existing behavior
+    for i in range(5):
+        sink.emit({"i": i})
+    sink.close()
+    assert [r["i"] for r in inner.records] == [2, 3, 4]
 
 
 def test_redaction():
